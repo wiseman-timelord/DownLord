@@ -81,9 +81,9 @@ def prompt_for_download():
     print()
     config = load_config()
     last_chunk_size = config.get("chunk_size", 1024)
-    print(f"1. Mobile ~1  MBit/s (Chunk Size 1024KB)")
-    print(f"2. Wired  >5  MBit/s (Chunk Size 4096KB)")
-    print(f"3. Super >10  MBit/s (Chunk Size 8192KB)")
+    print(f"1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
+    print(f"2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
+    print(f"3. Fast >10  MBit/s (Chunk Size 8192KB)")
     print()
 
     # Determine the default value for chunk size
