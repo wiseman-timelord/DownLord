@@ -54,7 +54,7 @@ Pauses Out:0, Discards Out: 0, Errors Out: 0.
 ```
 ## Requirements
 
-- Python 3.4 to 3.10
+- Python 3.4-3.10
 
 ## Disclaimer
 
