@@ -26,31 +26,23 @@ Output looks like this...
 
 ```
 
-                  Netformancer
+                         Main Menu
+                         -=-=-=-=-
 
 
-Adapter: vEthernet (WSL) - Idle Time: 01:45:46
+                      Recent Downloads:
 
-Data In Rate: 0.00 KB/s, Data In Total: 0.00 GB
-Pauses In:0, Discards In: 0, Errors In: 0.
-Data Out Rate: 0.00 KB/s, Data Out Total: 0.03 GB
-Pauses Out:0, Discards Out: 0, Errors Out: 0.
+    1. Empty
+    2. Empty
+    3. Empty
+    4. Empty
+    5. Empty
+    6. Empty
+    7. Empty
+    8. Empty
+    9. Empty
 
-
-Adapter: Ethernet - Idle Time: 00:14:25
-
-Data In Rate: 0.06 KB/s, Data In Total: 33.45 GB
-Pauses In:0, Discards In: 0, Errors In: 0.
-Data Out Rate: 0.04 KB/s, Data Out Total: 0.66 GB
-Pauses Out:0, Discards Out: 0, Errors Out: 0.
-
-
-Adapter: vEthernet (Default Switch) - Idle Time: 04:49:47
-
-Data In Rate: 0.00 KB/s, Data In Total: 0.00 GB
-Pauses In:0, Discards In: 0, Errors In: 0.
-Data Out Rate: 0.00 KB/s, Data Out Total: 0.00 GB
-Pauses Out:0, Discards Out: 0, Errors Out: 0.
+Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
 ```
 ## Requirements
 
