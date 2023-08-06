@@ -78,15 +78,19 @@ def validate_input(url):
     return url.startswith("http")
 
 def update_config(config, filename, url):
-    # Shift previous entries down
+    existing_entry_index = None
+    for i in range(1, 10):
+        if config.get(f"filename_{i}") == filename and config.get(f"url_{i}") == url:
+            existing_entry_index = i
+            break
+    if existing_entry_index is not None:
+        print(f"Entry for {filename} already exists at position {existing_entry_index}.")
+        return
     for i in range(9, 1, -1):
         config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
         config[f"url_{i}"] = config.get(f"url_{i-1}", "")
-
-    # Add new entry
     config["filename_1"] = filename
     config["url_1"] = url
-
     save_config(config)
 
 def load_config():
