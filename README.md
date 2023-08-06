@@ -26,12 +26,11 @@ Output looks like this...
 
 ```
 
-                         Main Menu
-                         -=-=-=-=-
+                           Main Menu
+                           -=-=-=-=-
 
 
                       Recent Downloads:
-
     1. Empty
     2. Empty
     3. Empty
