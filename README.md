@@ -54,7 +54,7 @@ Accept-Ranges: bytes
 Resuming download of largemodel-13b-8bit-GGML.bin...
 Headers: {'Range': 'bytes=4907008000-'}
 Response status code: 206
-Downloading Downloading largemodel-13b-8bit-GGML.bin:  36% ██████████████▍                          4.98G/13.8G 02:14/5:09:03
+36% ██████████████▍                          4.98G/13.8G 02:14/5:09:03
 ```
 ```
 
