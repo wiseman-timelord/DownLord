@@ -16,9 +16,9 @@ def download_file(remote_url, out_path, chunk_size):
         existing_file_size = os.path.getsize(out_path)
         with requests.head(remote_url) as response:
             remote_file_size = int(response.headers.get('content-length', 0))
-            print(f"Existing file size: {existing_file_size}")  # Debug statement
-            print(f"Remote file size: {remote_file_size}")      # Debug statement
-            print(f"Accept-Ranges: {response.headers.get('Accept-Ranges')}") # Debug statement
+            print(f"Existing file size: {existing_file_size}")
+            print(f"Remote file size: {remote_file_size}")
+            print(f"Accept-Ranges: {response.headers.get('Accept-Ranges')}")
         if existing_file_size == remote_file_size:
             print(f"File {file_name} already downloaded.")
             return
