@@ -42,6 +42,7 @@ Output looks like this...
     9. Empty
 
 Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
+
 ```
 ```
 
@@ -53,6 +54,7 @@ Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
             3. Fast >10  MBit/s (Chunk Size 8192KB)
 
 Enter your internet connection type (Press 1-3, or ENTER for 2):
+
 ```
 ## Requirements
 
