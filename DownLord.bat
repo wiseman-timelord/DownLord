@@ -1,4 +1,5 @@
 @echo off
+mode 70,30
 setlocal enabledelayedexpansion
 
 echo.
