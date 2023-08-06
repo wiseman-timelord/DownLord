@@ -19,6 +19,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 3. Run the script, using `python download.py` or double click `DownLord.bat`.
 4. Follow the prompts to select your internet connection type and enter the URL to download.
 5. The file will be downloaded to the `downloads` directory.
+6) The "Downlord.lnk" shortcut provided with preset arguements to run ".bat" on taskbar.
 
 ## Output
 
