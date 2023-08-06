@@ -78,6 +78,7 @@ Enter your internet connection type (Press 1-5, or ENTER for 2):
 ## Requirements
 
 - Python 3.4-3.10
+- Windows (Soft Requirement)
 
 ## Disclaimer
 
