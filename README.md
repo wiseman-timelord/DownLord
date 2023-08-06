@@ -56,6 +56,18 @@ Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
 Enter your internet connection type (Press 1-3, or ENTER for 2):
 
 ```
+```
+Enter the URL to download (or 'q' to quit): http://www.somewebsite.com/files/largemodel-13b-8bit-GGML.bin
+Detected filename from URL: largemodel-13b-8bit-GGML.bin
+
+Existing file size: 4907008000
+Remote file size: 13831029888
+Accept-Ranges: bytes
+Resuming download of largemodel-13b-8bit-GGML.bin...
+Headers: {'Range': 'bytes=4907008000-'}
+Response status code: 206
+Downloading Downloading largemodel-13b-8bit-GGML.bin:  36% ██████████████▍                          4.98G/13.8G 02:14/5:09:03
+```
 ## Requirements
 
 - Python 3.4-3.10
