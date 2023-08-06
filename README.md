@@ -46,8 +46,8 @@ Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
 ```
 ```
 
-                      Internet  Options
-                      -=-=-=-=-=-=-=-=-
+                      Setup Menu
+                      -=-=--=-=-
 
             1. Slow  ~1  MBit/s (Chunk Size 1024KB)
             2. Okay  ~5  MBit/s (Chunk Size 4096KB)
