@@ -59,8 +59,8 @@ def prompt_for_download():
 
 def display_main_menu(config):
     print("\n                           Main Menu")
-    print("                           -=-=-=-=-")
-    print("\n                      Recent Downloads:")
+    print("                           -=-=-=-=-\n")
+    print("Recent Downloads:\n")
     for i in range(1, 10):
         filename_key = f"filename_{i}"
         filename = config.get(filename_key, "Empty")
