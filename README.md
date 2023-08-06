@@ -1,5 +1,5 @@
 # DownLord
-Status: Updating Now.
+Status: Updating, some features being fixed..
 
 ## Description
 
