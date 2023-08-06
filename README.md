@@ -20,6 +20,38 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 4. Follow the prompts to select your internet connection type and enter the URL to download.
 5. The file will be downloaded to the `downloads` directory.
 
+## Output
+
+Output looks like this...
+
+```
+
+                  Netformancer
+
+
+Adapter: vEthernet (WSL) - Idle Time: 01:45:46
+
+Data In Rate: 0.00 KB/s, Data In Total: 0.00 GB
+Pauses In:0, Discards In: 0, Errors In: 0.
+Data Out Rate: 0.00 KB/s, Data Out Total: 0.03 GB
+Pauses Out:0, Discards Out: 0, Errors Out: 0.
+
+
+Adapter: Ethernet - Idle Time: 00:14:25
+
+Data In Rate: 0.06 KB/s, Data In Total: 33.45 GB
+Pauses In:0, Discards In: 0, Errors In: 0.
+Data Out Rate: 0.04 KB/s, Data Out Total: 0.66 GB
+Pauses Out:0, Discards Out: 0, Errors Out: 0.
+
+
+Adapter: vEthernet (Default Switch) - Idle Time: 04:49:47
+
+Data In Rate: 0.00 KB/s, Data In Total: 0.00 GB
+Pauses In:0, Discards In: 0, Errors In: 0.
+Data Out Rate: 0.00 KB/s, Data Out Total: 0.00 GB
+Pauses Out:0, Discards Out: 0, Errors Out: 0.
+```
 ## Requirements
 
 - Python 3.x
