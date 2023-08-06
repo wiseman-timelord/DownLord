@@ -10,14 +10,16 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 - Configuration Persistence - The last used URL and chunk size are saved in a configuration file for convenience.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 
-## Requirements
-- Python 3.x
-- `requests` library
-- `tqdm` library
-
 ## Usage
 1. Clone the repository or download the script.
 2. Run `Install.bat` to install requirements in `requirements.txt`.
 3. Run the script, using `python download.py` or double click `DownLord.bat`.
 4. Follow the prompts to select your internet connection type and enter the URL to download.
 5. The file will be downloaded to the `downloads` directory.
+
+## Requirements
+- Python 3.x
+- `requests` library
+- `tqdm` library
+
+
