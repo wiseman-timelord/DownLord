@@ -60,7 +60,7 @@ def prompt_for_download():
 def display_main_menu(config):
     print("\n                           Main Menu")
     print("                           -=-=-=-=-")
-    print("\n\n                      Recent Downloads:")
+    print("\n                      Recent Downloads:")
     for i in range(1, 10):
         filename_key = f"filename_{i}"
         filename = config.get(filename_key, "Empty")
@@ -69,8 +69,7 @@ def display_main_menu(config):
 
 def internet_options_menu():
     print("\n                      Setup Menu")
-    print("                      -=-=--=-=-")
-    print("")
+    print("                      -=-=--=-=-\n")
     print("            1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
     print("            2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
     print("            3. Fast >10  MBit/s (Chunk Size 8192KB)\n")
