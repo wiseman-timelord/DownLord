@@ -29,7 +29,6 @@ Output looks like this...
                            Main Menu
                            -=-=-=-=-
 
-
                       Recent Downloads:
     1. Empty
     2. Empty
