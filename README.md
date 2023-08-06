@@ -1,5 +1,5 @@
 # DownLord
-Status: Updating, some features being fixed..
+Status: Testing...
 
 ## Description
 
