@@ -7,27 +7,6 @@ import json
 file_path = Path("downloads")
 config_file = "config.json"
 
-def display_main_menu(config):
-    print("\n                           Main Menu")
-    print("                           -=-=-=-=-")
-    print("")
-    print("\n                      Recent Downloads:")
-    for i in range(1, 10):
-        filename_key = f"filename_{i}"
-        filename = config.get(filename_key, "")
-        if filename and (file_path / filename).exists():
-            print(f"    {i}. {filename}")
-        else:
-            print(f"    {i}. Empty")
-    print("\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
-
-def internet_options_menu():
-    print("\n                      Internet  Options")
-    print("                      -=-=-=-=-=-=-=-=-")
-    print("")
-    print("            1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
-    print("            2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
-    print("            3. Fast >10  MBit/s (Chunk Size 8192KB)\n")
 
 def prompt_for_download():
     config = load_config()
@@ -70,23 +49,65 @@ def prompt_for_download():
                 if not filename:
                     print("Unable to extract filename from the URL. Please try again.")
                     continue
+                update_config(config, filename, url)
                 out_path = file_path / filename
                 download_file(url, out_path, config["chunk"])
-                update_config(config, filename, url)
                 continue
+   
         print("Invalid choice. Please try again.")
+
+def display_main_menu(config):
+    print("\n                           Main Menu")
+    print("                           -=-=-=-=-")
+    print("\n\n                      Recent Downloads:")
+    for i in range(1, 10):
+        filename_key = f"filename_{i}"
+        filename = config.get(filename_key, "Empty")
+        print(f"    {i}. {filename}")
+    print("\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
+
+def internet_options_menu():
+    print("\n                      Internet  Options")
+    print("                      -=-=-=-=-=-=-=-=-")
+    print("")
+    print("            1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
+    print("            2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
+    print("            3. Fast >10  MBit/s (Chunk Size 8192KB)\n")
 
 def validate_input(url):
     return url.startswith("http")
+
+def update_config(config, filename, url):
+    # Shift previous entries down
+    for i in range(9, 1, -1):
+        config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
+        config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+
+    # Add new entry
+    config["filename_1"] = filename
+    config["url_1"] = url
+
+    save_config(config)
 
 def load_config():
     try:
         if Path(config_file).exists():
             with open(config_file, "r") as file:
                 config = json.load(file)
+            # Check for missing files and remove them
+            for i in range(1, 10):
+                filename_key = f"filename_{i}"
+                filename = config.get(filename_key, "Empty")
+                if filename != "Empty" and not (file_path / filename).exists():
+                    config[filename_key] = "Empty"
+                    config[f"url_{i}"] = ""
+            return config
         else:
             config = {}
-        return config
+            for i in range(1, 10):
+                config[f"filename_{i}"] = "Empty"
+                config[f"url_{i}"] = ""
+            return config
     except json.JSONDecodeError:
         print("Error reading configuration file. Using default settings.")
         return {}
