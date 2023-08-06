@@ -38,7 +38,7 @@ def download_file(remote_url, out_path, chunk_size):
                     print(f"File {file_name} already downloaded.")
                     return
                 total_size += existing_file_size
-                progress_bar = tqdm(total=total_size, initial=existing_file_size, unit='B', unit_scale=True, desc=f'Downloading {file_name}', bar_format='{desc}: {percentage:3.0f}% {bar} {n_fmt}/{total_fmt} {elapsed}/{remaining}')
+                progress_bar = tqdm(total=total_size, initial=existing_file_size, unit='B', unit_scale=True, desc=f'', bar_format='{desc}: {percentage:3.0f}% {bar} {n_fmt}/{total_fmt} {elapsed}/{remaining}')
                 start_time = time.time()
                 downloaded_size = existing_file_size
                 for chunk in response.iter_content(chunk_size=chunk_size):
