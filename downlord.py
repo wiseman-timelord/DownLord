@@ -11,14 +11,14 @@ config_file = "config.json"
 
 def prompt_for_download():
     config = load_config()
-    chunk_sizes = {1: 1024000, 2: 4096000, 3: 8192000}
+    chunk_sizes = {1: 1024000, 2: 4096000, 3: 8192000, 3: 16384000, 4: 20480000, 3: 40960000}
     last_chunk_size = config.get("chunk", 1024)
     default_chunk_size = next((chunk_size for chunk_size in chunk_sizes.values() if chunk_size == last_chunk_size), None)
     if default_chunk_size is not None:
         default_choice = str(next((key for key, value in chunk_sizes.items() if value == default_chunk_size), None))
-        prompt_message = f"Enter your internet connection type (Press 1-3, or ENTER for {default_choice}): "
+        prompt_message = f"Enter your internet connection type (Press 1-5, or ENTER for {default_choice}): "
     else:
-        prompt_message = "Enter your internet connection type (Press 1-3): "
+        prompt_message = "Enter your internet connection type (Press 1-5): "
 
     while True:
         display_main_menu(config)
@@ -38,7 +38,7 @@ def prompt_for_download():
 
         if choice.isdigit() and 0 <= int(choice) <= 9:
             if int(choice) == 0:
-                url = input("Enter the URL to download (or 'q' to quit): ")
+                url = input("\nEnter the URL to download (or 'q' to quit): ")
             else:
                 url_key = f"url_{choice}"
                 url = config.get(url_key, "")
@@ -58,21 +58,23 @@ def prompt_for_download():
         print("Invalid choice. Please try again.")
 
 def display_main_menu(config):
-    print("\n                           Main Menu")
+    print("\n\n                           Main Menu")
     print("                           -=-=-=-=-\n")
     print("Recent Downloads:\n")
     for i in range(1, 10):
         filename_key = f"filename_{i}"
         filename = config.get(filename_key, "Empty")
         print(f"    {i}. {filename}")
-    print("\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
+    print("\n\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
 
 def internet_options_menu():
-    print("\n                      Setup Menu")
-    print("                      -=-=--=-=-\n")
-    print("            1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
-    print("            2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
-    print("            3. Fast >10  MBit/s (Chunk Size 8192KB)\n")
+    print("\n                        Setup Menu")
+    print("                        -=-=--=-=-\n")
+    print("           1. Slow   ~1  MBit/s  (Chunk Size 1024KB)")
+    print("           2. Okay   ~5  MBit/s  (Chunk Size 4096KB)")
+    print("           3. Good  ~10  MBit/s  (Chunk Size 8192KB)")
+    print("           4. Fast  ~25  MBit/s (Chunk Size 20480KB)")
+    print("           5. Uber  ~50  MBit/s (Chunk Size 40960KB)\n\n")
 
 def validate_input(url):
     return url.startswith("http")
