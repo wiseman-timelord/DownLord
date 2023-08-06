@@ -3,6 +3,7 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote
 from manager import download_file, get_file_name_from_url
 import json
+import time
 
 file_path = Path("downloads")
 config_file = "config.json"
@@ -67,8 +68,8 @@ def display_main_menu(config):
     print("\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
 
 def internet_options_menu():
-    print("\n                      Internet  Options")
-    print("                      -=-=-=-=-=-=-=-=-")
+    print("\n                      Setup Menu")
+    print("                      -=-=--=-=-")
     print("")
     print("            1. Slow  ~1  MBit/s (Chunk Size 1024KB)")
     print("            2. Okay  ~5  MBit/s (Chunk Size 4096KB)")
