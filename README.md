@@ -10,7 +10,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 1. **Connection Speed Selection:** Choose from Mobile, Wired, or Super-fast connection speeds.
 2. **Download Resumption:** If a download is interrupted, it can be resumed from where it left off.
 3. **Configuration Persistence:** The last used URL and chunk size are saved in a configuration file for convenience.
-4. **Reading of Complex URLs:** Such as those found on Hugging Face download, to correctly obtain filenames.
+4. **Reading of Complex URLs:** Such as found on hugging face download, to correctly obtain filenames.
 
 ## Usage
 
@@ -22,8 +22,8 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 
 ## Requirements
 
-- Python 3.?
+- Python 3.x
 
 ## Disclaimer
 
-DownLord is designed to facilitate file downloads, and while it aims to provide a smooth experience, interruptions or issues with downloads may still occur. Use at your own discretion and risk.
+DownLord is designed to facilitate file downloads, and while it aims to provide a smooth experience, interruptions or issues may occur based on the user's internet connection or other factors. Use at your own discretion and risk.
