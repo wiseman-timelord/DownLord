@@ -10,7 +10,7 @@ echo "/_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ | "
 echo "        \/                  \/        \/                \/ "
 echo.
 
-set "message=We will now insist upon downloading your files.."
+set "message=We will now insist upon downloading your files 100 times.."
 set "delay=1"
 for %%a in (%message%) do (
     echo|set /p="%%a "
