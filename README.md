@@ -45,18 +45,6 @@ Press, 0 To Enter A New URL or 1-9 to Continue or s for Setup:
 
 ```
 ```
-
-                      Setup Menu
-                      -=-=--=-=-
-
-            1. Slow  ~1  MBit/s (Chunk Size 1024KB)
-            2. Okay  ~5  MBit/s (Chunk Size 4096KB)
-            3. Fast >10  MBit/s (Chunk Size 8192KB)
-
-Enter your internet connection type (Press 1-3, or ENTER for 2):
-
-```
-```
 Enter the URL to download (or 'q' to quit): http://www.somewebsite.com/files/largemodel-13b-8bit-GGML.bin
 Detected filename from URL: largemodel-13b-8bit-GGML.bin
 
@@ -68,6 +56,19 @@ Headers: {'Range': 'bytes=4907008000-'}
 Response status code: 206
 Downloading Downloading largemodel-13b-8bit-GGML.bin:  36% ██████████████▍                          4.98G/13.8G 02:14/5:09:03
 ```
+```
+
+                      Setup Menu
+                      -=-=--=-=-
+
+            1. Slow  ~1  MBit/s (Chunk Size 1024KB)
+            2. Okay  ~5  MBit/s (Chunk Size 4096KB)
+            3. Fast >10  MBit/s (Chunk Size 8192KB)
+
+Enter your internet connection type (Press 1-3, or ENTER for 2):
+
+```
+
 ## Requirements
 
 - Python 3.4-3.10
