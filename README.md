@@ -22,7 +22,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 
 ## Requirements
 
-- Python 3.x
+- Python 3.?
 
 ## Disclaimer
 
