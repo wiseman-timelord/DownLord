@@ -65,11 +65,11 @@ Response status code: 206
                         Setup Menu
                         -=-=--=-=-
 
-           1. Slow  ~1  MBit/s (Chunk Size  1024KB)
-           2. Okay  ~5  MBit/s (Chunk Size  4096KB)
-           3. Good ~10  MBit/s (Chunk Size  8192KB)
-           4. Fast ~25  MBit/s (Chunk Size 20480KB)
-           5. Uber ~50  MBit/s (Chunk Size 40960KB)
+            1. Slow  ~1MBit/s (Chunk Size  1024KB)
+            2. Okay  ~5MBit/s (Chunk Size  4096KB)
+            3. Good ~10MBit/s (Chunk Size  8192KB)
+            4. Fast ~25MBit/s (Chunk Size 20480KB)
+            5. Uber ~50MBit/s (Chunk Size 40960KB)
 
 
 Enter your internet connection type (Press 1-5, or ENTER for 2):
