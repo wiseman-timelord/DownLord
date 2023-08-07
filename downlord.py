@@ -70,11 +70,11 @@ def display_main_menu(config):
 def internet_options_menu():
     print("\n                        Setup Menu")
     print("                        -=-=--=-=-\n")
-    print("           1. Slow  ~1  MBit/s (Chunk Size  1024KB)")
-    print("           2. Okay  ~5  MBit/s (Chunk Size  4096KB)")
-    print("           3. Good ~10  MBit/s (Chunk Size  8192KB)")
-    print("           4. Fast ~25  MBit/s (Chunk Size 20480KB)")
-    print("           5. Uber ~50  MBit/s (Chunk Size 40960KB)\n\n")
+    print("            1. Slow  ~1MBit/s (Chunk Size  1024KB)")
+    print("            2. Okay  ~5MBit/s (Chunk Size  4096KB)")
+    print("            3. Good ~10MBit/s (Chunk Size  8192KB)")
+    print("            4. Fast ~25MBit/s (Chunk Size 20480KB)")
+    print("            5. Uber ~50MBit/s (Chunk Size 40960KB)\n\n")
 
 def validate_input(url):
     return url.startswith("http")
