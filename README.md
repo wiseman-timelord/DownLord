@@ -10,7 +10,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 * **Download Resumption:** If a download is interrupted, it can be resumed from where it left off.
 * **Connection Speed Selection:** Choose from, Slow, Okay, Good, Fast, Uber, connection speeds.
 * **Configuration Persistence:** The last used URL and chunk size are saved in a configuration file for convenience.
-* **Reading of Complex URLs:** Such as found on, nexusmods or huggingface, to correctly obtain, filenames and files.
+* **Reading of Complex URLs:** Such as found on, NexusMods or HuggingFace, to correctly obtain, filenames and files.
 
 ## Usage
 
