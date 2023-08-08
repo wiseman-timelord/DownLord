@@ -88,11 +88,21 @@ def update_config(config, filename, url):
     if existing_entry_index is not None:
         print(f"Entry for {filename} already exists at position {existing_entry_index}.")
         return
-    for i in range(9, 1, -1):
-        config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
-        config[f"url_{i}"] = config.get(f"url_{i-1}", "")
-    config["filename_1"] = filename
-    config["url_1"] = url
+
+    # Find the first empty slot and update it
+    for i in range(1, 10):
+        if config.get(f"filename_{i}") == "Empty":
+            config[f"filename_{i}"] = filename
+            config[f"url_{i}"] = url
+            break
+    else:
+        # If no empty slot found, shift everything down and insert at the top
+        for i in range(9, 1, -1):
+            config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
+            config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+        config["filename_1"] = filename
+        config["url_1"] = url
+
     save_config(config)
 
 def load_config():
@@ -101,12 +111,22 @@ def load_config():
             with open(config_file, "r") as file:
                 config = json.load(file)
             # Check for missing files and remove them
+            filenames = []
+            urls = []
             for i in range(1, 10):
                 filename_key = f"filename_{i}"
                 filename = config.get(filename_key, "Empty")
                 if filename != "Empty" and not (file_path / filename).exists():
                     config[filename_key] = "Empty"
                     config[f"url_{i}"] = ""
+                else:
+                    filenames.append((filename, config.get(f"url_{i}", "")))
+            # Sort the filenames and urls, pushing "Empty" entries to the bottom
+            filenames = [item for item in filenames if item[0] != "Empty"] + [item for item in filenames if item[0] == "Empty"]
+            for i in range(1, 10):
+                config[f"filename_{i}"] = filenames[i - 1][0] if i - 1 < len(filenames) else "Empty"
+                config[f"url_{i}"] = filenames[i - 1][1] if i - 1 < len(filenames) else ""
+            save_config(config)  # Save the updated config
             return config
         else:
             config = {}
@@ -117,6 +137,7 @@ def load_config():
     except json.JSONDecodeError:
         print("Error reading configuration file. Using default settings.")
         return {}
+
 
 def save_config(config):
     try:
