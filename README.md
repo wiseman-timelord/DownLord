@@ -3,7 +3,7 @@ Status: Working.
 
 ## Description
 
-DownLord is a robust and user-friendly tool that allows users to download files from URLs. It provides options to select different internet connection speeds, supports download resumption, and retains the last used URL and chunk size in a configuration file. The primary purpose is to download language models on bad connections, and not return hours later to find only a tiny bit downloaded or double click retry to accidentally cancel the download. Downlord can also be used in combination with my other application "Netformance", to provide additional feedback during the download process.
+DownLord is a robust and user-friendly tool that allows users to download files from URLs. It provides options to select different internet connection speeds, supports download resumption, and retains the last used URL and chunk size in a configuration file. The primary purpose is to download language models on bad connections, and not return hours later to find only a tiny bit downloaded or double click retry to accidentally cancel the download. Downlord can also be used in combination with my other application "Netformance", to provide additional feedback during the download process. DownLord is named so, because it, manages and organizes, its own list of, files and urls, see below.
 
 ## Features
 
@@ -11,7 +11,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 * **Connection Speed Selection:** Choose from, Slow, Okay, Good, Fast, Uber, connection speeds.
 * **Configuration Persistence:** The last used URL and chunk size are saved in a configuration file for convenience.
 * **Reading of Complex URLs:** Such as found on, NexusMods or HuggingFace, to correctly obtain, filenames and files.
-* **History Management:** Files remove from downloads folder are removed from history, and remaining entires are consolidated.
+* **History Management:** Files removed from downloads folder are removed from history, and remaining entires are consolidated.
 
 ## Usage
 
