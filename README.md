@@ -9,6 +9,28 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 - Configuration Persistence - The last used URL and chunk size are saved in a configuration file for convenience.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 
+```
+
+                           Main Menu
+                           -=-=-=-=-
+
+Recent Downloads:
+
+    1. Empty
+    2. Empty
+    3. Empty
+    4. Empty
+    5. Empty
+    6. Empty
+    7. Empty
+    8. Empty
+    9. Empty
+
+
+Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
+
+```
+
 ## Requirements
 - Python 3.x
 - `requests` library
