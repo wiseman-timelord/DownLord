@@ -24,7 +24,7 @@ echo.
 echo.
 
 @echo on
-python.exe downlord.py
+python.exe main.py
 @echo off
 echo.
 echo.
