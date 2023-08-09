@@ -9,7 +9,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 - Configuration Persistence - The last used URL and chunk size are saved in a configuration file for convenience.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 
-INTERFACE:
+## INTERFACE
 Output looks like this...
 
 ```
