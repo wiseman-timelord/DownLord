@@ -24,6 +24,7 @@ def download_file(remote_url, out_path, chunk_size):
                 response.raise_for_status()
                 total_size = int(response.headers.get('content-length', 0)) + existing_file_size
                 with open(out_path, 'ab') as out_file, tqdm(total=total_size, unit='B', unit_scale=True, desc=file_name) as progress_bar:
+                    progress_bar.update(existing_file_size)  # Update the progress bar with the existing file size
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         out_file.write(chunk)
                         progress_bar.update(len(chunk))

@@ -55,6 +55,53 @@ def prompt_for_download():
                 download_file(url, out_path, config["chunk"])
                 continue
    
+        print("Invalid choice. Please try again.")def prompt_for_download():
+    config = load_config()
+    chunk_sizes = {1: 1024000, 2: 4096000, 3: 8192000, 3: 16384000, 4: 20480000, 3: 40960000}
+    last_chunk_size = config.get("chunk", 1024)
+    default_chunk_size = next((chunk_size for chunk_size in chunk_sizes.values() if chunk_size == last_chunk_size), None)
+    if default_chunk_size is not None:
+        default_choice = str(next((key for key, value in chunk_sizes.items() if value == default_chunk_size), None))
+        prompt_message = f"Enter your internet connection type (Press 1-5, or ENTER for {default_choice}): "
+    else:
+        prompt_message = "Enter your internet connection type (Press 1-5): "
+
+    while True:
+        display_main_menu(config)
+        choice = input().strip()
+        if choice.lower() == 's':
+            internet_options_menu()
+            connection_choice = input(prompt_message)
+            if connection_choice == "":
+                connection_choice = default_choice
+            if connection_choice.isdigit() and int(connection_choice) in chunk_sizes:
+                config["chunk"] = chunk_sizes[int(connection_choice)]
+                save_config(config)
+                continue
+            else:
+                print("Invalid choice. Please try again.")
+                continue
+
+        if choice.isdigit() and 0 <= int(choice) <= 9:
+            if int(choice) == 0:
+                url = input("\nEnter the URL to download (or 'q' to quit): ")
+            else:
+                url_key = f"url_{choice}"
+                url = config.get(url_key, "")
+            if url.lower() == "q":
+                print("Quitting...")
+                return
+            if validate_input(url):
+                filename = get_file_name_from_url(url)
+                if not filename:
+                    print("Unable to extract filename from the URL. Please try again.")
+                    continue
+                update_config(config, filename, url)
+                out_path = file_path / filename
+                download_file(url, out_path, config["chunk"])
+                print(f"Download complete for file: {filename}")
+                continue
+
         print("Invalid choice. Please try again.")
 
 def display_main_menu(config):
