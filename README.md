@@ -7,7 +7,7 @@ DownLord is a robust and user-friendly tool that allows users to download files 
 - Connection Speed Selection - Choose from Mobile, Wired, or Super-fast connection speeds.
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
 - Setup Menu - Configure connection speed, maximum retries, and download settings.
-- Configuration Persistence - The last used URL and chunk size are saved in a configuration file for convenience.
+- Configuration Persistence - The last used URL and chunk size are saved in a configuration file.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 
 ## INTERFACE
