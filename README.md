@@ -39,7 +39,8 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 
 ## Requirements
 - Python 2.6-3.11
-- Internet connection & Url to download
+- Internet connection
+- URL linked to file
 
 ## Usage
 1. Clone the repository or download the script.
