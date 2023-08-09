@@ -2,95 +2,31 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 from manager import download_file, get_file_name_from_url
-import json
+from setup import setup_menu, load_config, save_config  # Import setup_menu instead of internet_options_menu
 import time
 
-file_path = Path("downloads")
-config_file = "config.json"
-
+file_path = Path("Downloads")
 
 def prompt_for_download():
     config = load_config()
-    chunk_sizes = {1: 1024000, 2: 4096000, 3: 8192000, 3: 16384000, 4: 20480000, 3: 40960000}
-    last_chunk_size = config.get("chunk", 1024)
-    default_chunk_size = next((chunk_size for chunk_size in chunk_sizes.values() if chunk_size == last_chunk_size), None)
-    if default_chunk_size is not None:
-        default_choice = str(next((key for key, value in chunk_sizes.items() if value == default_chunk_size), None))
-        prompt_message = f"Enter your internet connection type (Press 1-5, or ENTER for {default_choice}): "
-    else:
-        prompt_message = "Enter your internet connection type (Press 1-5): "
-
     while True:
         display_main_menu(config)
         choice = input().strip()
         if choice.lower() == 's':
-            internet_options_menu()
-            connection_choice = input(prompt_message)
-            if connection_choice == "":
-                connection_choice = default_choice
-            if connection_choice.isdigit() and int(connection_choice) in chunk_sizes:
-                config["chunk"] = chunk_sizes[int(connection_choice)]
-                save_config(config)
-                continue
-            else:
-                print("Invalid choice. Please try again.")
-                continue
-
+            setup_menu()
+            continue
+        if choice.lower() == 'q':
+            print("Quitting...")
+            return
         if choice.isdigit() and 0 <= int(choice) <= 9:
             if int(choice) == 0:
                 url = input("\nEnter the URL to download (or 'q' to quit): ")
+                if url.lower() == "q":
+                    print("Quitting...")
+                    return
             else:
                 url_key = f"url_{choice}"
                 url = config.get(url_key, "")
-            if url.lower() == "q":
-                print("Quitting...")
-                return
-            if validate_input(url):
-                filename = get_file_name_from_url(url)
-                if not filename:
-                    print("Unable to extract filename from the URL. Please try again.")
-                    continue
-                update_config(config, filename, url)
-                out_path = file_path / filename
-                download_file(url, out_path, config["chunk"])
-                continue
-   
-        print("Invalid choice. Please try again.")def prompt_for_download():
-    config = load_config()
-    chunk_sizes = {1: 1024000, 2: 4096000, 3: 8192000, 3: 16384000, 4: 20480000, 3: 40960000}
-    last_chunk_size = config.get("chunk", 1024)
-    default_chunk_size = next((chunk_size for chunk_size in chunk_sizes.values() if chunk_size == last_chunk_size), None)
-    if default_chunk_size is not None:
-        default_choice = str(next((key for key, value in chunk_sizes.items() if value == default_chunk_size), None))
-        prompt_message = f"Enter your internet connection type (Press 1-5, or ENTER for {default_choice}): "
-    else:
-        prompt_message = "Enter your internet connection type (Press 1-5): "
-
-    while True:
-        display_main_menu(config)
-        choice = input().strip()
-        if choice.lower() == 's':
-            internet_options_menu()
-            connection_choice = input(prompt_message)
-            if connection_choice == "":
-                connection_choice = default_choice
-            if connection_choice.isdigit() and int(connection_choice) in chunk_sizes:
-                config["chunk"] = chunk_sizes[int(connection_choice)]
-                save_config(config)
-                continue
-            else:
-                print("Invalid choice. Please try again.")
-                continue
-
-        if choice.isdigit() and 0 <= int(choice) <= 9:
-            if int(choice) == 0:
-                url = input("\nEnter the URL to download (or 'q' to quit): ")
-            else:
-                url_key = f"url_{choice}"
-                url = config.get(url_key, "")
-            if url.lower() == "q":
-                print("Quitting...")
-                return
             if validate_input(url):
                 filename = get_file_name_from_url(url)
                 if not filename:
@@ -101,7 +37,6 @@ def prompt_for_download():
                 download_file(url, out_path, config["chunk"])
                 print(f"Download complete for file: {filename}")
                 continue
-
         print("Invalid choice. Please try again.")
 
 def display_main_menu(config):
@@ -112,16 +47,7 @@ def display_main_menu(config):
         filename_key = f"filename_{i}"
         filename = config.get(filename_key, "Empty")
         print(f"    {i}. {filename}")
-    print("\n\nPress, 0 To Enter A New URL or 1-9 to Continue or s for Setup:")
-
-def internet_options_menu():
-    print("\n                        Setup Menu")
-    print("                        -=-=--=-=-\n")
-    print("            1. Slow  ~1MBit/s (Chunk Size  1024KB)")
-    print("            2. Okay  ~5MBit/s (Chunk Size  4096KB)")
-    print("            3. Good ~10MBit/s (Chunk Size  8192KB)")
-    print("            4. Fast ~25MBit/s (Chunk Size 20480KB)")
-    print("            5. Uber ~50MBit/s (Chunk Size 40960KB)\n\n")
+    print("\n\nPress, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:")
 
 def validate_input(url):
     return url.startswith("http")
@@ -151,47 +77,6 @@ def update_config(config, filename, url):
         config["url_1"] = url
 
     save_config(config)
-
-def load_config():
-    try:
-        if Path(config_file).exists():
-            with open(config_file, "r") as file:
-                config = json.load(file)
-            # Check for missing files and remove them
-            filenames = []
-            urls = []
-            for i in range(1, 10):
-                filename_key = f"filename_{i}"
-                filename = config.get(filename_key, "Empty")
-                if filename != "Empty" and not (file_path / filename).exists():
-                    config[filename_key] = "Empty"
-                    config[f"url_{i}"] = ""
-                else:
-                    filenames.append((filename, config.get(f"url_{i}", "")))
-            # Sort the filenames and urls, pushing "Empty" entries to the bottom
-            filenames = [item for item in filenames if item[0] != "Empty"] + [item for item in filenames if item[0] == "Empty"]
-            for i in range(1, 10):
-                config[f"filename_{i}"] = filenames[i - 1][0] if i - 1 < len(filenames) else "Empty"
-                config[f"url_{i}"] = filenames[i - 1][1] if i - 1 < len(filenames) else ""
-            save_config(config)  # Save the updated config
-            return config
-        else:
-            config = {}
-            for i in range(1, 10):
-                config[f"filename_{i}"] = "Empty"
-                config[f"url_{i}"] = ""
-            return config
-    except json.JSONDecodeError:
-        print("Error reading configuration file. Using default settings.")
-        return {}
-
-
-def save_config(config):
-    try:
-        with open(config_file, "w") as file:
-            json.dump(config, file, indent=4)
-    except Exception as e:
-        print(f"Error saving configuration: {str(e)}")
 
 def main():
     if not file_path.exists():

@@ -6,11 +6,12 @@ from tqdm import tqdm
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, unquote
 import cgi
+from setup import load_config
 
-max_retries = 100
+config = load_config()
+max_retries = config.get("retries", 100)
 
 def download_file(remote_url, out_path, chunk_size):
-    file_name = get_file_name_from_url(remote_url)
     existing_file_size = 0
 
     if Path(out_path).exists():
@@ -23,7 +24,7 @@ def download_file(remote_url, out_path, chunk_size):
             with requests.get(remote_url, stream=True, headers=headers) as response:
                 response.raise_for_status()
                 total_size = int(response.headers.get('content-length', 0)) + existing_file_size
-                with open(out_path, 'ab') as out_file, tqdm(total=total_size, unit='B', unit_scale=True, desc=file_name) as progress_bar:
+                with open(out_path, 'ab') as out_file, tqdm(total=total_size, unit='B', unit_scale=True) as progress_bar: # Removed desc=file_name
                     progress_bar.update(existing_file_size)  # Update the progress bar with the existing file size
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         out_file.write(chunk)
