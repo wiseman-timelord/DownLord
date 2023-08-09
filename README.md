@@ -44,3 +44,6 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 2. Run the script, using `python download.py` or double click "DownLord.bat".
 3. Follow the prompts to select your internet connection type and enter the URL to download.
 4. The file will be downloaded to the `downloads` directory.
+
+## Disclaimer
+Its a downloader, I don't know...don't use it to download things you should not be downloading in your country, or the boogyman will hackcually gechu! *serious look*
