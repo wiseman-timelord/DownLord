@@ -44,4 +44,4 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 4. The file will be downloaded to the `downloads` directory.
 
 ## Disclaimer
-Its a downloader, I don't know...don't use it to download things you should not be downloading in your country, or the boogyman will hackcually gechu! *serious look*
+Its a downloader, I don't know...If tuh download be nay allowe', then ye' dunn'e 'rong!  *serious look*
