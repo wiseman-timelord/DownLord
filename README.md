@@ -44,4 +44,4 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 4. The file will be downloaded to the `downloads` directory.
 
 ## Disclaimer
-Its a downloader, I don't know...If tuh download be nay allowe', then ye' dunn'e 'rong!  *serious look*
+"DownLord" is provided "as is," and the creators make no warranties regarding its use. Users are solely responsible for the content they download and any potential damages to their equipment. The use of "DownLord" for unauthorized activities is strictly at the user's own risk, and all legal responsibilities lie with the user.
