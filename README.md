@@ -4,7 +4,7 @@
 DownLord is a robust and user-friendly tool that allows users to download files from URLs. It provides options to select different internet connection speeds, supports download resumption, and retains the last used URL and chunk size in a configuration file. Primary purpose, to download language models on bad connections, and not, return hours later to find only a tiny bit downloaded or double click retry to accidentally cancel the download. 
 
 ## Features
-- Connection Speed Selection - Choose from Mobile, Wired, or Super-fast connection speeds.
+- Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
 - Setup Menu - Configure connection speed, maximum retries, and download settings.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
