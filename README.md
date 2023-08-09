@@ -44,7 +44,7 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 
 ## Usage
 1. Clone the repository or download the script.
-2. Run the script, using `python download.py` or double click "DownLord.bat".
+2. Run the script, using `python downlord.py` or double click "DownLord.bat".
 3. Follow the prompts to select your internet connection type and enter the URL to download.
 4. The file will be downloaded to the `downloads` directory.
 
