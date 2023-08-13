@@ -1,8 +1,9 @@
-# DownLord
+
+# DownLord-Py
 Status: Working
 
 ## Description
-DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
+DownLord-Py is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord-Py ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
 
 ## Features
 - Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
@@ -43,11 +44,11 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 
 ## Usage
 1. Clone the repository or download the script.
-2. Run the script, using `python main.py` or double click "DownLord.bat".
+2. Run the script, using `python main.py` or double click "DownLord-Py.bat".
 3. Take a look in the settings menu, make sure everything is optimal.
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
-6. Edit folder properties in "DownLord.lnk", for batch launch on taskbar.
+6. Edit folder properties in "DownLord-Py.lnk", for batch launch on taskbar.
 
 ## Disclaimer
-"DownLord" is provided "as is," and the creators make no warranties regarding its use. Users are solely responsible for the content they download and any potential damages to their equipment that typically occur during prolonged usage of computers. The use of "DownLord" for unauthorized activities is strictly at the user's own risk, and all legal responsibilities lie with the user.
+"DownLord-Py" is provided "as is," and the creators make no warranties regarding its use. Users are solely responsible for the content they download and any potential damages to their equipment. The use of "DownLord-Py" for unauthorized activities is strictly at the user's own risk, and all legal responsibilities lie with the user.
