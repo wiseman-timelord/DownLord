@@ -1,6 +1,6 @@
 # DownLord-Py
 Status: Working
- HuggingFace downloads have stopped working, will need to investigate, currently priority is Llama2Robot.
+* HuggingFace downloads have stopped working, will need to investigate, currently priority is Llama2Robot.
 
 ## Description
 DownLord-Py is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord-Py ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
