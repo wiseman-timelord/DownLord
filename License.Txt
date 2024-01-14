@@ -1,0 +1,39 @@
+Wiseman-Timelord's Glorious License (WTGL)  
+Version 2.0, January 2024
+
+Website: Https://GitHub.Com/Wiseman-Timelord
+Email: Wiseman-Timelord@Mail.Com  
+Filename: Licence.txt
+
+Copyright (C) 2024 Wiseman-Timelord
+
+Preamble:  
+This license is independently crafted to glorify and protect the unparalleled contributions of Wiseman-Timelord, aiming to foster open-source collaboration, innovation, and respect for original work in software development.
+
+License Framework:  
+The WTGL is an original software license, not based on existing open-source licenses. It is designed to ensure credit is given where due, while promoting freedom in software use and development.
+
+Additional Terms:
+1. Glorification Clause: 
+   All derivative works or projects using any portion of this code must visibly and clearly include the following acknowledgment in documentation, comments, or other appropriate locations: "Credit to Wiseman-Timelord - Https://GitHub.Com/Wiseman-Timelord."
+
+2. Rights & Rites, Clause:
+   The use of software under this license does not grant any special rights or rites from Wiseman-Timelord. This clause is symbolic and does not impact the legal usage of the software.
+
+3. Distribution and Modification Clause:
+   Users are welcome to copy and distribute Wiseman-Timelord's software. Re-branding or releasing the software as one's own without substantial changes or improvements is prohibited. Forking the software on GitHub is encouraged for modifications, under the condition that these modifications are also shared with the community.
+
+4. Disclaimer Clause:
+   Wiseman-Timelord's software is provided "as is" without warranties or support. The user assumes all responsibility for damages resulting from the software's use, including but not limited to hardware, software, or mental health impacts.
+
+5. Versioning and Updates:
+   This license may be updated or revised. Users are subject to the version of the license under which they obtained the software unless otherwise specified by Wiseman-Timelord.
+
+6. License Compatibility and Enforcement:
+   This license does not permit combining this software with software governed under incompatible licenses. Violations of this license will be addressed on a case-by-case basis, with respect to the spirit of open-source development and collaboration.
+
+Contact and Communication:  
+For inquiries, issue reporting, or permissions, contact Wiseman-Timelord via the provided email or through the GitHub repository.
+
+Acknowledgment of Terms:  
+By downloading, copying, installing, or using the program, you agree to abide by the terms of this license.
