@@ -52,4 +52,4 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 6. Edit folder properties in "DownLord-Py.lnk", for batch launch on taskbar.
 
 ## DISCLAIMER
-The "License.Txt" covers, this and relating, stuff.
+This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
