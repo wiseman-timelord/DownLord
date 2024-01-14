@@ -51,5 +51,5 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 5. The file will be downloaded to the `Downloads` directory.
 6. Edit folder properties in "DownLord-Py.lnk", for batch launch on taskbar.
 
-### DISCLAIMER
-Read "License.Txt", its, what its there for and why its supplied with the package.
+## DISCLAIMER
+The "License.Txt" covers, this and relating, stuff.
