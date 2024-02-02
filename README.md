@@ -1,10 +1,10 @@
-# DownLord-Py
+# DownLord
 ## Status:
 Working(ish). The batches for this program may only run on Windows 10 due to the different PowerShell launch commands required for various OS versions, that microsoft have bizarly chosen to use for each OS, and may cause endless launch loop on other systems.
 * HuggingFace downloads have stopped working. Currently priority is my other repositry Llama2Robot. Will need to investigate later, currently priority is Llama2Robot.
 
 ## Description
-DownLord-Py is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord-Py ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
+DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
 
 ## Features
 - Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
@@ -45,11 +45,11 @@ Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:
 
 ## Usage
 1. Clone the repository or download the script.
-2. Run the script, using `python main.py` or double click "DownLord-Py.bat".
+2. Run the script, using `python main.py` or double click "DownLord.bat".
 3. Take a look in the settings menu, make sure everything is optimal.
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
-6. Edit folder properties in "DownLord-Py.lnk", for batch launch on taskbar.
+6. Edit folder properties in "DownLord.lnk", for batch launch on taskbar.
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
