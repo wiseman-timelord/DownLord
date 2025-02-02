@@ -1,7 +1,7 @@
 # DownLord-Py
 ## Status:
-Working(ish). The batches for this program may only run on Windows 10 due to the different PowerShell launch commands required for various OS versions, that microsoft have bizarly chosen to use for each OS, and may cause endless launch loop on other systems.
-* HuggingFace downloads have stopped working. Currently priority is my other repositry Llama2Robot. Will need to investigate later, currently priority is Llama2Robot.
+- Release versions mostly work, but need update. The batches for this program may only run on Windows 10. HuggingFace downloads have stopped working.
+- Update on the way, conformed to my new structure format, and improved. Huggingface fix attempt will be made.
 
 ## Description
 DownLord-Py is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord-Py ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
