@@ -37,6 +37,32 @@ Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: 0
 Selection; Enter URL or Q to Quit: https://cdn-lfs-us-1.hf.co/repos...Key-Pair-Id=K############
 deepseek-r1-distill-qwen-14b-uncensored-q6_k.gguf:   0%|                         | 11.7M/11.3G [00:31<8:03:08, 418kB/s]
 ```
+- Batch Launcher...
+```
+=====================================================================
+"    ________                      .____                    .___    "
+"    \______ \   ______  _  ______ |    |    ___________  __| _/    "
+"     |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |     "
+"     |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |     "
+"    /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |     "
+"            \/                  \/        \/                \/     "
+=====================================================================
+    Batch Launch/Install Menu
+---------------------------------------------------------------------
+
+
+
+
+    1. Launch DownLord
+
+    2. Install Requirements
+
+
+
+
+---------------------------------------------------------------------
+Selection; Options = 1-2, Exit = X:
+```
 - Installer is comprehensive...
 ```
 Installing Requirements...
