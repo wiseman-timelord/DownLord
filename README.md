@@ -42,13 +42,15 @@ Installing DownLord...
 --------------------------------------------------
 >> Python version check passed [OK]
 >> Platform check passed: windows [OK]
->> Created directory: .\data [OK]
->> Created directory: .\downloads [OK]
+>> Checked directory: .\data [OK]
+>> Checked directory: .\downloads [OK]
 >> Checked directory: .\scripts [OK]
->> Created directory: .\temp [OK]
+>> Checked directory: .\temp [OK]
 >> Created .\scripts\__init__.py [OK]
 >> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
+Config file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\config.json
+Do you want to overwrite it? (y/n): y
 >> Created default config [OK]
 
 ========================================================================================================================
