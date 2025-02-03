@@ -1,34 +1,6 @@
 # DownLord
-## Status:
-- Release versions mostly work, but need update. The batches for this program may only run on Windows 10. HuggingFace downloads have stopped working.
-- Update on the way, conformed to my new structure format, and improved. Huggingface fix attempt will be made.
-
-## File Structure
-- Packaged files
-```
-.\
-
-├── scripts\                # Core application scripts
-│   ├── interface.py        # UI and user interaction
-│   ├── utility.py          # Download functionality
-│   └── temporary.py        # Constants and configurations
-├── DownLord.bat          # Batch menu installer/launcher
-├── installer.py           # Installation script
-├── launcher.py           # Main application entry
-├── LICENSE.txt           # License information
-└── README.md            # Project documentation
-```
-- Files created by installer/program.
-```
-├── data\                     # Data related, Created by installer
-│   ├── persistent.json       # persistent settings, Created by installer
-│   ├── requirements.txt      # Python requirements, Created by installer
-│   └── downlord.log         # Log file, created by main program
-├── scripts\                 # Already part of package
-│   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
-├── downloads\               # Default download directory, created by installer
-├── temp\                   # Temporary download storage, created by installer
-```
+## Status: Working
+- Re-visited 2025/02/03
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
@@ -108,6 +80,31 @@ Installation Complete!
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
 6. Edit folder properties in "DownLord.lnk", for batch launch on taskbar.
+
+## File Structure
+- Packaged files
+```
+├── DownLord.bat          # Batch menu installer/launcher
+├── installer.py           # Installation script
+├── launcher.py           # Main application entry
+├── LICENSE.txt           # License information
+└── README.md            # Project documentation
+├── scripts\                # Core application scripts
+│   ├── interface.py        # UI and user interaction
+│   ├── utility.py          # Download functionality
+│   └── temporary.py        # Constants and configurations
+```
+- Files created by installer/program.
+```
+├── downloads\               # Default download directory, created by installer
+├── temp\                   # Temporary download storage, created by installer
+├── data\                     # Data related, Created by installer
+│   ├── persistent.json       # persistent settings, Created by installer
+│   ├── requirements.txt      # Python requirements, Created by installer
+│   └── downlord.log         # Log file, created by main program
+├── scripts\                 # Already part of package
+│   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
+```
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
