@@ -1,13 +1,15 @@
 # .\scripts\temporary.py
 
-from pathlib import Path
 import os
+import re
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union
+from urllib.parse import unquote
 
 # Application Metadata
 APP_TITLE = "DownLord"
-APP_VERSION = "1.2.0"  # Updated version for HuggingFace support
+APP_VERSION = "1.2.0"
 CONFIG_VERSION = "1.2"
 
 # Directory Structure
@@ -19,7 +21,7 @@ TEMP_DIR = BASE_DIR / "temp"
 BACKUP_DIR = DATA_DIR / "backups"
 
 # File Paths
-CONFIG_FILE = DATA_DIR / "config.json"
+PERSISTENT_FILE = DATA_DIR / "persistent.json"
 REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 LOG_FILE = DATA_DIR / "downlord.log"
 
@@ -33,18 +35,15 @@ DEFAULT_CHUNK_SIZES = {
     "custom": None        # User-defined
 }
 
-# Enhanced default configuration
-DEFAULT_CONFIG = {
+# Runtime Configuration
+RUNTIME_CONFIG = {
     "version": CONFIG_VERSION,
-    "last_updated": datetime.now().isoformat(),
     "download": {
-        "chunk_size": DEFAULT_CHUNK_SIZES["okay"],
-        "max_retries": 100,
         "timeout": 30,
         "verify_hash": True,
         "parallel_downloads": False,
         "max_parallel": 3,
-        "bandwidth_limit": None,  # In bytes per second, None for unlimited
+        "bandwidth_limit": None,
         "auto_resume": True,
         "huggingface": {
             "use_auth": False,
@@ -63,7 +62,7 @@ DEFAULT_CONFIG = {
     },
     "security": {
         "verify_ssl": True,
-        "allowed_domains": [],  # Empty means all allowed
+        "allowed_domains": [],
         "blocked_extensions": [".exe", ".bat", ".sh", ".dll"],
         "scan_downloads": False,
         "hash_verification": True,
@@ -78,15 +77,8 @@ DEFAULT_CONFIG = {
         "notification_sound": False,
         "progress_bar_style": "tqdm"
     },
-    "history": {
-        "max_entries": 9,
-        "entries": [],
-        "auto_clean": True,
-        "clean_after_days": 30,
-        "track_failed": True
-    },
     "platform": {
-        "windows_version": None,  # Detected at runtime
+        "windows_version": None,
         "admin_required": True,
         "path_length_limit": 260,
         "encoding": "utf-8"

@@ -4,6 +4,7 @@ import os
 import re
 import cgi
 import time
+import json
 import hashlib
 import requests
 import logging
@@ -33,7 +34,10 @@ class DownloadError(Exception):
 
 class DownloadManager:
     def __init__(self):
-        self.config = load_config()
+        persistent_config = load_config()
+        self.config = RUNTIME_CONFIG.copy()
+        self.config["download"]["chunk_size"] = persistent_config["chunk"]
+        self.config["download"]["max_retries"] = persistent_config["retries"] 
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         
     def calculate_file_hash(self, filepath: Path, hash_type: str = 'sha256') -> str:
@@ -77,122 +81,124 @@ class DownloadManager:
 
     def _register_download(self, filename: str, url: str) -> None:
         """Register a download in the configuration file."""
-        # Check if entry already exists
-        for i in range(1, 10):
-            if self.config.get(f"filename_{i}") == filename and self.config.get(f"url_{i}") == url:
-                return  # Already registered
-        
-        # Shift entries down
-        for i in range(9, 1, -1):
-            self.config[f"filename_{i}"] = self.config.get(f"filename_{i-1}", "Empty")
-            self.config[f"url_{i}"] = self.config.get(f"url_{i-1}", "")
-        
-        # Add new entry at top
-        self.config["filename_1"] = filename
-        self.config["url_1"] = url
-        
-        # Save configuration using imported function
-        from scripts.interface import save_config
-        save_config(self.config)
-        print(f"\nRegistered download for: {filename}")
-        
-        # Update instance config
-        self.config = load_config()
+        config_path = Path("./data/persistent.json")
+        try:
+            with open(config_path, 'r') as f:
+                persistent = json.load(f)
+            
+            # Shift entries down
+            for i in range(9, 1, -1):
+                persistent[f"filename_{i}"] = persistent.get(f"filename_{i-1}", "Empty")
+                persistent[f"url_{i}"] = persistent.get(f"url_{i-1}", "")
+            
+            # Add new entry at top
+            persistent["filename_1"] = filename
+            persistent["url_1"] = url
+            
+            # Save configuration
+            with open(config_path, 'w') as f:
+                json.dump(persistent, f, indent=4)
+            
+            print(f"\nRegistered download for: {filename}")
+            
+        except Exception as e:
+            logging.error(f"Error updating persistent.json: {str(e)}")
+            return
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-            """Download a file with retry support."""
+        """Download a file with retry support."""
+        try:
+            download_url, metadata = URLProcessor.process_url(remote_url, self.config)
+        except DownloadError as e:
+            return False, str(e)
+
+        temp_path = TEMP_DIR / f"{out_path.name}.part"
+        existing_size = temp_path.stat().st_size if temp_path.exists() else 0
+        initial_hash = None
+        download_registered = False
+        written_size = existing_size
+        
+        if existing_size > 0 and self.config["download"]["verify_hash"]:
+            initial_hash = self.calculate_file_hash(temp_path)
+            logging.info(f"Resuming download from {existing_size} bytes")
+            display_success(SUCCESS_MESSAGES["resume_success"].format(existing_size))
+
+        session = requests.Session()
+        retries = 0
+        start_time = time.time()
+        
+        while retries < self.config["download"]["max_retries"]:
             try:
-                download_url, metadata = URLProcessor.process_url(remote_url, self.config)
-            except DownloadError as e:
+                headers = get_download_headers(existing_size)
+                with session.get(
+                    download_url,
+                    stream=True,
+                    headers=headers,
+                    timeout=self.config["download"]["timeout"],
+                    verify=self.config["security"]["verify_ssl"]
+                ) as response:
+                    response.raise_for_status()
+                    total_size = int(response.headers.get('content-length', 0)) + existing_size
+
+                    # Truncate filename for display
+                    display_name = out_path.name
+                    name_part, ext = os.path.splitext(display_name)
+                    if len(display_name) > 25:
+                        display_name = name_part[:22] + "..." + ext
+
+                    with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
+                         tqdm(total=total_size, initial=existing_size,
+                              unit='B', unit_scale=True, unit_divisor=1024,
+                              desc=display_name,
+                              bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
+
+                        for chunk in response.iter_content(chunk_size=chunk_size):
+                            if chunk:
+                                written_size += len(chunk)
+                                # Register after 1MB written
+                                if not download_registered and written_size >= 1024*1024:
+                                    self._register_download(out_path.name, remote_url)
+                                    download_registered = True
+                                
+                                # Apply bandwidth limit if configured
+                                if self.config["download"]["bandwidth_limit"]:
+                                    time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
+                                    
+                                out_file.write(chunk)
+                                progress_bar.update(len(chunk))
+
+                # Verify file integrity
+                if self.config["download"]["verify_hash"] and initial_hash:
+                    final_hash = self.calculate_file_hash(temp_path)
+                    if initial_hash != final_hash:
+                        raise ValueError(ERROR_MESSAGES["hash_mismatch"])
+
+                # Verify against provided hash if available
+                if metadata.get("sha") and self.config["download"]["verify_hash"]:
+                    final_hash = self.calculate_file_hash(temp_path)
+                    if final_hash != metadata["sha"]:
+                        raise ValueError(ERROR_MESSAGES["hash_mismatch"])
+
+                temp_path.rename(out_path)
+                download_time = time.time() - start_time
+                speed = total_size / download_time if download_time > 0 else 0
+                logging.info(f"Download completed: {out_path.name}, "
+                           f"Size: {total_size}, Speed: {speed:.2f} B/s")
+                return True, None
+
+            except (Timeout, ConnectionError, RequestException) as e:
+                retries += 1
+                if retries >= self.config["download"]["max_retries"]:
+                    return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
+                
+                time.sleep(calculate_retry_delay(retries))
+                logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
+                
+            except Exception as e:
+                logging.error(f"Unexpected error: {str(e)}")
                 return False, str(e)
 
-            temp_path = TEMP_DIR / f"{out_path.name}.part"
-            existing_size = temp_path.stat().st_size if temp_path.exists() else 0
-            initial_hash = None
-            download_registered = False
-            written_size = existing_size
-            
-            if existing_size > 0 and self.config["download"]["verify_hash"]:
-                initial_hash = self.calculate_file_hash(temp_path)
-                logging.info(f"Resuming download from {existing_size} bytes")
-                display_success(SUCCESS_MESSAGES["resume_success"].format(existing_size))
-
-            session = requests.Session()
-            retries = 0
-            start_time = time.time()
-            
-            while retries < self.config["download"]["max_retries"]:
-                try:
-                    headers = get_download_headers(existing_size)
-                    with session.get(
-                        download_url,
-                        stream=True,
-                        headers=headers,
-                        timeout=self.config["download"]["timeout"],
-                        verify=self.config["security"]["verify_ssl"]
-                    ) as response:
-                        response.raise_for_status()
-                        total_size = int(response.headers.get('content-length', 0)) + existing_size
-
-                        # Truncate filename for display
-                        display_name = out_path.name
-                        name_part, ext = os.path.splitext(display_name)
-                        if len(display_name) > 25:
-                            display_name = name_part[:22] + "..." + ext
-
-                        with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
-                             tqdm(total=total_size, initial=existing_size,
-                                  unit='B', unit_scale=True, unit_divisor=1024,
-                                  desc=display_name,
-                                  bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
-
-                            for chunk in response.iter_content(chunk_size=chunk_size):
-                                if chunk:
-                                    written_size += len(chunk)
-                                    # Register after 1MB written
-                                    if not download_registered and written_size >= 1024*1024:
-                                        self._register_download(out_path.name, remote_url)
-                                        download_registered = True
-                                    
-                                    # Apply bandwidth limit if configured
-                                    if self.config["download"]["bandwidth_limit"]:
-                                        time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
-                                        
-                                    out_file.write(chunk)
-                                    progress_bar.update(len(chunk))
-
-                    # Verify file integrity
-                    if self.config["download"]["verify_hash"] and initial_hash:
-                        final_hash = self.calculate_file_hash(temp_path)
-                        if initial_hash != final_hash:
-                            raise ValueError(ERROR_MESSAGES["hash_mismatch"])
-
-                    # Verify against provided hash if available
-                    if metadata.get("sha") and self.config["download"]["verify_hash"]:
-                        final_hash = self.calculate_file_hash(temp_path)
-                        if final_hash != metadata["sha"]:
-                            raise ValueError(ERROR_MESSAGES["hash_mismatch"])
-
-                    temp_path.rename(out_path)
-                    download_time = time.time() - start_time
-                    speed = total_size / download_time if download_time > 0 else 0
-                    logging.info(f"Download completed: {out_path.name}, "
-                               f"Size: {total_size}, Speed: {speed:.2f} B/s")
-                    return True, None
-
-                except (Timeout, ConnectionError, RequestException) as e:
-                    retries += 1
-                    if isinstance(e, RequestException) and retries >= self.config["download"]["max_retries"]:
-                        return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
-                    
-                    time.sleep(calculate_retry_delay(retries))
-                    logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
-                    
-                except Exception as e:
-                    logging.error(f"Unexpected error: {str(e)}")
-                    return False, str(e)
-
-            return False, "Maximum retries exceeded"
+        return False, "Maximum retries exceeded"
             
 class URLProcessor:
     @staticmethod

@@ -5,12 +5,13 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Union
 from scripts.temporary import (
-    CONFIG_FILE,
+    PERSISTENT_FILE,
     DOWNLOADS_DIR,
-    DEFAULT_CONFIG,
+    RUNTIME_CONFIG,
     DEFAULT_CHUNK_SIZES,
     APP_TITLE,
-    ERROR_TYPES
+    ERROR_TYPES,
+    DATA_DIR
 )
 
 # ASCII Art
@@ -129,13 +130,14 @@ def setup_menu():
 def security_menu():
     """Handle security settings menu."""
     config = load_config()
+    runtime = RUNTIME_CONFIG
     
     while True:
         clear_screen("Security Settings")
         print(SECURITY_MENU)
         
-        ssl_status = "Enabled" if config["security"]["verify_ssl"] else "Disabled"
-        hash_status = "Enabled" if config["security"]["hash_verification"] else "Disabled"
+        ssl_status = "Enabled" if runtime["security"]["verify_ssl"] else "Disabled"
+        hash_status = "Enabled" if runtime["security"]["hash_verification"] else "Disabled"
         print(f"\nCurrent Settings:")
         print(f"SSL Verification: {ssl_status}")
         print(f"Hash Verification: {hash_status}")
@@ -143,17 +145,15 @@ def security_menu():
         choice = input("\nSelection; Options = 1-5, Return = B: ").strip().lower()
         
         if choice == '1':
-            config["security"]["verify_ssl"] = not config["security"]["verify_ssl"]
-            save_config(config)
+            runtime["security"]["verify_ssl"] = not runtime["security"]["verify_ssl"]
             print(SUCCESS_MESSAGES["config_updated"])
         elif choice == '2':
-            config["security"]["hash_verification"] = not config["security"]["hash_verification"]
-            save_config(config)
+            runtime["security"]["hash_verification"] = not runtime["security"]["hash_verification"]
             print(SUCCESS_MESSAGES["config_updated"])
         elif choice == '3':
-            manage_blocked_extensions(config)
+            manage_blocked_extensions()
         elif choice == '4':
-            configure_huggingface_auth(config)
+            configure_huggingface_auth()
         elif choice == 'b':
             return
         else:
@@ -161,29 +161,27 @@ def security_menu():
         
         input("\nPress Enter to continue...")
 
-def configure_huggingface_auth(config: Dict):
+def configure_huggingface_auth():
     """Configure HuggingFace authentication settings."""
+    runtime = RUNTIME_CONFIG
     clear_screen("HuggingFace Authentication")
-    print("\nCurrent Status:", "Enabled" if config["download"]["huggingface"]["use_auth"] else "Disabled")
+    print("\nCurrent Status:", "Enabled" if runtime["download"]["huggingface"]["use_auth"] else "Disabled")
     
     choice = input("\nSelection; Enable Auth = Y, Disable = N, Return = B: ").strip().lower()
     
     if choice == 'y':
         token = input("Enter your HuggingFace token (or press Enter to skip): ").strip()
         if token:
-            config["download"]["huggingface"]["use_auth"] = True
-            config["download"]["huggingface"]["token"] = token
-            save_config(config)
+            runtime["download"]["huggingface"]["use_auth"] = True
+            runtime["download"]["huggingface"]["token"] = token
             print(SUCCESS_MESSAGES["auth_success"])
         else:
-            config["download"]["huggingface"]["use_auth"] = False
-            config["download"]["huggingface"]["token"] = None
-            save_config(config)
+            runtime["download"]["huggingface"]["use_auth"] = False
+            runtime["download"]["huggingface"]["token"] = None
             print("Authentication disabled.")
     elif choice == 'n':
-        config["download"]["huggingface"]["use_auth"] = False
-        config["download"]["huggingface"]["token"] = None
-        save_config(config)
+        runtime["download"]["huggingface"]["use_auth"] = False
+        runtime["download"]["huggingface"]["token"] = None
         print("Authentication disabled.")
     elif choice == 'b':
         return
@@ -192,12 +190,13 @@ def configure_huggingface_auth(config: Dict):
     
     input("\nPress Enter to continue...")
 
-def manage_blocked_extensions(config: Dict):
+def manage_blocked_extensions():
     """Manage blocked file extensions."""
+    runtime = RUNTIME_CONFIG
     while True:
         clear_screen("Blocked Extensions")
         print("\nCurrently blocked extensions:")
-        for i, ext in enumerate(config["security"]["blocked_extensions"], 1):
+        for i, ext in enumerate(runtime["security"]["blocked_extensions"], 1):
             print(f"{i}. {ext}")
         
         print("\nOptions:")
@@ -209,17 +208,15 @@ def manage_blocked_extensions(config: Dict):
         
         if choice == '1':
             ext = input("Enter extension to block (include dot, e.g. '.exe'): ").strip()
-            if ext and ext not in config["security"]["blocked_extensions"]:
-                config["security"]["blocked_extensions"].append(ext)
-                save_config(config)
+            if ext and ext not in runtime["security"]["blocked_extensions"]:
+                runtime["security"]["blocked_extensions"].append(ext)
                 print(SUCCESS_MESSAGES["config_updated"])
         elif choice == '2':
             idx = input("Enter number of extension to remove: ").strip()
             try:
                 idx = int(idx) - 1
-                if 0 <= idx < len(config["security"]["blocked_extensions"]):
-                    del config["security"]["blocked_extensions"][idx]
-                    save_config(config)
+                if 0 <= idx < len(runtime["security"]["blocked_extensions"]):
+                    del runtime["security"]["blocked_extensions"][idx]
                     print(SUCCESS_MESSAGES["config_updated"])
             except ValueError:
                 print(ERROR_MESSAGES["invalid_number"])
@@ -249,7 +246,7 @@ def internet_options_menu():
     }
 
     if connection_choice in chunk_sizes:
-        config["download"]["chunk_size"] = chunk_sizes[connection_choice]
+        config["chunk"] = chunk_sizes[connection_choice]
         save_config(config)
         print(SUCCESS_MESSAGES["connection_updated"])
     else:
@@ -261,7 +258,7 @@ def max_retries_menu():
     """Display and handle the maximum retries menu."""
     config = load_config()
     clear_screen("Maximum Retries")
-    print(f"\nCurrent Maximum Retries: {config['download']['max_retries']}\n")
+    print(f"\nCurrent Maximum Retries: {config['retries']}\n")
     
     retries = input("Selection; Enter Number or Back = B: ").strip().lower()
     
@@ -271,7 +268,7 @@ def max_retries_menu():
     try:
         retries = int(retries)
         if retries > 0:
-            config["download"]["max_retries"] = retries
+            config["retries"] = retries
             save_config(config)
             print(SUCCESS_MESSAGES["retries_updated"])
         else:
@@ -290,54 +287,34 @@ def print_progress(message: str):
     print(f">> {message}")
 
 def load_config() -> Dict:
-    """Load configuration from file."""
     try:
-        if CONFIG_FILE.exists():
-            with open(CONFIG_FILE, "r") as file:
-                config = json.load(file)
-                
-            # Validate download history
-            entries = []
-            for i in range(1, 10):
-                filename = config.get(f"filename_{i}", "Empty")
-                url = config.get(f"url_{i}", "")
-                if filename != "Empty" and (DOWNLOADS_DIR / filename).exists():
-                    entries.append((filename, url))
-
-            # Fill remaining slots
-            while len(entries) < 9:
-                entries.append(("Empty", ""))
-
-            # Update config
-            for i, (filename, url) in enumerate(entries, 1):
-                config[f"filename_{i}"] = filename
-                config[f"url_{i}"] = url
-
-            save_config(config)
-            return config
+        if PERSISTENT_FILE.exists():
+            with open(PERSISTENT_FILE, "r") as file:
+                return json.load(file)
         return create_default_config()
     except json.JSONDecodeError:
-        print(ERROR_MESSAGES["config_error"])
         return create_default_config()
 
 def create_default_config() -> Dict:
     """Create a new default configuration."""
-    config = DEFAULT_CONFIG.copy()
+    config = {
+        "chunk": DEFAULT_CHUNK_SIZES["okay"],
+        "retries": 100
+    }
+    
     for i in range(1, 10):
         config[f"filename_{i}"] = "Empty"
         config[f"url_{i}"] = ""
-    save_config(config)
     return config
 
 def save_config(config: Dict) -> bool:
-    """Save configuration to file."""
     try:
-        CONFIG_FILE.parent.mkdir(exist_ok=True)
-        with open(CONFIG_FILE, "w") as file:
+        PERSISTENT_FILE.parent.mkdir(exist_ok=True)
+        with open(PERSISTENT_FILE, "w") as file:
             json.dump(config, file, indent=4)
         return True
     except Exception as e:
-        print(ERROR_MESSAGES["save_config_error"].format(str(e)))
+        print(f"Error saving configuration: {str(e)}")
         return False
 
 def display_error(message: str):

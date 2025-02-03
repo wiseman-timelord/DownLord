@@ -27,7 +27,8 @@ from scripts.interface import (
 from scripts.temporary import (
     DOWNLOADS_DIR,
     LOG_FILE,
-    APP_TITLE
+    APP_TITLE,
+    RUNTIME_CONFIG
 )
 
 # Configure logging
@@ -196,7 +197,7 @@ def main():
     """
     Main application entry point.
     """
-    print(f"\nStarting {APP_TITLE}...")
+    print(f"\nInitializing {APP_TITLE}...")
     
     # Verify environment
     if not check_environment():

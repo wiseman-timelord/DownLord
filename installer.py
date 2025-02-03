@@ -16,64 +16,38 @@ DATA_DIR = BASE_DIR / "data"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 SCRIPTS_DIR = BASE_DIR / "scripts"
 TEMP_DIR = BASE_DIR / "temp"
-CONFIG_FILE = DATA_DIR / "config.json"
 REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 INIT_FILE = SCRIPTS_DIR / "__init__.py"
+PERSISTENT_FILE = DATA_DIR / "persistent.json"
 
-# Requirements text to be written to requirements.txt
+# Complete file templates
 REQUIREMENTS_TEXT = '''requests>=2.31.0
 tqdm>=4.66.1
 urllib3>=2.1.0
 pathlib>=1.0.1'''
 
-# Default configuration (minimal version for installer)
-DEFAULT_CONFIG = {
-    "version": "1.2.0",
-    "last_updated": "",
-    "download": {
-        "chunk_size": 4096000,
-        "max_retries": 100,
-        "timeout": 30,
-        "verify_hash": True,
-        "parallel_downloads": False,
-        "max_parallel": 3,
-        "bandwidth_limit": None,
-        "auto_resume": True,
-        "huggingface": {
-            "use_auth": False,
-            "token": None,
-            "mirror": None,
-            "prefer_torch": True
-        }
-    },
-    "storage": {
-        "temp_dir": str(TEMP_DIR),
-        "download_dir": str(DOWNLOADS_DIR),
-        "keep_incomplete": True,
-        "organize_by_type": False
-    },
-    "security": {
-        "verify_ssl": True,
-        "allowed_domains": [],
-        "blocked_extensions": [".exe", ".bat", ".sh", ".dll"],
-        "scan_downloads": False,
-        "hash_verification": True,
-        "hash_algorithm": "sha256"
-    },
-    "interface": {
-        "show_progress": True,
-        "show_speed": True,
-        "show_eta": True,
-        "dark_mode": False,
-        "detailed_logging": False
-    },
-    "history": {
-        "max_entries": 9,
-        "entries": [],
-        "auto_clean": True,
-        "clean_after_days": 30
-    }
-}
+PERSISTENT_TEXT = '''{
+    "chunk": 4096000,
+    "retries": 100,
+    "filename_1": "Empty",
+    "filename_2": "Empty",
+    "filename_3": "Empty",
+    "filename_4": "Empty",
+    "filename_5": "Empty",
+    "filename_6": "Empty",
+    "filename_7": "Empty",
+    "filename_8": "Empty",
+    "filename_9": "Empty",
+    "url_1": "",
+    "url_2": "",
+    "url_3": "",
+    "url_4": "",
+    "url_5": "",
+    "url_6": "",
+    "url_7": "",
+    "url_8": "",
+    "url_9": ""
+}'''
 
 def print_action(message: str, delay: float = 0.5):
     """Print action with status indicator."""
@@ -139,43 +113,28 @@ def install_requirements() -> bool:
         print(f"Unexpected error installing requirements: {e}")
         return False
 
-def create_default_config() -> Dict:
-    """Create default configuration with current timestamp."""
-    from datetime import datetime
-    config = DEFAULT_CONFIG.copy()
-    config["last_updated"] = datetime.now().isoformat()
-    return config
-
-def handle_config() -> bool:
-    """Create or update config.json file."""
-    if CONFIG_FILE.exists():
-        print("Config file already exists at:", CONFIG_FILE)
+def handle_persistent() -> bool:
+    """Create or update persistent.json file."""
+    if PERSISTENT_FILE.exists():
+        print("Persistence file already exists at:", PERSISTENT_FILE)
         resp = input("Do you want to overwrite it? (y/n): ").strip().lower()
         if resp != 'y':
-            print_action("Skipping config creation")
+            print_action("Skipping persistent creation")
             return True
 
     try:
-        CONFIG_FILE.parent.mkdir(exist_ok=True)
-        config = create_default_config()
-        
-        # Initialize download history
-        for i in range(1, 10):
-            config[f"filename_{i}"] = "Empty"
-            config[f"url_{i}"] = ""
-        
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=4)
-        print_action("Created default config")
+        PERSISTENT_FILE.parent.mkdir(exist_ok=True)
+        with open(PERSISTENT_FILE, 'w') as f:
+            f.write(PERSISTENT_TEXT)
+        print_action("Created default persistent")
         return True
     except Exception as e:
-        print(f"Error creating config file: {e}")
+        print(f"Error creating persistent file: {e}")
         return False
 
 def check_permissions() -> bool:
     """Check if the program has necessary permissions."""
     try:
-        # Try to write to all necessary directories
         for directory in [DATA_DIR, DOWNLOADS_DIR, SCRIPTS_DIR, TEMP_DIR]:
             directory.mkdir(exist_ok=True)
             test_file = directory / ".test_write"
@@ -186,30 +145,9 @@ def check_permissions() -> bool:
         print("Error: Insufficient permissions to create/write to directories")
         return False
 
-def display_success():
-    """Display success message with ASCII art."""
-    success_message = f"""
-========================================================================================================================
-Installation Complete!
-
-{APP_TITLE} has been successfully installed with the following components:
-
-- Directory structure created
-- Python dependencies installed
-- Configuration file initialized
-- Download directories prepared
-
-You can now run {APP_TITLE} using the launcher.
-
-Thank you for installing {APP_TITLE}!
-========================================================================================================================
-"""
-    print(success_message)
-
 def main():
     """Main installation process."""
-    print(f"\nInstalling {APP_TITLE}...")
-    print("-" * 50)
+    print(f"Installing {APP_TITLE}...")
 
     # Check system requirements
     if not check_python_version() or not check_platform():
@@ -235,13 +173,12 @@ def main():
         return False
 
     # Handle configuration
-    if not handle_config():
-        print("Installation failed at configuration step")
+    if not handle_persistent():
+        print("Installation failed at persistent step")
         input("Press Enter to exit...")
         return False
 
     # Display success message
-    display_success()
     input("Press Enter to exit...")
     return True
 

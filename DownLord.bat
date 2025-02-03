@@ -84,12 +84,11 @@ if /i "%choice%"=="2" (
     cls
     color 1B
     call :DisplayTitle
-    echo Installing Requirements...
+    echo Running Installer...
     python.exe .\installer.py
     if errorlevel 1 (
         echo Error during installation
     )
-    pause
     goto MainMenu
 )
 
