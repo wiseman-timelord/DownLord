@@ -12,7 +12,7 @@
 │   ├── interface.py        # UI and user interaction
 │   ├── utility.py          # Download functionality
 │   └── temporary.py        # Constants and configurations
-├── DownLord-Py.bat        # Windows batch launcher
+├── DownLord.bat          # Batch menu installer/launcher
 ├── installer.py           # Installation script
 ├── launcher.py           # Main application entry
 ├── LICENSE.txt           # License information
