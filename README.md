@@ -3,6 +3,32 @@
 - Release versions mostly work, but need update. The batches for this program may only run on Windows 10. HuggingFace downloads have stopped working.
 - Update on the way, conformed to my new structure format, and improved. Huggingface fix attempt will be made.
 
+## File Structure
+- Packaged files
+```
+.\
+├── data\
+│   ├── temporary.json           # Main configuration file
+│   ├── requirements.txt      # Python package requirements
+│   └── downlord.log         # Application log file
+├── scripts\                # Core application scripts
+│   ├── interface.py        # UI and user interaction
+│   ├── utility.py          # Download functionality
+│   └── temporary.py        # Constants and configurations
+├── DownLord-Py.bat        # Windows batch launcher
+├── installer.py           # Installation script
+├── launcher.py           # Main application entry
+├── LICENSE.txt           # License information
+└── README.md            # Project documentation
+```
+- Files created by installer.
+```
+├── scripts\                # Already part of package
+│   ├── __init__.py          # init file to fix scripts in `.\scripts`
+├── downloads\               # Default download directory
+├── temp\                   # Temporary download storage
+```
+
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
 
