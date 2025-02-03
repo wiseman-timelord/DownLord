@@ -1,41 +1,111 @@
+REM .\GameNotOver.bat
 @echo off
-mode 70,30
 setlocal enabledelayedexpansion
 
-echo.
+REM Global Variables
+set "TITLE=DownLord
+
+REM Set window title
+title %TITLE%
+
+:: DP0 TO SCRIPT BLOCK, DO NOT, MODIFY or MOVE: START
+set "ScriptDirectory=%~dp0"
+set "ScriptDirectory=%ScriptDirectory:~0,-1%"
+cd /d "%ScriptDirectory%"
+echo Dp0'd to Script.
+:: DP0 TO SCRIPT BLOCK, DO NOT, MODIFY or MOVE: END
+
+REM Check for Administrator privileges
+net session >nul 2>&1
+if %errorLevel% NEQ 0 (
+    echo Error: Admin Required!
+    timeout /t 2 >nul
+    echo Right Click, Run As Administrator.
+    timeout /t 2 >nul
+    goto :end_of_script
+)
+echo Status: Administrator
+timeout /t 1 >nul
+
+REM Functions
+goto :SkipFunctions
+
+:DisplayTitle
+cls
+echo ========================================================================================================================
 echo "________                      .____                    .___"
 echo "\______ \   ______  _  ______ |    |    ___________  __| _/"
 echo " |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ | "
 echo " |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ | "
 echo "/_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ | "
 echo "        \/                  \/        \/                \/ "
+echo ========================================================================================================================
 echo.
+goto :eof
 
-:: Read max_retries from config.json
-for /f "tokens=2 delims=:" %%a in ('findstr /c:"\"retries\":" config.json') do set max_retries=%%a
-set max_retries=%max_retries:~1,-1%
-set "message=We will now insist upon downloading your files %max_retries% times..."
-set "delay=1"
-for %%a in (%message%) do (
-    echo|set /p="%%a "
-    timeout /t %delay% /nobreak >nul
+:DisplaySeparator
+echo ------------------------------------------------------------------------------------------------------------------------
+goto :eof
+
+:MainMenu
+color 0B
+call :DisplayTitle
+echo     1. Launch %TITLE%
+echo.
+echo     2. Install Requirements
+echo.
+call :DisplaySeparator
+set /p "choice=Selection; Options = 1-2, Exit = X: "
+
+REM Process user input
+if /i "%choice%"=="1" (
+    color 1F
+    call :DisplayTitle
+    echo Starting %TITLE%...
+    python.exe .\launcher.py
+    if errorlevel 1 (
+        echo Error launching %TITLE%
+        pause
+    )
+    pause
+    goto MainMenu
 )
-echo.
-echo.
 
-@echo on
-python.exe main.py
-@echo off
-echo.
-echo.
-
-set "message=Remember to move completed files to intended destinations..."
-set "delay=1"
-for %%a in (%message%) do (
-    echo|set /p="%%a "
-    timeout /t %delay% /nobreak >nul
+if /i "%choice%"=="2" (
+    cls
+    color 1F
+    call :DisplayTitle
+    echo Installing Requirements...
+    python.exe .\installer.py
+    if errorlevel 1 (
+        echo Error during installation
+    )
+    pause
+    goto MainMenu
 )
-echo.
-echo.
 
-set /p input=(Press enter to finish..)
+if /i "%choice%"=="X" (
+    cls
+    call :DisplayTitle
+    echo Closing %TITLE%...
+    timeout /t 2 >nul
+    goto :end_of_script
+)
+
+REM Invalid input handling
+echo.
+echo Invalid selection. Please try again.
+timeout /t 2 >nul
+goto MainMenu
+
+:SkipFunctions
+goto MainMenu
+
+:end_of_script
+pause
+cls
+color 0B
+call :DisplayTitle
+echo. 
+timeout /t 2 >nul
+exit
