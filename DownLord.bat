@@ -41,7 +41,6 @@ echo "     |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |     "
 echo "    /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |     "
 echo "            \/                  \/        \/                \/     "
 echo =====================================================================
-echo.
 goto :eof
 
 :DisplaySeparator
@@ -51,9 +50,18 @@ goto :eof
 :MainMenu
 color 0B
 call :DisplayTitle
+echo     Batch Launch/Install Menu
+call :DisplaySeparator
+echo.
+echo.
+echo.
+echo.
 echo     1. Launch %TITLE%
 echo.
 echo     2. Install Requirements
+echo.
+echo.
+echo.
 echo.
 call :DisplaySeparator
 set /p "choice=Selection; Options = 1-2, Exit = X: "
