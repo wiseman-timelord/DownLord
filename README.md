@@ -42,12 +42,12 @@ Installing DownLord...
 --------------------------------------------------
 >> Python version check passed [OK]
 >> Platform check passed: windows [OK]
->> Created directory: C:\Program_Filez\Downlord\DownLord-main\data [OK]
->> Created directory: C:\Program_Filez\Downlord\DownLord-main\downloads [OK]
->> Created directory: C:\Program_Filez\Downlord\DownLord-main\scripts [OK]
->> Created directory: C:\Program_Filez\Downlord\DownLord-main\temp [OK]
->> Created scripts/__init__.py [OK]
->> Created requirements.txt [OK]
+>> Created directory: .\data [OK]
+>> Created directory: .\downloads [OK]
+>> Checked directory: .\scripts [OK]
+>> Created directory: .\temp [OK]
+>> Created .\scripts\__init__.py [OK]
+>> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
 >> Created default config [OK]
 
