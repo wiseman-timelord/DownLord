@@ -50,7 +50,7 @@ goto :eof
 :MainMenu
 color 0B
 call :DisplayTitle
-echo     Batch Launch/Install Menu
+echo     Batch Menu
 call :DisplaySeparator
 echo.
 echo.
