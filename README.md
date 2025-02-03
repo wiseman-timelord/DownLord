@@ -7,10 +7,7 @@
 - Packaged files
 ```
 .\
-├── data\
-│   ├── temporary.json           # Main configuration file
-│   ├── requirements.txt      # Python package requirements
-│   └── downlord.log         # Application log file
+
 ├── scripts\                # Core application scripts
 │   ├── interface.py        # UI and user interaction
 │   ├── utility.py          # Download functionality
@@ -21,12 +18,16 @@
 ├── LICENSE.txt           # License information
 └── README.md            # Project documentation
 ```
-- Files created by installer.
+- Files created by installer/program.
 ```
-├── scripts\                # Already part of package
-│   ├── __init__.py          # init file to fix scripts in `.\scripts`
-├── downloads\               # Default download directory
-├── temp\                   # Temporary download storage
+├── data\                     # Data related, Created by installer
+│   ├── persistent.json       # persistent settings, Created by installer
+│   ├── requirements.txt      # Python requirements, Created by installer
+│   └── downlord.log         # Log file, created by main program
+├── scripts\                 # Already part of package
+│   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
+├── downloads\               # Default download directory, created by installer
+├── temp\                   # Temporary download storage, created by installer
 ```
 
 ## Description
