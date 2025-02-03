@@ -3,7 +3,7 @@
 - Re-visited 2025/02/03
 
 ## Description
-DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
+DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel from unresponsive resume action. It's tailored for substantial downloads, where, the browser may fail and lfs produce little/no information.
 
 ## Preview
 - Launcher is downloading compitently...
@@ -69,9 +69,10 @@ Installation Complete!
 - Configuration Persistence - The last used, URLs and settings, are saved in a configuration file.
 
 ## Requirements
-- Python 2.6-3.11
+- Windows 7-10 
+- Python 3.6-3.11
 - Internet connection
-- URL linked to file
+- URL to download
 
 ## Usage
 1. Clone the repository or download the script.
