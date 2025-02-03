@@ -76,11 +76,12 @@ Installation Complete!
 
 ## Usage
 1. Clone the repository or download the script.
-2. Run the script, using `python main.py` or double click "DownLord.bat".
-3. Take a look in the settings menu, make sure everything is optimal.
+2. Run the script "DownLord.bat".
+3. Select the Installer, to install requirements and setup files.
+4. After install has finished, return to the menut, then press 1 to launch main program.
+5. Take a look in the settings menu, make sure everything is optimal.
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
-6. Edit folder properties in "DownLord.lnk", for batch launch on taskbar.
 
 ## File Structure
 - Packaged files
