@@ -33,6 +33,43 @@
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel them. It's tailored for substantial downloads rather than smaller files that can be handled by the browser.
 
+## Preview
+- Installer is comprehensive...
+```
+Installing Requirements...
+
+Installing DownLord...
+--------------------------------------------------
+>> Python version check passed [OK]
+>> Platform check passed: windows [OK]
+>> Created directory: C:\Program_Filez\Downlord\DownLord-main\data [OK]
+>> Created directory: C:\Program_Filez\Downlord\DownLord-main\downloads [OK]
+>> Created directory: C:\Program_Filez\Downlord\DownLord-main\scripts [OK]
+>> Created directory: C:\Program_Filez\Downlord\DownLord-main\temp [OK]
+>> Created scripts/__init__.py [OK]
+>> Created requirements.txt [OK]
+>> Installed Python dependencies [OK]
+>> Created default config [OK]
+
+========================================================================================================================
+Installation Complete!
+
+DownLord has been successfully installed with the following components:
+
+- Directory structure created
+- Python dependencies installed
+- Configuration file initialized
+- Download directories prepared
+
+You can now run DownLord using the launcher.
+
+Thank you for installing DownLord!
+========================================================================================================================
+
+Press Enter to exit...
+```
+
+
 ## Features
 - Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
