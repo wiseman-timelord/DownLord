@@ -69,9 +69,9 @@ Selection; Options = 1-2, Exit = X:
 "          |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |          "
 "         /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |          "
 "                 \/                  \/        \/                \/          "
+-------------------------------------------------------------------------------
+    DownLord Install
 ===============================================================================
-Running Installer...
-Installing DownLord...
 >> Python version check passed [OK]
 >> Platform check passed: windows [OK]
 >> Checked directory: .\data [OK]
@@ -81,9 +81,9 @@ Installing DownLord...
 >> Created .\scripts\__init__.py [OK]
 >> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
-Persistence file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\persistence.json
+Persistence file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\persistent.json
 Do you want to overwrite it? (y/n): y
->> Created default persistence [OK]
+>> Created default persistent [OK]
 Press Enter to exit...
 ```
 
