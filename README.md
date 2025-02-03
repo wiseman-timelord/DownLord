@@ -53,20 +53,6 @@ Installing DownLord...
 
 ========================================================================================================================
 Installation Complete!
-
-DownLord has been successfully installed with the following components:
-
-- Directory structure created
-- Python dependencies installed
-- Configuration file initialized
-- Download directories prepared
-
-You can now run DownLord using the launcher.
-
-Thank you for installing DownLord!
-========================================================================================================================
-
-Press Enter to exit...
 ```
 
 
