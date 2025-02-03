@@ -3,7 +3,7 @@ REM .\GameNotOver.bat
 setlocal enabledelayedexpansion
 
 REM display setup
-mode con: cols=70 lines=25
+mode con: cols=80 lines=25
 
 REM title code
 set "TITLE=DownLord
@@ -33,18 +33,18 @@ goto :SkipFunctions
 
 :DisplayTitle
 cls
-echo =====================================================================
-echo "    ________                      .____                    .___    "
-echo "    \______ \   ______  _  ______ |    |    ___________  __| _/    "
-echo "     |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |     "
-echo "     |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |     "
-echo "    /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |     "
-echo "            \/                  \/        \/                \/     "
-echo =====================================================================
+echo ===============================================================================
+echo "         ________                      .____                    .___         "
+echo "         \______ \   ______  _  ______ |    |    ___________  __| _/         "
+echo "          |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |          "
+echo "          |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |          "
+echo "         /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |          "
+echo "                 \/                  \/        \/                \/          "
+echo ===============================================================================
 goto :eof
 
 :DisplaySeparator
-echo ---------------------------------------------------------------------
+echo -------------------------------------------------------------------------------
 goto :eof
 
 :MainMenu
@@ -68,7 +68,7 @@ set /p "choice=Selection; Options = 1-2, Exit = X: "
 
 REM Process user input
 if /i "%choice%"=="1" (
-    color 1F
+    color 1B
     call :DisplayTitle
     echo Starting %TITLE%...
     python.exe .\launcher.py
@@ -82,7 +82,7 @@ if /i "%choice%"=="1" (
 
 if /i "%choice%"=="2" (
     cls
-    color 1F
+    color 1B
     call :DisplayTitle
     echo Installing Requirements...
     python.exe .\installer.py

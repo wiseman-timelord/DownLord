@@ -259,3 +259,36 @@ RETRY_STRATEGY = {
         "TooManyRedirects"
     ]
 }
+
+# Download Headers
+DEFAULT_HEADERS = {
+    "User-Agent": f"DownLord/{APP_VERSION}",
+    "Accept": "*/*",
+    "Connection": "keep-alive"
+}
+
+# Download Helpers
+def calculate_retry_delay(retries: int) -> float:
+    """Calculate delay for retry attempts."""
+    return min(
+        RETRY_STRATEGY["initial_delay"] * (RETRY_STRATEGY["backoff_factor"] ** retries),
+        RETRY_STRATEGY["max_delay"]
+    )
+
+def get_download_headers(existing_size: int = 0) -> Dict:
+    """Get standardized download headers."""
+    headers = DEFAULT_HEADERS.copy()
+    if existing_size:
+        headers["Range"] = f"bytes={existing_size}-"
+    return headers
+
+# URL Processing Functions
+def extract_filename_from_disposition(disposition: str) -> Optional[str]:
+    """Extract filename from content-disposition header."""
+    if 'filename=' in disposition:
+        filename_match = re.search(r'filename="([^"]+)"', disposition)
+        if not filename_match:
+            filename_match = re.search(r'filename\*=UTF-8\'\'([^;]+)', disposition)
+        if filename_match:
+            return unquote(filename_match.group(1)).strip('"')
+    return None

@@ -14,48 +14,35 @@ from scripts.temporary import (
 )
 
 # ASCII Art
-ASCII_LOGO = '''========================================================================================================================
-"________                      .____                    .___"
-"\______ \   ______  _  ______ |    |    ___________  __| _/"
-" |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ | "
-" |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ | "
-"/_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ | "
-"        \/                  \/        \/                \/ "
-========================================================================================================================'''
+ASCII_LOGO = '''===============================================================================
+          ________                      .____                    .___
+          \______ \   ______  _  ______ |    |    ___________  __| _/
+           |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ | 
+           |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ | 
+          /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ | 
+                  \/                  \/        \/                \/ 
+-------------------------------------------------------------------------------
+    %s
+==============================================================================='''
 
 # Menu Templates
-MENU_SEPARATOR = "-" * 120
+MENU_SEPARATOR = "-" * 80
 
 MAIN_MENU = """
-
-                           Main Menu
-                           -=-=-=-=-
-
-Recent Downloads:
-
-"""
+Recent Downloads:"""
 
 MAIN_MENU_FOOTER = """
-
-Press, 0 for New URL or 1-9 to Continue or s for Setup or q for Quit:"""
+Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: """
 
 SETUP_MENU = """
-
-                         Setup Menu
-                         -=-=--=-=-
-
-                    1. Connection Speed
-                    2. Maximum Retries
-                    3. Security Settings
-                    4. Return to Main
+    1. Connection Speed
+    2. Maximum Retries
+    3. Security Settings
+    4. Return to Main
 
 """
 
 SPEED_MENU = """
-
-                    Connection Menu
-                        -=-=--=-=-
-
             1. Slow  ~1MBit/s (Chunk Size  1024KB)
             2. Okay  ~5MBit/s (Chunk Size  4096KB)
             3. Good ~10MBit/s (Chunk Size  8192KB)
@@ -65,10 +52,6 @@ SPEED_MENU = """
 """
 
 SECURITY_MENU = """
-
-                   Security Settings
-                      -=-=--=-=-
-
                 1. Toggle SSL Verification
                 2. Toggle Hash Verification
                 3. Manage Blocked Extensions
@@ -102,10 +85,10 @@ SUCCESS_MESSAGES = {
     "auth_success": "Authentication configured successfully."
 }
 
-def clear_screen():
-    """Clear the screen and display the logo."""
+def clear_screen(title="Main Menu"):
+    """Clear the screen and display the logo with dynamic title."""
     print("\033[H\033[J", end="")  # ANSI escape sequence for clear screen
-    print(ASCII_LOGO)
+    print(ASCII_LOGO % title)
 
 def display_separator():
     """Display a menu separator line."""
@@ -113,7 +96,7 @@ def display_separator():
 
 def display_main_menu(config: Dict):
     """Display the main menu with download history."""
-    clear_screen()
+    clear_screen("Main Menu")
     print(MAIN_MENU)
     
     # Display download history
@@ -122,14 +105,14 @@ def display_main_menu(config: Dict):
         filename = config.get(filename_key, "Empty")
         print(f"    {i}. {filename}")
     
-    print(MAIN_MENU_FOOTER)
+    print(MAIN_MENU_FOOTER, end='')
 
 def setup_menu():
     """Display and handle the setup menu."""
     while True:
-        clear_screen()
+        clear_screen("Setup Menu")
         print(SETUP_MENU)
-        choice = input("Enter your choice (1-4): ").strip()
+        choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
         
         if choice == '1':
             internet_options_menu()
@@ -137,17 +120,18 @@ def setup_menu():
             max_retries_menu()
         elif choice == '3':
             security_menu()
-        elif choice == '4':
+        elif choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
+            input("\nPress Enter to continue...")
 
 def security_menu():
     """Handle security settings menu."""
     config = load_config()
     
     while True:
-        clear_screen()
+        clear_screen("Security Settings")
         print(SECURITY_MENU)
         
         ssl_status = "Enabled" if config["security"]["verify_ssl"] else "Disabled"
@@ -156,7 +140,7 @@ def security_menu():
         print(f"SSL Verification: {ssl_status}")
         print(f"Hash Verification: {hash_status}")
         
-        choice = input("\nEnter your choice (1-5): ").strip()
+        choice = input("\nSelection; Options = 1-5, Return = B: ").strip().lower()
         
         if choice == '1':
             config["security"]["verify_ssl"] = not config["security"]["verify_ssl"]
@@ -170,7 +154,7 @@ def security_menu():
             manage_blocked_extensions(config)
         elif choice == '4':
             configure_huggingface_auth(config)
-        elif choice == '5':
+        elif choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
@@ -179,14 +163,12 @@ def security_menu():
 
 def configure_huggingface_auth(config: Dict):
     """Configure HuggingFace authentication settings."""
-    clear_screen()
-    print("\n                 HuggingFace Authentication")
-    print("                      -=-=--=-=-")
+    clear_screen("HuggingFace Authentication")
+    print("\nCurrent Status:", "Enabled" if config["download"]["huggingface"]["use_auth"] else "Disabled")
     
-    current_status = "Enabled" if config["download"]["huggingface"]["use_auth"] else "Disabled"
-    print(f"\nCurrent Status: {current_status}")
+    choice = input("\nSelection; Enable Auth = Y, Disable = N, Return = B: ").strip().lower()
     
-    if input("\nEnable HuggingFace authentication? (y/n): ").lower() == 'y':
+    if choice == 'y':
         token = input("Enter your HuggingFace token (or press Enter to skip): ").strip()
         if token:
             config["download"]["huggingface"]["use_auth"] = True
@@ -198,19 +180,22 @@ def configure_huggingface_auth(config: Dict):
             config["download"]["huggingface"]["token"] = None
             save_config(config)
             print("Authentication disabled.")
-    else:
+    elif choice == 'n':
         config["download"]["huggingface"]["use_auth"] = False
         config["download"]["huggingface"]["token"] = None
         save_config(config)
         print("Authentication disabled.")
+    elif choice == 'b':
+        return
+    else:
+        print(ERROR_MESSAGES["invalid_choice"])
+    
+    input("\nPress Enter to continue...")
 
 def manage_blocked_extensions(config: Dict):
     """Manage blocked file extensions."""
-    clear_screen()
-    print("\n                 Blocked Extensions")
-    print("                    -=-=--=-=-")
-    
     while True:
+        clear_screen("Blocked Extensions")
         print("\nCurrently blocked extensions:")
         for i, ext in enumerate(config["security"]["blocked_extensions"], 1):
             print(f"{i}. {ext}")
@@ -220,7 +205,7 @@ def manage_blocked_extensions(config: Dict):
         print("2. Remove extension")
         print("3. Return to Security Menu")
         
-        choice = input("\nEnter your choice (1-3): ").strip()
+        choice = input("\nSelection; Options = 1-3, Return = B: ").strip().lower()
         
         if choice == '1':
             ext = input("Enter extension to block (include dot, e.g. '.exe'): ").strip()
@@ -238,17 +223,22 @@ def manage_blocked_extensions(config: Dict):
                     print(SUCCESS_MESSAGES["config_updated"])
             except ValueError:
                 print(ERROR_MESSAGES["invalid_number"])
-        elif choice == '3':
+        elif choice == '3' or choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
+        
+        input("\nPress Enter to continue...")
 
 def internet_options_menu():
     """Display and handle the internet speed options menu."""
     config = load_config()
-    clear_screen()
+    clear_screen("Connection Speed")
     print(SPEED_MENU)
-    connection_choice = input("Enter your connection speed (1-5): ").strip()
+    connection_choice = input("Selection; Speed = 1-5, Return = B: ").strip().lower()
+
+    if connection_choice == 'b':
+        return
 
     chunk_sizes = {
         "1": DEFAULT_CHUNK_SIZES["slow"],
@@ -264,20 +254,18 @@ def internet_options_menu():
         print(SUCCESS_MESSAGES["connection_updated"])
     else:
         print(ERROR_MESSAGES["invalid_choice"])
+    
+    input("\nPress Enter to continue...")
 
 def max_retries_menu():
     """Display and handle the maximum retries menu."""
     config = load_config()
-    clear_screen()
-    print("\n                     Retries Menu")
-    print("                      -=-=--=-=-")
+    clear_screen("Maximum Retries")
+    print(f"\nCurrent Maximum Retries: {config['download']['max_retries']}\n")
     
-    current_retries = config["download"]["max_retries"]
-    print(f"\n           Current Maximum Retries: {current_retries}\n")
+    retries = input("Selection; Enter Number or Back = B: ").strip().lower()
     
-    retries = input("Enter the number of maximum retries (or 'b' to back): ").strip()
-    
-    if retries.lower() == 'b':
+    if retries == 'b':
         return
 
     try:
@@ -290,10 +278,12 @@ def max_retries_menu():
             print(ERROR_MESSAGES["invalid_number"])
     except ValueError:
         print(ERROR_MESSAGES["invalid_number"])
+    
+    input("\nPress Enter to continue...")
 
 def display_download_prompt() -> str:
     """Display the download URL prompt."""
-    return input("\nEnter the URL to download (or 'q' to quit): ")
+    return input("Selection; Enter URL or Q to Quit: ")
 
 def print_progress(message: str):
     """Print a progress message."""
