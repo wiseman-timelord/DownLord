@@ -32,7 +32,7 @@ Recent Downloads:
 
 Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: 0
 Selection; Enter URL or Q to Quit: https://cdn-lfs-us-1.hf.co/repos...Key-Pair-Id=K############
-deepseek-r1-distill-qwen-14b-uncensored-q6_k.gguf:   0%|                         | 11.7M/11.3G [00:31<8:03:08, 418kB/s]
+deepseek-r1-distill-... .gguf:   0%, 11.7M/11.3G [00:31<8:03:08, 418kB/s]
 ```
 - Batch Launcher/Installer Menu...
 ```
