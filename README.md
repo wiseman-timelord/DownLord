@@ -62,10 +62,16 @@ Selection; Options = 1-2, Exit = X:
 ```
 - Installer is comprehensive...
 ```
-Installing Requirements...
-
+===============================================================================
+"         ________                      .____                    .___         "
+"         \______ \   ______  _  ______ |    |    ___________  __| _/         "
+"          |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |          "
+"          |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |          "
+"         /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |          "
+"                 \/                  \/        \/                \/          "
+===============================================================================
+Running Installer...
 Installing DownLord...
---------------------------------------------------
 >> Python version check passed [OK]
 >> Platform check passed: windows [OK]
 >> Checked directory: .\data [OK]
@@ -75,12 +81,10 @@ Installing DownLord...
 >> Created .\scripts\__init__.py [OK]
 >> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
-Config file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\config.json
+Persistence file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\persistence.json
 Do you want to overwrite it? (y/n): y
->> Created default config [OK]
-
-========================================================================================================================
-Installation Complete!
+>> Created default persistence [OK]
+Press Enter to exit...
 ```
 
 
