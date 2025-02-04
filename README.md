@@ -5,7 +5,7 @@
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel from unresponsive resume action. It's tailored for substantial downloads, where, the browser may fail and lfs produce little/no information.
 
-## Preview
+### Preview
 - Launcher is downloading compitently...
 ```
 ===============================================================================
@@ -88,14 +88,14 @@ Press Enter to exit...
 ```
 
 
-## Features
+### Features
 - Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
 - Setup Menu - Configure connection speed, maximum retries, and download settings.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 - Configuration Persistence - The last used, URLs and settings, are saved in a configuration file.
 
-## Platforms
+### Platforms
 DownLord supports download links from...
 - HuggingFace (huggingface.co, hf.co)
 - Google Drive (drive.google.com)
@@ -109,7 +109,7 @@ DownLord supports download links from...
 - Internet connection
 - URL to download
 
-## Usage
+### Usage
 1. Clone the repository or download the script.
 2. Run the script "DownLord.bat".
 3. Select the Installer, to install requirements and setup files.
@@ -118,7 +118,7 @@ DownLord supports download links from...
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
 
-## File Structure
+### File Structure
 - Packaged files
 ```
 ├── DownLord.bat          # Batch menu installer/launcher
