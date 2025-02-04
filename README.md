@@ -95,6 +95,14 @@ Press Enter to exit...
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 - Configuration Persistence - The last used, URLs and settings, are saved in a configuration file.
 
+## Platforms
+DownLord supports download links from...
+- HuggingFace (huggingface.co, hf.co)
+- Google Drive (drive.google.com)
+- Dropbox (dropbox.com)
+- GitHub (github.com)
+- Direct HTTP/HTTPS downloads
+
 ## Requirements
 - Windows 7-10 
 - Python 3.6-3.11
