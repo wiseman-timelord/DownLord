@@ -97,9 +97,9 @@ Press Enter to exit...
 - Platform support - HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
 
 ## Requirements
-- Windows 7-10 
-- Python 3.6-3.11
-- Internet and URL to download.
+- Windows 7-10, testing is done on 10.
+- Python 3.6-3.11, 3.11 recommended.
+- Internet Connection and a URL to download.
 
 ### Usage
 1. Clone the repository or download the script.
