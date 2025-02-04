@@ -2,9 +2,13 @@
 
 import json
 import os
+import logging
 from pathlib import Path
 from typing import Dict, Optional, Union
+from datetime import datetime
 from scripts.temporary import (
+    FILE_STATE_MESSAGES,
+    FILE_STATES,  # Add this
     PERSISTENT_FILE,
     DOWNLOADS_DIR,
     RUNTIME_CONFIG,
@@ -95,18 +99,45 @@ def display_separator():
     """Display a menu separator line."""
     print(MENU_SEPARATOR)
 
+def format_file_size(size: int) -> str:
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return f"{size:.2f} TB"
+
+def format_file_state(state: str, info: Dict = None) -> str:
+    message = FILE_STATE_MESSAGES.get(state, "Unknown state")
+    if info and state == "partial":
+        message = message.format(
+            size_done=format_file_size(info.get('size_done', 0)),
+            size_total=format_file_size(info.get('size_total', 0))
+        )
+    return message
+
 def display_main_menu(config: Dict):
-    """Display the main menu with download history."""
-    clear_screen("Main Menu")
-    print(MAIN_MENU)
-    
-    # Display download history
-    for i in range(1, 10):
-        filename_key = f"filename_{i}"
-        filename = config.get(filename_key, "Empty")
-        print(f"    {i}. {filename}")
-    
-    print(MAIN_MENU_FOOTER, end='')
+   try:
+       clear_screen("Main Menu")
+       print(MAIN_MENU)
+       
+       for i in range(1, 10):
+           filename_key = f"filename_{i}"
+           filename = config.get(filename_key, "Empty")
+           url = config.get(f"url_{i}", "")
+           if filename != "Empty":
+               file_path = Path(DOWNLOADS_DIR) / filename
+               if file_path.exists():
+                   size = format_file_size(file_path.stat().st_size)
+                   print(f"    {i}. {filename} ({size})")
+               else:
+                   print(f"    {i}. {filename} (File missing)")
+           else:
+               print(f"    {i}. Empty")
+       
+       print(MAIN_MENU_FOOTER, end='')
+   except Exception as e:
+       logging.error(f"Error displaying menu: {e}")
+       print(MAIN_MENU_FOOTER, end='')
 
 def setup_menu():
     """Display and handle the setup menu."""
@@ -227,6 +258,25 @@ def manage_blocked_extensions():
         
         input("\nPress Enter to continue...")
 
+def display_download_status(filename: str, state: str, info: Dict = None) -> None:
+    state_msg = format_file_state(state, info)
+    print(f"\n{filename}: {state_msg}")
+
+def display_file_info(path: Path, url: str = None) -> None:
+    try:
+        if not path.exists():
+            return
+        
+        size = format_file_size(path.stat().st_size)
+        modified = path.stat().st_mtime
+        print(f"\nFile: {path.name}")
+        print(f"Size: {size}")
+        print(f"Modified: {datetime.fromtimestamp(modified)}")
+        if url:
+            print(f"Source: {url}")
+    except Exception as e:
+        logging.error(f"Error displaying file info: {e}")
+
 def internet_options_menu():
     """Display and handle the internet speed options menu."""
     config = load_config()
@@ -287,13 +337,67 @@ def print_progress(message: str):
     print(f">> {message}")
 
 def load_config() -> Dict:
+   try:
+       if PERSISTENT_FILE.exists():
+           with open(PERSISTENT_FILE, "r") as file:
+               config = json.load(file)
+               validate_config(config)
+               return config
+       logging.warning("No config file found, creating default")
+       return create_default_config()
+   except json.JSONDecodeError as e:
+       logging.error(f"Error decoding config: {e}")
+       return create_default_config()
+   except Exception as e:
+       logging.error(f"Error loading config: {e}")
+       return create_default_config()
+
+def save_config(config: Dict) -> bool:
+   try:
+       validate_config(config)
+       PERSISTENT_FILE.parent.mkdir(exist_ok=True)
+       with open(PERSISTENT_FILE, "w") as file:
+           json.dump(config, file, indent=4)
+       return True
+   except Exception as e:
+       logging.error(f"Error saving config: {e}")
+       display_error(ERROR_MESSAGES["save_config_error"].format(str(e)))
+       return False
+
+def validate_config(config: Dict) -> None:
+    default = create_default_config()
     try:
-        if PERSISTENT_FILE.exists():
-            with open(PERSISTENT_FILE, "r") as file:
-                return json.load(file)
-        return create_default_config()
-    except json.JSONDecodeError:
-        return create_default_config()
+        # Validate required fields
+        for key in default:
+            if key not in config:
+                config[key] = default[key]
+                continue
+                
+            # Validate chunk size
+            if key == "chunk" and not isinstance(config[key], int):
+                config[key] = default[key]
+                
+            # Validate retries
+            if key == "retries" and not isinstance(config[key], int):
+                config[key] = default[key]
+                
+            # Validate history entries
+            if key.startswith("filename_") or key.startswith("url_"):
+                if not isinstance(config[key], str):
+                    config[key] = default[key]
+                    
+        # Ensure all history entries exist
+        for i in range(1, 10):
+            filename_key = f"filename_{i}"
+            url_key = f"url_{i}"
+            if filename_key not in config:
+                config[filename_key] = "Empty"
+            if url_key not in config:
+                config[url_key] = ""
+                
+    except Exception as e:
+        logging.error(f"Error validating config: {e}")
+        return default
 
 def create_default_config() -> Dict:
     """Create a new default configuration."""
@@ -307,16 +411,6 @@ def create_default_config() -> Dict:
         config[f"url_{i}"] = ""
     return config
 
-def save_config(config: Dict) -> bool:
-    try:
-        PERSISTENT_FILE.parent.mkdir(exist_ok=True)
-        with open(PERSISTENT_FILE, "w") as file:
-            json.dump(config, file, indent=4)
-        return True
-    except Exception as e:
-        print(f"Error saving configuration: {str(e)}")
-        return False
-
 def display_error(message: str):
     """Display an error message."""
     print(f"Error: {message}")
@@ -326,19 +420,27 @@ def display_success(message: str):
     print(f"Success: {message}")
 
 def update_history(config: Dict, filename: str, url: str) -> None:
-    """Update the download history in config."""
-    # Check if entry already exists
-    for i in range(1, 10):
-        filename_key = f"filename_{i}"
-        url_key = f"url_{i}"
-        if config.get(filename_key) == filename and config.get(url_key) == url:
-            return  # Entry already exists
+   try:
+       # Validate inputs
+       if not filename or not url:
+           return
+           
+       # Check if entry exists
+       for i in range(1, 10):
+           filename_key = f"filename_{i}"
+           url_key = f"url_{i}"
+           if config.get(filename_key) == filename and config.get(url_key) == url:
+               return
 
-    # Shift entries down and add new entry at top
-    for i in range(9, 1, -1):
-        config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
-        config[f"url_{i}"] = config.get(f"url_{i-1}", "")
-    
-    config["filename_1"] = filename
-    config["url_1"] = url
-    save_config(config)
+       # Shift entries down
+       for i in range(9, 1, -1):
+           config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
+           config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+       
+       # Add new entry
+       config["filename_1"] = filename
+       config["url_1"] = url
+       save_config(config)
+       
+   except Exception as e:
+       logging.error(f"Error updating history: {e}")

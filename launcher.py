@@ -6,13 +6,7 @@ import logging
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Optional
-
-from scripts.utility import (
-    download_file,
-    get_file_name_from_url,
-    DownloadError,
-    URLProcessor
-)
+from scripts.utility import DownloadManager
 from scripts.interface import (
     display_main_menu,
     setup_menu,
@@ -21,6 +15,8 @@ from scripts.interface import (
     display_error,
     display_success,
     display_download_prompt,
+    display_download_status,
+    display_file_info,
     update_history,
     ERROR_MESSAGES
 )
@@ -28,9 +24,9 @@ from scripts.temporary import (
     DOWNLOADS_DIR,
     LOG_FILE,
     APP_TITLE,
-    RUNTIME_CONFIG
+    RUNTIME_CONFIG,
+    FILE_STATES
 )
-
 # Configure logging
 logging.basicConfig(
     filename=LOG_FILE,
@@ -69,91 +65,67 @@ def handle_blocked_extension(filename: str, config: dict) -> bool:
     return ext in config["security"]["blocked_extensions"]
 
 def handle_download(url: str, config: dict) -> bool:
-    """
-    Process a download request.
-    
-    Args:
-        url: URL to download from
-        config: Application configuration
-        
-    Returns:
-        bool: True if download successful, False otherwise
-    """
     if not validate_url(url):
         display_error(ERROR_MESSAGES["invalid_url"])
         return False
 
     try:
         # Process URL and get metadata
-        download_url, metadata = URLProcessor.process_url(url, config)
+        processor = URLProcessor()
+        download_url, metadata = processor.process_url(url, config)
+        filename = metadata.get("filename") or get_file_name_from_url(download_url)
         
-        # Get filename
-        filename = get_file_name_from_url(download_url)
         if not filename:
             display_error(ERROR_MESSAGES["filename_error"])
             return False
             
-        # Check for blocked extensions
         if handle_blocked_extension(filename, config):
-            display_error(f"File type {Path(filename).suffix} is blocked in security settings")
+            display_error(f"File type {Path(filename).suffix} is blocked")
             return False
 
-        # Prepare output path
         out_path = DOWNLOADS_DIR / filename
+        display_download_status(filename, FILE_STATES["new"])
         
-        # Handle existing file
-        if out_path.exists():
-            resp = input(f"File {filename} already exists. Overwrite? (y/n): ").strip().lower()
-            if resp != 'y':
-                return False
-
-        # Attempt download
-        chunk_size = config["download"]["chunk_size"]
-        success = download_file(download_url, out_path, chunk_size)
+        manager = DownloadManager()
+        success, error = manager.download_file(download_url, out_path, config["chunk"])
         
         if success:
-            update_history(config, filename, url)
-            display_success(f"Download complete: {filename}")
-            return True
+            display_download_status(filename, FILE_STATES["complete"])
+            display_file_info(out_path, url)
+        else:
+            display_error(error)
+            display_download_status(filename, FILE_STATES["error"])
             
-    except DownloadError as e:
-        display_error(f"Download error: {str(e)}")
+        return success
+            
     except Exception as e:
-        logging.error(f"Unexpected error during download: {str(e)}")
-        display_error(f"An unexpected error occurred: {str(e)}")
-        
-    return False
+        logging.error(f"Unexpected error: {str(e)}")
+        display_error(str(e))
+        return False
 
 def check_environment() -> bool:
-    """
-    Verify the application environment is properly set up.
-    
-    Returns:
-        bool: True if environment is valid, False otherwise
-    """
     try:
-        # Ensure downloads directory exists
         DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
-        
-        # Check if config can be loaded
         config = load_config()
+        
         if not config:
+            display_error(ERROR_MESSAGES["config_error"])
             return False
             
-        # Verify write permissions
         test_file = DOWNLOADS_DIR / ".write_test"
         try:
             test_file.touch()
             test_file.unlink()
         except PermissionError:
-            display_error("Error: No write permission in downloads directory")
+            display_error("No write permission in downloads directory")
             return False
             
+        display_success("Environment check passed")
         return True
         
     except Exception as e:
         logging.error(f"Environment check failed: {str(e)}")
-        display_error(f"Failed to verify application environment: {str(e)}")
+        display_error(f"Environment verification failed: {str(e)}")
         return False
 
 def prompt_for_download():
