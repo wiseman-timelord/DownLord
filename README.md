@@ -94,11 +94,12 @@ Press Enter to exit...
 - Setup Menu - Configure connection speed, maximum retries, and download settings.
 - Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
 - Configuration Persistence - The last used, URLs and settings, are saved in a configuration file.
+- Platform support - HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
 
 ## Requirements
 - Windows 7-10 
 - Python 3.6-3.11
-- Download URL from, HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
+- Internet and URL to download.
 
 ### Usage
 1. Clone the repository or download the script.
