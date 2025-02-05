@@ -1,6 +1,6 @@
 # DownLord
 ## Status: Beta
-- Re-visited 2025/02/03 - Fixed huggingface links, overhauled and upgraded, elsewhere, the pre-release versions are up. There was a problem with registering the downloads, this investigated, I then persued some other improvements, this lead to additional implementations for things I didnt really see necessary, but apparently enhance the program a little. We are now in a stage of final checks for, logic, sanity, completeness. After which there will be testing, and hopefully only a little fixing, and then a release version, and I can get on with my download from huggingface.
+- Re-visited 2025/02/03 - Fixed huggingface links, overhauled and upgraded, elsewhere, the pre-release versions are up. I am completing a 6GB download on a bad line, then it will have passed that test, and then there will be full testing, mainly the setup options, and fix anything else, and then release version.
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains a history, removing items from its list when manually deleted from the folder. Unlike browser-based downloads, DownLord ensures that users don't return hours later to find incomplete downloads or accidentally cancel from unresponsive resume action. It's tailored for substantial downloads, where, the browser may fail and lfs produce little/no information.
