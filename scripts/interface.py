@@ -42,8 +42,7 @@ Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: """
 SETUP_MENU = """
     1. Connection Speed
     2. Maximum Retries
-    3. Security Settings
-    4. Return to Main
+    3. Return to Main
 
 """
 
@@ -56,15 +55,6 @@ SPEED_MENU = """
 
 """
 
-SECURITY_MENU = """
-                1. Toggle SSL Verification
-                2. Toggle Hash Verification
-                3. Manage Blocked Extensions
-                4. HuggingFace Authentication
-                5. Return to Setup
-
-"""
-
 # Error Messages
 ERROR_MESSAGES = {
     "invalid_choice": "Invalid choice. Please try again.",
@@ -74,9 +64,7 @@ ERROR_MESSAGES = {
     "save_config_error": "Error saving configuration: {}",
     "filename_error": "Unable to extract filename from the URL. Please try again.",
     "invalid_number": "Invalid input. Please enter a number.",
-    "hash_mismatch": "File hash verification failed. File may be corrupt.",
-    "resume_error": "Cannot resume download. Starting from beginning.",
-    "auth_error": "Authentication failed. Please check your credentials."
+    "resume_error": "Cannot resume download. Starting from beginning."
 }
 
 # Success Messages
@@ -85,9 +73,7 @@ SUCCESS_MESSAGES = {
     "download_complete": "Download complete for file: {}",
     "retries_updated": "Maximum retries updated successfully.",
     "connection_updated": "Connection speed updated successfully.",
-    "hash_verified": "File integrity verified successfully.",
-    "resume_success": "Resuming download from {} bytes",
-    "auth_success": "Authentication configured successfully."
+    "resume_success": "Resuming download from {} bytes"
 }
 
 def clear_screen(title="Main Menu"):
@@ -144,119 +130,17 @@ def setup_menu():
     while True:
         clear_screen("Setup Menu")
         print(SETUP_MENU)
-        choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
+        choice = input("Selection; Options = 1-3, Return = B: ").strip().lower()
         
         if choice == '1':
             internet_options_menu()
         elif choice == '2':
             max_retries_menu()
-        elif choice == '3':
-            security_menu()
         elif choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
             input("\nPress Enter to continue...")
-
-def security_menu():
-    """Handle security settings menu."""
-    config = load_config()
-    runtime = RUNTIME_CONFIG
-    
-    while True:
-        clear_screen("Security Settings")
-        print(SECURITY_MENU)
-        
-        ssl_status = "Enabled" if runtime["security"]["verify_ssl"] else "Disabled"
-        hash_status = "Enabled" if runtime["security"]["hash_verification"] else "Disabled"
-        print(f"\nCurrent Settings:")
-        print(f"SSL Verification: {ssl_status}")
-        print(f"Hash Verification: {hash_status}")
-        
-        choice = input("\nSelection; Options = 1-5, Return = B: ").strip().lower()
-        
-        if choice == '1':
-            runtime["security"]["verify_ssl"] = not runtime["security"]["verify_ssl"]
-            print(SUCCESS_MESSAGES["config_updated"])
-        elif choice == '2':
-            runtime["security"]["hash_verification"] = not runtime["security"]["hash_verification"]
-            print(SUCCESS_MESSAGES["config_updated"])
-        elif choice == '3':
-            manage_blocked_extensions()
-        elif choice == '4':
-            configure_huggingface_auth()
-        elif choice == 'b':
-            return
-        else:
-            print(ERROR_MESSAGES["invalid_choice"])
-        
-        input("\nPress Enter to continue...")
-
-def configure_huggingface_auth():
-    """Configure HuggingFace authentication settings."""
-    runtime = RUNTIME_CONFIG
-    clear_screen("HuggingFace Authentication")
-    print("\nCurrent Status:", "Enabled" if runtime["download"]["huggingface"]["use_auth"] else "Disabled")
-    
-    choice = input("\nSelection; Enable Auth = Y, Disable = N, Return = B: ").strip().lower()
-    
-    if choice == 'y':
-        token = input("Enter your HuggingFace token (or press Enter to skip): ").strip()
-        if token:
-            runtime["download"]["huggingface"]["use_auth"] = True
-            runtime["download"]["huggingface"]["token"] = token
-            print(SUCCESS_MESSAGES["auth_success"])
-        else:
-            runtime["download"]["huggingface"]["use_auth"] = False
-            runtime["download"]["huggingface"]["token"] = None
-            print("Authentication disabled.")
-    elif choice == 'n':
-        runtime["download"]["huggingface"]["use_auth"] = False
-        runtime["download"]["huggingface"]["token"] = None
-        print("Authentication disabled.")
-    elif choice == 'b':
-        return
-    else:
-        print(ERROR_MESSAGES["invalid_choice"])
-    
-    input("\nPress Enter to continue...")
-
-def manage_blocked_extensions():
-    """Manage blocked file extensions."""
-    runtime = RUNTIME_CONFIG
-    while True:
-        clear_screen("Blocked Extensions")
-        print("\nCurrently blocked extensions:")
-        for i, ext in enumerate(runtime["security"]["blocked_extensions"], 1):
-            print(f"{i}. {ext}")
-        
-        print("\nOptions:")
-        print("1. Add extension")
-        print("2. Remove extension")
-        print("3. Return to Security Menu")
-        
-        choice = input("\nSelection; Options = 1-3, Return = B: ").strip().lower()
-        
-        if choice == '1':
-            ext = input("Enter extension to block (include dot, e.g. '.exe'): ").strip()
-            if ext and ext not in runtime["security"]["blocked_extensions"]:
-                runtime["security"]["blocked_extensions"].append(ext)
-                print(SUCCESS_MESSAGES["config_updated"])
-        elif choice == '2':
-            idx = input("Enter number of extension to remove: ").strip()
-            try:
-                idx = int(idx) - 1
-                if 0 <= idx < len(runtime["security"]["blocked_extensions"]):
-                    del runtime["security"]["blocked_extensions"][idx]
-                    print(SUCCESS_MESSAGES["config_updated"])
-            except ValueError:
-                print(ERROR_MESSAGES["invalid_number"])
-        elif choice == '3' or choice == 'b':
-            return
-        else:
-            print(ERROR_MESSAGES["invalid_choice"])
-        
-        input("\nPress Enter to continue...")
 
 def display_download_status(filename: str, state: str, info: Dict = None) -> None:
     state_msg = format_file_state(state, info)

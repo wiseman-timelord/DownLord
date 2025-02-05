@@ -5,7 +5,6 @@ import re
 import cgi
 import time
 import json
-import hashlib
 import requests
 import logging
 from datetime import datetime
@@ -193,7 +192,7 @@ class DownloadManager:
                         stream=True,
                         headers=headers,
                         timeout=self.config["download"]["timeout"],
-                        verify=self.config["security"]["verify_ssl"]
+                        verify=False  # Removed security verify_ssl check
                     ) as response:
                         # Handle rate limiting
                         if response.status_code == 429:
@@ -225,11 +224,7 @@ class DownloadManager:
                                     out_file.write(chunk)
                                     progress_bar.update(len(chunk))
 
-                        if self.config["security"]["hash_verification"] and metadata.get("sha"):
-                            final_hash = self.calculate_file_hash(temp_path)
-                            if final_hash != metadata["sha"]:
-                                raise DownloadError(ERROR_MESSAGES["hash_mismatch"])
-
+                        # File is complete, move to final location
                         temp_path.rename(out_path)
                         return True, None
 
@@ -328,83 +323,82 @@ class URLProcessor:
 
     @staticmethod
     def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        if "cdn-lfs" in url:
-            try:
-                logging.info("Processing CDN URL")
-                headers = DEFAULT_HEADERS.copy()
-                remote_info = URLProcessor.get_remote_file_info(url, headers)
-                
-                if "filename=" in url:
-                    if "filename*=UTF-8''" in url:
-                        start = url.find("filename*=UTF-8''") + 17
-                        end = url.find("&", start)
-                        if end == -1:
-                            end = url.find(";", start)
-                        if end == -1:
-                            end = len(url)
-                        filename = unquote(url[start:end])
-                    else:
-                        start = url.find("filename=") + 9
-                        end = url.find("&", start)
-                        if end == -1:
-                            end = url.find(";", start)
-                        if end == -1:
-                            end = len(url)
-                        filename = unquote(url[start:end]).replace('"', '')
-                    
-                    if filename:
-                        logging.info(f"Found filename: {filename}")
-                        return url, {**remote_info, "filename": filename, "is_cdn": True}
-                
-                parts = url.split('/')
-                for part in parts:
-                    if len(part) >= 32 and all(c in '0123456789abcdef' for c in part):
-                        hash_name = f"hf_download_{part[:8]}.bin"
-                        logging.info(f"Using hash-based filename: {hash_name}")
-                        return url, {**remote_info, "filename": hash_name, "is_cdn": True}
-                
-                logging.warning("Using default filename")
-                return url, {**remote_info, "filename": "huggingface_download.bin", "is_cdn": True}
-            except Exception as e:
-                logging.error(f"Error processing CDN URL: {str(e)}")
-                return url, {"filename": "huggingface_download.bin", "is_cdn": True}
+       if "cdn-lfs" in url:
+           try:
+               logging.info("Processing CDN URL")
+               headers = DEFAULT_HEADERS.copy()
+               remote_info = URLProcessor.get_remote_file_info(url, headers)
+               
+               if "filename=" in url:
+                   if "filename*=UTF-8''" in url:
+                       start = url.find("filename*=UTF-8''") + 17
+                       end = url.find("&", start)
+                       if end == -1:
+                           end = url.find(";", start)
+                       if end == -1:
+                           end = len(url)
+                       filename = unquote(url[start:end])
+                   else:
+                       start = url.find("filename=") + 9
+                       end = url.find("&", start)
+                       if end == -1:
+                           end = url.find(";", start)
+                       if end == -1:
+                           end = len(url)
+                       filename = unquote(url[start:end]).replace('"', '')
+                   
+                   if filename:
+                       logging.info(f"Found filename: {filename}")
+                       return url, {**remote_info, "filename": filename, "is_cdn": True}
+               
+               parts = url.split('/')
+               for part in parts:
+                   if len(part) >= 32 and all(c in '0123456789abcdef' for c in part):
+                       hash_name = f"hf_download_{part[:8]}.bin"
+                       logging.info(f"Using hash-based filename: {hash_name}")
+                       return url, {**remote_info, "filename": hash_name, "is_cdn": True}
+               
+               logging.warning("Using default filename")
+               return url, {**remote_info, "filename": "huggingface_download.bin", "is_cdn": True}
+           except Exception as e:
+               logging.error(f"Error processing CDN URL: {str(e)}")
+               return url, {"filename": "huggingface_download.bin", "is_cdn": True}
+      
+       hf_config = config["download"]["huggingface"]
+       headers = DEFAULT_HEADERS.copy()
+       if hf_config["use_auth"] and hf_config["token"]:
+           headers["authorization"] = f"Bearer {hf_config['token']}"
        
-        hf_config = config["download"]["huggingface"]
-        headers = DEFAULT_HEADERS.copy()
-        if hf_config["use_auth"] and hf_config["token"]:
-            headers["authorization"] = f"Bearer {hf_config['token']}"
-        
-        if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
-            try:
-                model_id = model_match.group(1)
-                response = requests.get(f"https://huggingface.co/api/models/{model_id}/files", headers=headers)
-                response.raise_for_status()
-                files = response.json()
-                
-                if hf_config["prefer_torch"]:
-                    torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
-                    if torch_files:
-                        files = torch_files
-                
-                target_file = max(files, key=lambda x: x.get("size", 0))
-                download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
-                
-                # Get remote file info
-                remote_info = URLProcessor.get_remote_file_info(download_url, headers)
-                return (download_url, {
-                    **remote_info,
-                    "size": target_file.get("size", 0),
-                    "sha": target_file.get("sha", ""),
-                    "filename": target_file["rfilename"]
-                })
-            except Exception as e:
-                raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
-        
-        if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
-            remote_info = URLProcessor.get_remote_file_info(url, headers)
-            return url, remote_info
-            
-        raise DownloadError("Invalid HuggingFace URL format")
+       if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
+           try:
+               model_id = model_match.group(1)
+               response = requests.get(f"https://huggingface.co/api/models/{model_id}/files", headers=headers)
+               response.raise_for_status()
+               files = response.json()
+               
+               if hf_config["prefer_torch"]:
+                   torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
+                   if torch_files:
+                       files = torch_files
+               
+               target_file = max(files, key=lambda x: x.get("size", 0))
+               download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
+               
+               # Get remote file info
+               remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+               return (download_url, {
+                   **remote_info,
+                   "size": target_file.get("size", 0),
+                   "filename": target_file["rfilename"]
+               })
+           except Exception as e:
+               raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
+       
+       if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
+           remote_info = URLProcessor.get_remote_file_info(url, headers)
+           return url, remote_info
+           
+       raise DownloadError("Invalid HuggingFace URL format")
 
     @staticmethod
     def process_url(url: str, config: Dict) -> Tuple[str, Dict]:
@@ -466,10 +460,15 @@ def cleanup_orphaned_files() -> None:
     
     save_config(persistent)
 
-def download_file(url: str, out_path: Path, chunk_size: int) -> bool:
-    """Convenience function for simple downloads."""
-    manager = DownloadManager()
-    success, error = manager.download_file(url, out_path, chunk_size)
-    if not success and error:
-        display_error(error)
-    return success
+def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
+    temp_path = None
+    try:
+        # Process URL and get metadata
+        download_url, metadata = URLProcessor.process_url(remote_url, self.config)
+        
+        # Check existing download
+        exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
+        if exists and existing_path:
+            if self.verify_download(existing_path, metadata):
+                display_success(f"File already exists and is complete: {out_path.name}")
+                return True, None

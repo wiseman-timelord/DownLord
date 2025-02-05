@@ -44,7 +44,7 @@ FILE_STATES = {
 FILE_STATE_MESSAGES = {
    "new": "Starting new download",
    "partial": "Resuming partial download ({size_done}/{size_total} bytes)",
-   "complete": "File already downloaded and verified",
+   "complete": "File already downloaded",
    "error": "Previous download failed, retrying",
    "orphaned": "Found orphaned file, cleaning up"
 }
@@ -62,7 +62,6 @@ DOWNLOAD_STATUS = {
 
 DOWNLOAD_VALIDATION = {
    "size_mismatch": "size_mismatch", 
-   "hash_mismatch": "hash_mismatch",
    "incomplete": "incomplete",
    "complete": "complete",
    "unknown": "unknown"
@@ -75,20 +74,10 @@ DISPLAY_FORMATS = {
    "success": "Success: {message}"
 }
 
-FILE_VERIFICATION_STATUS = {
-   "unverified": "Not verified",
-   "verifying": "Verifying file integrity",
-   "verified": "Verified", 
-   "failed": "Verification failed",
-   "mismatch": "Hash mismatch",
-   "incomplete": "File incomplete"
-}
-
 # Runtime Configuration
 RUNTIME_CONFIG = {
    "download": {
        "timeout": 30,
-       "verify_hash": True,
        "parallel_downloads": False,
        "max_parallel": 3,
        "bandwidth_limit": None,
@@ -104,11 +93,6 @@ RUNTIME_CONFIG = {
            "verify_existing": True,
            "cleanup_orphans": True,
            "min_register_size": 1048576  # 1MB in bytes
-       },
-       "verification": {
-           "check_remote_size": True,
-           "compare_timestamps": True,
-           "validate_resume": True
        }
    },
    "storage": {
@@ -119,14 +103,6 @@ RUNTIME_CONFIG = {
        "organize_by_type": False,
        "auto_extract": False
    },
-   "security": {
-       "verify_ssl": True,
-       "allowed_domains": [],
-       "blocked_extensions": [".exe", ".bat", ".sh", ".dll"],
-       "scan_downloads": False,
-       "hash_verification": True,
-       "hash_algorithm": "sha256"
-   },
    "interface": {
        "show_progress": True,
        "show_speed": True,
@@ -135,12 +111,6 @@ RUNTIME_CONFIG = {
        "detailed_logging": False,
        "notification_sound": False,
        "progress_bar_style": "tqdm"
-   },
-   "platform": {
-       "windows_version": None,
-       "admin_required": True,
-       "path_length_limit": 260,
-       "encoding": "utf-8"
    }
 }
 
@@ -166,10 +136,6 @@ HISTORY_ENTRY = {
    "size": {
        "total": 0,
        "downloaded": 0
-   },
-   "hash": {
-       "type": "sha256",
-       "value": ""
    },
    "speed": {
        "average": 0,
@@ -272,43 +238,36 @@ PLATFORM_SETTINGS = {
 
 # Error Types
 ERROR_TYPES = {
-   "network": {
-       "connection_lost": "Connection lost during download",
-       "timeout": "Connection timed out",
-       "dns_error": "Could not resolve hostname",
-       "ssl_error": "SSL certificate verification failed"
-   },
-   "file": {
-       "access_denied": "Access denied to file or directory",
-       "disk_full": "Insufficient disk space",
-       "already_exists": "File already exists",
-       "invalid_name": "Invalid filename or path"
-   },
-   "auth": {
-       "token_invalid": "Invalid authentication token",
-       "token_expired": "Authentication token has expired",
-       "permission_denied": "Permission denied to resource"
-   },
-   "platform": {
-       "windows_version": "Unsupported Windows version",
-       "admin_required": "Administrator privileges required",
-       "path_too_long": "File path exceeds maximum length"
-   }
+    "network": {
+        "connection_lost": "Connection lost during download",
+        "timeout": "Connection timed out",
+        "dns_error": "Could not resolve hostname"
+    },
+    "file": {
+        "access_denied": "Access denied to file or directory",
+        "disk_full": "Insufficient disk space",
+        "already_exists": "File already exists",
+        "invalid_name": "Invalid filename or path"
+    },
+    "platform": {
+        "windows_version": "Unsupported Windows version",
+        "path_too_long": "File path exceeds maximum length"
+    }
 }
 
 # Retry Strategy
 RETRY_STRATEGY = {
-   "max_attempts": 5,
-   "initial_delay": 1,
-   "max_delay": 60,
-   "backoff_factor": 2,
-   "jitter": True,
-   "retry_on_status": [408, 429, 500, 502, 503, 504],
-   "retry_on_exceptions": [
-       "ConnectionError",
-       "Timeout",
-       "TooManyRedirects"
-   ]
+    "max_attempts": 5,
+    "initial_delay": 1,
+    "max_delay": 60,
+    "backoff_factor": 2,
+    "jitter": True,
+    "retry_on_status": [408, 429, 500, 502, 503, 504],
+    "retry_on_exceptions": [
+        "ConnectionError",
+        "Timeout",
+        "TooManyRedirects"
+    ]
 }
 
 # Default Headers

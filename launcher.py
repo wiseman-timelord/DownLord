@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Optional
-from scripts.utility import DownloadManager
+from scripts.utility import DownloadManager, URLProcessor, get_file_name_from_url
 from scripts.interface import (
     display_main_menu,
     setup_menu,
@@ -50,20 +50,6 @@ def validate_url(url: str) -> bool:
     except:
         return False
 
-def handle_blocked_extension(filename: str, config: dict) -> bool:
-    """
-    Check if the file extension is blocked.
-    
-    Args:
-        filename: Name of the file to check
-        config: Application configuration
-        
-    Returns:
-        bool: True if extension is blocked, False otherwise
-    """
-    ext = Path(filename).suffix.lower()
-    return ext in config["security"]["blocked_extensions"]
-
 def handle_download(url: str, config: dict) -> bool:
     if not validate_url(url):
         display_error(ERROR_MESSAGES["invalid_url"])
@@ -77,10 +63,6 @@ def handle_download(url: str, config: dict) -> bool:
         
         if not filename:
             display_error(ERROR_MESSAGES["filename_error"])
-            return False
-            
-        if handle_blocked_extension(filename, config):
-            display_error(f"File type {Path(filename).suffix} is blocked")
             return False
 
         out_path = DOWNLOADS_DIR / filename
