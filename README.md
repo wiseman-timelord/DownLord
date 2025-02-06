@@ -1,6 +1,15 @@
 # DownLord
 ## Status: Beta
-- Re-visiting 2025/02/05 - Fixed huggingface links, overhauled and upgraded, elsewhere, the pre-release versions are up, they are buggy. currently testing, fixing and improving see preview.
+- Re-visiting 2025/02/05 - It is now as shown in the previews, here is the remaining work...
+1. its supposed to register the download in a slot, after downloading the first 1%, so as for the item to be shown on the menu as an incomplete download for the user to download, should the program somehow close, then then it loads the user can simply press a number and it will continue the download. currently if I terminate the window during download, then there is no new addition to the menu, but when I select 0 to enter a new url, and provide the same url, it does seem to be able to resume from the relating file in temp. Thinking about it we dont need the % complete in the json, but we do need it to store the total size of the file, then the current size of the file can be compared to the known total size detailed in the json, to be able to display the % complete on the menu.
+2. the installer should show this...
+```
+Persistence file already exists at: .\data\persistent.json
+```
+instead of this...
+```
+Persistence file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\persistent.json
+```
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
