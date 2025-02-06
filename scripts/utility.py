@@ -156,125 +156,126 @@ class DownloadManager:
         return local_size == remote_info.get('size', 0)
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-       temp_path = None
-       try:
-           # Process URL and get metadata
-           download_url, metadata = URLProcessor.process_url(remote_url, self.config)
-           
-           # Check existing download
-           exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
-           if exists and existing_path:
-               if self.verify_download(existing_path, metadata):
-                   display_success(f"File already exists and is complete: {out_path.name}")
-                   # Update progress to 100% for completed file
-                   for i in range(1, 10):
-                       if self.persistent[f"filename_{i}"] == out_path.name:
-                           self.persistent[f"progress_{i}"] = 100
-                           self.persistent[f"total_size_{i}"] = existing_path.stat().st_size
-                           save_config(self.persistent)
-                           break
-                   return True, None
-                   
-               if state.get('has_temp', False):
-                   temp_path = state['temp_path']
-               else:
-                   temp_path = TEMP_DIR / f"{out_path.name}.part"
-                   if existing_path.exists():
-                       existing_path.rename(temp_path)
-           else:
-               temp_path = TEMP_DIR / f"{out_path.name}.part"
+        temp_path = None
+        try:
+            # Process URL and get metadata
+            download_url, metadata = URLProcessor.process_url(remote_url, self.config)
+            
+            # Check existing download
+            exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
+            if exists and existing_path:
+                if self.verify_download(existing_path, metadata):
+                    display_success(f"File already exists and is complete: {out_path.name}")
+                    # Update progress to 100% for completed file
+                    for i in range(1, 10):
+                        if self.persistent[f"filename_{i}"] == out_path.name:
+                            self.persistent[f"progress_{i}"] = 100
+                            self.persistent[f"total_size_{i}"] = existing_path.stat().st_size
+                            save_config(self.persistent)
+                            break
+                    return True, None
+                    
+                if state.get('has_temp', False):
+                    temp_path = state['temp_path']
+                else:
+                    temp_path = TEMP_DIR / f"{out_path.name}.part"
+                    if existing_path.exists():
+                        existing_path.rename(temp_path)
+            else:
+                temp_path = TEMP_DIR / f"{out_path.name}.part"
 
-           # Setup download
-           existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
-           session = requests.Session()
-           retries = 0
-           written_size = existing_size
-           download_registered = False
+            # Setup download
+            existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
+            session = requests.Session()
+            retries = 0
+            written_size = existing_size
+            download_registered = False
 
-           while retries < self.config["download"]["max_retries"]:
-               try:
-                   headers = get_download_headers(existing_size)
-                   with session.get(
-                       download_url,
-                       stream=True,
-                       headers=headers,
-                       timeout=self.config["download"]["timeout"],
-                       verify=False
-                   ) as response:
-                       # Handle rate limiting
-                       if response.status_code == 429:
-                           if self._handle_rate_limit(response):
-                               continue
-                           else:
-                               raise DownloadError("Rate limit exceeded")
+            while retries < self.config["download"]["max_retries"]:
+                try:
+                    headers = get_download_headers(existing_size)
+                    with session.get(
+                        download_url,
+                        stream=True,
+                        headers=headers,
+                        timeout=self.config["download"]["timeout"],
+                        verify=False
+                    ) as response:
+                        # Handle rate limiting
+                        if response.status_code == 429:
+                            if self._handle_rate_limit(response):
+                                continue
+                            else:
+                                raise DownloadError("Rate limit exceeded")
 
-                       response.raise_for_status()
-                       total_size = int(response.headers.get('content-length', 0)) + existing_size
-                       display_name = out_path.name[:22] + "..." + Path(out_path.name).suffix if len(out_path.name) > 25 else out_path.name
-                       
-                       with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
-                            tqdm(total=total_size, initial=existing_size,
-                                 unit='B', unit_scale=True, unit_divisor=1024,
-                                 desc=display_name,
-                                 bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
+                        response.raise_for_status()
+                        total_size = int(response.headers.get('content-length', 0)) + existing_size
+                        display_name = out_path.name[:22] + "..." + Path(out_path.name).suffix if len(out_path.name) > 25 else out_path.name
+                        
+                        with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
+                             tqdm(total=total_size, initial=existing_size,
+                                  unit='B', unit_scale=True, unit_divisor=1024,
+                                  desc=display_name,
+                                  bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
 
-                           for chunk in response.iter_content(chunk_size=chunk_size):
-                               if chunk:
-                                   written_size += len(chunk)
-                                   if not download_registered and written_size >= self.config["download"]["file_tracking"]["min_register_size"]:
-                                       self._register_download(out_path.name, remote_url, metadata)
-                                       # Initialize progress tracking
-                                       for i in range(1, 10):
-                                           if self.persistent[f"filename_{i}"] == out_path.name:
-                                               self.persistent[f"total_size_{i}"] = total_size
-                                               self.persistent[f"progress_{i}"] = (written_size / total_size) * 100
-                                               save_config(self.persistent)
-                                               break
-                                       download_registered = True
-                                   
-                                   # Update progress every 1%
-                                   progress = (written_size / total_size) * 100
-                                   last_progress = self.persistent.get(f"progress_{i}", 0)
-                                   if progress - last_progress >= 1:  # Update every 1% change
-                                       for i in range(1, 10):
-                                           if self.persistent[f"filename_{i}"] == out_path.name:
-                                               self.persistent[f"progress_{i}"] = progress
-                                               save_config(self.persistent)
-                                               break
-                                       
-                                   if self.config["download"]["bandwidth_limit"]:
-                                       time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
-                                       
-                                   out_file.write(chunk)
-                                   progress_bar.update(len(chunk))
+                            for chunk in response.iter_content(chunk_size=chunk_size):
+                                if chunk:
+                                    written_size += len(chunk)
+                                    if not download_registered and written_size >= self.config["download"]["file_tracking"]["min_register_size"]:
+                                        self._register_download(out_path.name, remote_url, metadata)
+                                        # Initialize progress tracking
+                                        for i in range(1, 10):
+                                            if self.persistent[f"filename_{i}"] == out_path.name:
+                                                self.persistent[f"total_size_{i}"] = total_size
+                                                self.persistent[f"progress_{i}"] = (written_size / total_size) * 100
+                                                save_config(self.persistent)
+                                                break
+                                        download_registered = True
+                                    
+                                    # Update progress every 1%
+                                    progress = (written_size / total_size) * 100
+                                    last_progress = self.persistent.get(f"progress_{i}", 0)
+                                    if progress - last_progress >= 1:  # Update every 1% change
+                                        for i in range(1, 10):
+                                            if self.persistent[f"filename_{i}"] == out_path.name:
+                                                self.persistent[f"progress_{i}"] = progress
+                                                save_config(self.persistent)
+                                                break
+                                        
+                                    if self.config["download"]["bandwidth_limit"]:
+                                        time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
+                                        
+                                    out_file.write(chunk)
+                                    progress_bar.update(len(chunk))
 
-                       # File is complete, set progress to 100% and move to final location
-                       for i in range(1, 10):
-                           if self.persistent[f"filename_{i}"] == out_path.name:
-                               self.persistent[f"progress_{i}"] = 100
-                               save_config(self.persistent)
-                               break
-                               
-                       temp_path.rename(out_path)
-                       return True, None
+                        # File is complete, set progress to 100% and move to final location
+                        temp_path.rename(out_path)
+                        for i in range(1, 10):
+                            if self.persistent[f"filename_{i}"] == out_path.name:
+                                self.persistent[f"progress_{i}"] = 100
+                                self.persistent[f"total_size_{i}"] = out_path.stat().st_size
+                                save_config(self.persistent)
+                                break
+                                
+                        return True, None
 
-               except (Timeout, ConnectionError, RequestException) as e:
-                   retries += 1
-                   if retries >= self.config["download"]["max_retries"]:
-                       return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
-                   
-                   time.sleep(calculate_retry_delay(retries))
-                   logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
+                except (Timeout, ConnectionError, RequestException) as e:
+                    retries += 1
+                    if retries >= self.config["download"]["max_retries"]:
+                        return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
+                    
+                    time.sleep(calculate_retry_delay(retries))
+                    logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
 
-       except Exception as e:
-           logging.error(f"Download error: {str(e)}")
-           return False, str(e)
-       finally:
-           # Clean up temp files if download failed
-           if temp_path and temp_path.exists():
-               self._cleanup_temp_files(out_path.name)
+        except Exception as e:
+            logging.error(f"Download error: {str(e)}")
+            return False, str(e)
+        finally:
+            # Clean up temp files if download failed
+            if temp_path and temp_path.exists():
+                self._cleanup_temp_files(out_path.name)
 
-       return False, "Maximum retries exceeded"
+        return False, "Maximum retries exceeded"
             
 class URLProcessor:
     @staticmethod

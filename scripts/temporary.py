@@ -15,8 +15,7 @@ BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 SCRIPTS_DIR = BASE_DIR / "scripts"
-TEMP_DIR = BASE_DIR / "temp"
-BACKUP_DIR = DATA_DIR / "backups"
+TEMP_DIR = BASE_DIR / "data/temp"
 
 # File Paths
 PERSISTENT_FILE = DATA_DIR / "persistent.json"
@@ -98,7 +97,6 @@ RUNTIME_CONFIG = {
    "storage": {
        "temp_dir": str(TEMP_DIR),
        "download_dir": str(DOWNLOADS_DIR),
-       "backup_dir": str(BACKUP_DIR),
        "keep_incomplete": True,
        "organize_by_type": False,
        "auto_extract": False

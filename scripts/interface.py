@@ -34,7 +34,7 @@ ASCII_LOGO = '''================================================================
 MENU_SEPARATOR = "-" * 80
 
 MAIN_MENU_FOOTER = """===============================================================================
-Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: """
+Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
 
 SETUP_MENU = """
     1. Connection Speed
@@ -98,65 +98,143 @@ def format_file_state(state: str, info: Dict = None) -> str:
         )
     return message
 
+def delete_file(config: Dict, index: int) -> bool:
+    """
+    Delete a file from the downloads or temp folder based on the index.
+    """
+    filename_key = f"filename_{index}"
+    filename = config.get(filename_key, "Empty")
+    
+    if filename == "Empty":
+        display_error("No file found at the specified index.")
+        return False
+
+    # Check if the file exists in the downloads folder
+    downloads_path = Path(DOWNLOADS_DIR) / filename
+    temp_path = Path(TEMP_DIR) / f"{filename}.part"
+
+    try:
+        if downloads_path.exists():
+            downloads_path.unlink()  # Delete the file
+            display_success(f"Deleted file: {filename}")
+        elif temp_path.exists():
+            temp_path.unlink()  # Delete the temporary file
+            display_success(f"Deleted temporary file: {filename}")
+        else:
+            display_error(f"File not found in downloads or temp folder: {filename}")
+            return False
+
+        # Remove the entry from the config
+        for i in range(index, 9):
+            config[f"filename_{i}"] = config.get(f"filename_{i+1}", "Empty")
+            config[f"url_{i}"] = config.get(f"url_{i+1}", "")
+            config[f"progress_{i}"] = config.get(f"progress_{i+1}", 0)
+            config[f"total_size_{i}"] = config.get(f"total_size_{i+1}", 0)
+        
+        config["filename_9"] = "Empty"
+        config["url_9"] = ""
+        config["progress_9"] = 0
+        config["total_size_9"] = 0
+
+        save_config(config)
+        return True
+
+    except Exception as e:
+        display_error(f"Error deleting file: {str(e)}")
+        return False
+
 def display_main_menu(config: Dict):
     try:
         clear_screen("Main Menu")
         
-        # Define column widths for the table
+        # Snapshot config at start to prevent race conditions
+        config_snapshot = json.loads(json.dumps(config))
+        
+        # Dynamic column width based on terminal size and content
+        term_width = os.get_terminal_size().columns
         col_widths = {
-            "number": 5,      # Width for the item number (e.g., "1.")
-            "filename": 30,   # Width for the filename
-            "progress": 10,   # Width for the progress percentage
-            "size": 15        # Width for the file size
+            "number": 5,
+            "filename": min(50, term_width - 45),  # Adaptive width
+            "progress": 12,
+            "size": 20
         }
         
-        # Print the table header
-        print(f"{'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
-        print("-" * (col_widths['number'] + col_widths['filename'] + col_widths['progress'] + col_widths['size'] + 3))
+        # Print header
+        header = f"{'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}"
+        print(header)
+        print("-" * len(header))
         
-        config_updated = False
+        config_changed = False
         for i in range(1, 10):
-            filename_key = f"filename_{i}"
-            filename = config.get(filename_key, "Empty")
-            url = config.get(f"url_{i}", "")
-            progress = config.get(f"progress_{i}", 0)
-            total_size = config.get(f"total_size_{i}", 0)
+            filename = config_snapshot.get(f"filename_{i}", "Empty")
+            url = config_snapshot.get(f"url_{i}", "")
+            progress = config_snapshot.get(f"progress_{i}", 0)
+            total_size = config_snapshot.get(f"total_size_{i}", 0)
             
             if filename != "Empty":
                 downloads_path = Path(DOWNLOADS_DIR) / filename
-                temp_path = Path(TEMP_DIR) / f"{filename}.part"
+                temp_path = Path(DATA_DIR) / "temp" / f"{filename}.part"
+                
+                # Smart filename truncation preserving extension
+                if len(filename) > col_widths['filename']:
+                    name, ext = os.path.splitext(filename)
+                    trunc_len = col_widths['filename'] - len(ext) - 3
+                    display_name = f"{name[:trunc_len]}...{ext}"
+                else:
+                    display_name = filename
                 
                 if downloads_path.exists():
-                    # Completed download
-                    size = format_file_size(downloads_path.stat().st_size)
-                    print(f"{i:<{col_widths['number']}} {filename[:col_widths['filename']]:<{col_widths['filename']}} {'100%':<{col_widths['progress']}} {size:<{col_widths['size']}}")
+                    actual_size = downloads_path.stat().st_size
+                    # Verify size matches expected
+                    if total_size > 0 and actual_size != total_size:
+                        progress = round((actual_size / total_size) * 100, 1)
+                        config[f"progress_{i}"] = progress
+                        config_changed = True
+                    else:
+                        progress = 100.0
+                    
+                    size_str = format_file_size(actual_size)
+                    print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
+                
                 elif temp_path.exists():
-                    # Partial download
-                    current_size = format_file_size(temp_path.stat().st_size)
+                    temp_size = temp_path.stat().st_size
+                    current_size = format_file_size(temp_size)
                     total_size_str = format_file_size(total_size) if total_size > 0 else "?"
-                    print(f"{i:<{col_widths['number']}} {filename[:col_widths['filename']]:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                    
+                    # Update progress if needed
+                    if total_size > 0:
+                        actual_progress = round((temp_size / total_size) * 100, 1)
+                        if abs(actual_progress - progress) > 0.1:  # Update if >0.1% difference
+                            progress = actual_progress
+                            config[f"progress_{i}"] = progress
+                            config_changed = True
+                    
+                    print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                
                 else:
-                    # File missing from both locations
+                    # Clean up missing files
                     for j in range(i, 9):
                         config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
                         config[f"url_{j}"] = config.get(f"url_{j+1}", "")
                         config[f"progress_{j}"] = config.get(f"progress_{j+1}", 0)
                         config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
+                    
                     config["filename_9"] = "Empty"
                     config["url_9"] = ""
                     config["progress_9"] = 0
                     config["total_size_9"] = 0
-                    config_updated = True
+                    config_changed = True
                     print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
             else:
                 print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
         
-        if config_updated:
+        if config_changed:
             save_config(config)
             
         print(MAIN_MENU_FOOTER, end='')
+        
     except Exception as e:
-        logging.error(f"Error displaying menu: {e}")
+        logging.error(f"Error displaying menu: {str(e)}")
         print(MAIN_MENU_FOOTER, end='')
 
 def setup_menu():
@@ -271,50 +349,84 @@ def load_config() -> Dict:
        return create_default_config()
 
 def save_config(config: Dict) -> bool:
-   try:
-       validate_config(config)
-       PERSISTENT_FILE.parent.mkdir(exist_ok=True)
-       with open(PERSISTENT_FILE, "w") as file:
-           json.dump(config, file, indent=4)
-       return True
-   except Exception as e:
-       logging.error(f"Error saving config: {e}")
-       display_error(ERROR_MESSAGES["save_config_error"].format(str(e)))
-       return False
+    """Save configuration with atomic write and backup."""
+    try:
+        # Validate first
+        validate_config(config)
+        
+        # Create backup of existing config
+        if PERSISTENT_FILE.exists():
+            backup_path = PERSISTENT_FILE.with_suffix('.bak')
+            PERSISTENT_FILE.rename(backup_path)
+        
+        # Write to temporary file first
+        temp_path = PERSISTENT_FILE.with_suffix('.tmp')
+        with open(temp_path, 'w') as f:
+            json.dump(config, f, indent=4)
+        
+        # Atomic rename to final location
+        temp_path.replace(PERSISTENT_FILE)
+        
+        # Remove backup if everything succeeded
+        backup_path = PERSISTENT_FILE.with_suffix('.bak')
+        if backup_path.exists():
+            backup_path.unlink()
+            
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error saving config: {str(e)}")
+        # Restore from backup if available
+        backup_path = PERSISTENT_FILE.with_suffix('.bak')
+        if backup_path.exists():
+            backup_path.replace(PERSISTENT_FILE)
+        return False
 
 def validate_config(config: Dict) -> None:
+    """Validate configuration with complete field checking."""
     default = create_default_config()
+    
     try:
-        # Validate required fields
+        # Validate all required fields
         for key in default:
             if key not in config:
                 config[key] = default[key]
                 continue
-                
-            # Validate chunk size
+            
+            # Type validation for specific fields
             if key == "chunk" and not isinstance(config[key], int):
                 config[key] = default[key]
-                
-            # Validate retries
-            if key == "retries" and not isinstance(config[key], int):
+            elif key == "retries" and not isinstance(config[key], int):
                 config[key] = default[key]
-                
-            # Validate history entries
-            if key.startswith("filename_") or key.startswith("url_"):
-                if not isinstance(config[key], str):
-                    config[key] = default[key]
-                    
-        # Ensure all history entries exist
+            elif key.startswith(("filename_", "url_")) and not isinstance(config[key], str):
+                config[key] = default[key]
+            elif key.startswith("progress_"):
+                try:
+                    config[key] = float(config[key])
+                    if not 0 <= config[key] <= 100:
+                        config[key] = 0
+                except (ValueError, TypeError):
+                    config[key] = 0
+            elif key.startswith("total_size_"):
+                try:
+                    config[key] = int(config[key])
+                    if config[key] < 0:
+                        config[key] = 0
+                except (ValueError, TypeError):
+                    config[key] = 0
+        
+        # Ensure all required entries exist
         for i in range(1, 10):
-            filename_key = f"filename_{i}"
-            url_key = f"url_{i}"
-            if filename_key not in config:
-                config[filename_key] = "Empty"
-            if url_key not in config:
-                config[url_key] = ""
-                
+            keys = [
+                f"filename_{i}", f"url_{i}",
+                f"progress_{i}", f"total_size_{i}"
+            ]
+            for key in keys:
+                if key not in config:
+                    config[key] = default.get(key, 0 if "size" in key or "progress" in key else "")
+        
     except Exception as e:
-        logging.error(f"Error validating config: {e}")
+        logging.error(f"Error validating config: {str(e)}")
         return default
 
 def create_default_config() -> Dict:
