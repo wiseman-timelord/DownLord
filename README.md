@@ -18,18 +18,17 @@ DownLord is a streamlined tool designed for downloading large and important file
 -------------------------------------------------------------------------------
     Main Menu
 ===============================================================================
-
-#    Filename                     Progress    Size          
------------------------------------------------------------
-1    DeepSeek-R1-Distill-Qwen...  100%        1.23 GB       
-2    model.pt                     45.6%       512.00 MB/1.12 GB
-3    Empty                        -           -             
-4    Empty                        -           -             
-5    Empty                        -           -             
-6    Empty                        -           -             
-7    Empty                        -           -             
-8    Empty                        -           -             
-9    Empty                        -           -      
+#     Filename                       Progress   Size
+---------------------------------------------------------------
+1     Empty                          -          -
+2     Empty                          -          -
+3     Empty                          -          -
+4     Empty                          -          -
+5     Empty                          -          -
+6     Empty                          -          -
+7     Empty                          -          -
+8     Empty                          -          -
+9     Empty                          -          -
 
 Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: 0
 Selection; Enter URL or Q to Quit: https://cdn-lfs-us-1.hf.co/repos...Key-Pair-Id=K############
