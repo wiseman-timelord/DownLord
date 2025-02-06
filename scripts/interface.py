@@ -3,6 +3,7 @@
 import json
 import os
 import logging
+import time
 from pathlib import Path
 from typing import Dict, Optional, Union
 from datetime import datetime
@@ -237,6 +238,88 @@ def display_main_menu(config: Dict):
         logging.error(f"Error displaying menu: {str(e)}")
         print(MAIN_MENU_FOOTER, end='')
 
+def display_file_info(path: Path, url: str = None) -> None:
+    """
+    Display information about a downloaded file.
+    
+    Args:
+        path: Path to the downloaded file
+        url: Optional source URL of the file
+    """
+    try:
+        if not path.exists():
+            return
+        
+        size = format_file_size(path.stat().st_size)
+        modified = path.stat().st_mtime
+        print(f"\nFile: {path.name}")
+        print(f"Size: {size}")
+        print(f"Modified: {datetime.fromtimestamp(modified)}")
+        if url:
+            print(f"Source: {url}")
+    except Exception as e:
+        logging.error(f"Error displaying file info: {e}")
+
+def display_download_progress(filename: str, downloaded: int, total: int, speed: float, elapsed: int, remaining: int) -> None:
+    """Display the download progress in a full-screen format."""
+    # Clear screen and show logo
+    print("\033[H\033[J", end="")  # Clear screen
+    print(ASCII_LOGO % "Download Active")
+    
+    # Format values
+    progress = (downloaded / total * 100) if total > 0 else 0
+    downloaded_str = format_file_size(downloaded)
+    total_str = format_file_size(total)
+    speed_str = f"{format_file_size(speed)}/s"
+    
+    # Format time
+    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+    remaining_str = time.strftime("%H:%M:%S", time.gmtime(remaining)) if remaining else "Unknown"
+
+    print("\nFilename: ")
+    print(f"    {filename}")
+    
+    print("Progress: ")
+    print(f"    {progress:.1f}%")
+
+    print("Speed:")
+    print(f"    {speed_str}")
+    
+    print("Receive/Total:")
+    print(f"    {downloaded_str}/{total_str}")
+    
+    print("Elapse/Remain:")
+    print(f"    {elapsed_str}<{remaining_str}")
+    
+    print("\n===============================================================================")
+
+def display_download_complete(filename: str, timestamp: datetime) -> None:
+    """Display the download completion message."""
+    print(f"\nDownload completed on {timestamp.strftime('%Y/%m/%d')} at {timestamp.strftime('%H:%M')}.")
+    print("\n===============================================================================")
+    input("Press any key to return to menu...")
+
+def display_download_status(filename: str, state: str, info: Dict = None) -> None:
+    try:
+        if state == FILE_STATES["new"]:
+            # Only print the starting message
+            print(f"{filename}: Starting new download")
+        elif state == FILE_STATES["partial"]:
+            # For partial downloads, handled by display_download_progress
+            pass
+        elif state == FILE_STATES["complete"]:
+            # For completed downloads, handled by display_download_complete
+            pass
+        elif state == FILE_STATES["error"]:
+            # For error states
+            error_msg = info.get("error", "Unknown error") if info else "Unknown error"
+            print(f"{filename}: Download failed - {error_msg}")
+        else:
+            logging.warning(f"Unknown download state: {state}")
+            
+    except Exception as e:
+        logging.error(f"Error displaying download status: {str(e)}")
+
 def setup_menu():
     """Display and handle the setup menu."""
     while True:
@@ -253,25 +336,6 @@ def setup_menu():
         else:
             print(ERROR_MESSAGES["invalid_choice"])
             input("\nPress Enter to continue...")
-
-def display_download_status(filename: str, state: str, info: Dict = None) -> None:
-    state_msg = format_file_state(state, info)
-    print(f"\n{filename}: {state_msg}")
-
-def display_file_info(path: Path, url: str = None) -> None:
-    try:
-        if not path.exists():
-            return
-        
-        size = format_file_size(path.stat().st_size)
-        modified = path.stat().st_mtime
-        print(f"\nFile: {path.name}")
-        print(f"Size: {size}")
-        print(f"Modified: {datetime.fromtimestamp(modified)}")
-        if url:
-            print(f"Source: {url}")
-    except Exception as e:
-        logging.error(f"Error displaying file info: {e}")
 
 def internet_options_menu():
     """Display and handle the internet speed options menu."""
