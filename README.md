@@ -50,10 +50,10 @@ Filename:
     nsfw-i-hate-my-life-v2.Q6_K.gguf
 Progress:
     2.9%
-Receive/Total:
-    179.69 MB/6.14 GB
 Speed:
     547.97 KB/s
+Receive/Total:
+    179.69 MB/6.14 GB
 Elapse/Remain:
     00:00:48<03:10:19
 
