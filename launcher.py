@@ -137,6 +137,13 @@ def prompt_for_download():
                 break
         elif choice.isdigit() and 1 <= int(choice) <= 9:
             url = config.get(f"url_{choice}", "")
+        elif choice == 'd':  # Handle delete option
+            delete_index = input("Enter the number of the file to delete (1-9): ").strip()
+            if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
+                delete_file(config, int(delete_index))
+            else:
+                display_error("Invalid input. Please enter a number between 1 and 9.")
+            continue
         else:
             display_error(ERROR_MESSAGES["invalid_choice"])
             continue
