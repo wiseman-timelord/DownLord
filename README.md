@@ -18,21 +18,20 @@ DownLord is a streamlined tool designed for downloading large and important file
 -------------------------------------------------------------------------------
     Main Menu
 ===============================================================================
-#     Filename                       Progress   Size
----------------------------------------------------------------
-1     Empty                          -          -
-2     Empty                          -          -
-3     Empty                          -          -
-4     Empty                          -          -
-5     Empty                          -          -
-6     Empty                          -          -
-7     Empty                          -          -
-8     Empty                          -          -
-9     Empty                          -          -
+#     Filename                            Progress     Size
+---------------------------------------------------------------------------
+1     nsfw-i-hate-my-life-v2.Q3_K_M.gguf  100.0%       3.74 GB
+2     Empty                               -            -
+3     Empty                               -            -
+4     Empty                               -            -
+5     Empty                               -            -
+6     Empty                               -            -
+7     Empty                               -            -
+8     Empty                               -            -
+9     Empty                               -            -
+===============================================================================
+Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
 
-Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: 0
-Selection; Enter URL or Q to Quit: https://cdn-lfs-us-1.hf.co/repos...Key-Pair-Id=K############
-deepseek-r1-distill-... .gguf:   0%, 11.7M/11.3G [00:31<8:03:08, 418kB/s]
 ```
 - Batch Launcher/Installer Menu...
 ```
