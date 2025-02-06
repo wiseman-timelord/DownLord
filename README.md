@@ -30,7 +30,7 @@ DownLord is a streamlined tool designed for downloading large and important file
 8     Empty                          -          -
 9     Empty                          -          -
 
-Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: 0
+Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: 0
 Selection; Enter URL or Q to Quit: https://cdn-lfs-us-1.hf.co/repos...Key-Pair-Id=K############
 deepseek-r1-distill-... .gguf:   0%, 11.7M/11.3G [00:31<8:03:08, 418kB/s]
 ```
@@ -59,6 +59,34 @@ deepseek-r1-distill-... .gguf:   0%, 11.7M/11.3G [00:31<8:03:08, 418kB/s]
 
 ===============================================================================
 Selection; Options = 1-2, Exit = X:
+```
+- Download screen being devised will be like this...
+```
+===============================================================================
+          ________                      .____                    .___
+          \______ \   ______  _  ______ |    |    ___________  __| _/
+           |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |
+           |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |
+          /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |
+                  \/                  \/        \/                \/
+-------------------------------------------------------------------------------
+    Download Active
+===============================================================================
+
+Filename: nsfw-i-hate-my-life-v2.Q3_K_M.gguf
+
+Progress: 26% 
+
+Receive/Total: 992M/3.74G
+
+Speed: 354kB/s 
+
+Elapse/Remain: 47:02<2:20:03
+
+Download completed on 2025/02/05 at 18:46.
+
+===============================================================================
+Press any key to return to menu...
 ```
 - Installer is comprehensive...
 ```
