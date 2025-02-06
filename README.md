@@ -33,7 +33,7 @@ DownLord is a streamlined tool designed for downloading large and important file
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
 
 ```
-- Download screen being devised will be like this...
+- Download screen is like this...
 ```
 ===============================================================================
           ________                      .____                    .___
@@ -46,20 +46,19 @@ Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
     Download Active
 ===============================================================================
 
-Filename: nsfw-i-hate-my-life-v2.Q3_K_M.gguf
-
-Progress: 26% 
-
-Receive/Total: 992M/3.74G
-
-Speed: 354kB/s 
-
-Elapse/Remain: 47:02<2:20:03
-
-Download completed on 2025/02/05 at 18:46.
+Filename:
+    nsfw-i-hate-my-life-v2.Q6_K.gguf
+Progress:
+    2.9%
+Receive/Total:
+    179.69 MB/6.14 GB
+Speed:
+    547.97 KB/s
+Elapse/Remain:
+    00:00:48<03:10:19
 
 ===============================================================================
-Press any key to return to menu...
+
 ```
 - Installer is comprehensive...
 ```
