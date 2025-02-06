@@ -126,11 +126,11 @@ Press Enter to exit...
 - Files created by installer/program.
 ```
 ├── downloads\               # Default download directory, created by installer
-├── temp\                   # Temporary download storage, created by installer
 ├── data\                     # Data related, Created by installer
 │   ├── persistent.json       # persistent settings, Created by installer
 │   ├── requirements.txt      # Python requirements, Created by installer
 │   └── downlord.log         # Log file, created by main program
+│   └── temp\                   # Temporary download storage, created by installer
 ├── scripts\                 # Already part of package
 │   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
 ```
