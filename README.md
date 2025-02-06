@@ -1,7 +1,40 @@
 # DownLord
 ## Status: Beta
 - Re-visiting 2025/02 - It is now as shown in the previews, here is the remaining work...
-1. its supposed to register the download in a slot, after downloading the first 1%, so as for the item to be shown on the menu as an incomplete download for the user to download, should the program somehow close, then then it loads the user can simply press a number and it will continue the download. currently if I terminate the window during download, then there is no new addition to the menu, but when I select 0 to enter a new url, and provide the same url, it does seem to be able to resume from the relating file in temp. Thinking about it we dont need the % complete in the json, but we do need it to store the total size of the file, then the current size of the file can be compared to the known total size detailed in the json, to be able to display the % complete on the menu.
+1. its supposed to register the download in a slot, after downloading the first 1MB, so as for the item to be shown on the menu as an incomplete download for the user to continue, should the program somehow close, then then it loads the user can simply press a number to resume. currently if I terminate the window during download, then there is no new addition to the menu, but when I select 0 to enter a new url, and provide the same url, it does seem to be able to resume from the relating file in temp. Thinking about it we dont need the key for % complete in the json, but we do need it to store the total size of the file, then the current size of the file can be compared to the known total size detailed in the json, to be able to display the % complete on the menu. The Json would become this...
+```
+{
+    "chunk": 4096000,
+    "retries": 100,
+    "filename_1": "Empty",
+    "filename_2": "Empty",
+    "filename_3": "Empty",
+    "filename_4": "Empty",
+    "filename_5": "Empty",
+    "filename_6": "Empty",
+    "filename_7": "Empty",
+    "filename_8": "Empty",
+    "filename_9": "Empty",
+    "url_1": "",
+    "url_2": "",
+    "url_3": "",
+    "url_4": "",
+    "url_5": "",
+    "url_6": "",
+    "url_7": "",
+    "url_8": "",
+    "url_9": "",
+    "total_size_1": 0,
+    "total_size_2": 0,
+    "total_size_3": 0,
+    "total_size_4": 0,
+    "total_size_5": 0,
+    "total_size_6": 0,
+    "total_size_7": 0,
+    "total_size_8": 0,
+    "total_size_9": 0
+}
+```
 2. the installer should show this...
 ```
 Persistence file already exists at: .\data\persistent.json
