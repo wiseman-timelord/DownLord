@@ -3,7 +3,7 @@
 - Re-visiting 2025/02/05 - Fixed huggingface links, overhauled and upgraded, elsewhere, the pre-release versions are up, they are buggy. currently testing, fixing and improving see preview.
 
 ## Description
-DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. Its intended to be the best method of downloading GGUF files from Huggingface, other download options will have limited testing. 
+DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
 
 ### Preview
 - Launcher is downloading compitently...
@@ -110,6 +110,9 @@ Press Enter to exit...
 5. Take a look in the settings menu, make sure everything is optimal.
 4. On Main Menu press 0 then enter the URL to download.
 5. The file will be downloaded to the `Downloads` directory.
+
+## Notation
+- Its intended to be the best method of downloading GGUF files from Huggingface, other download options will have limited testing. 
 
 ### File Structure
 - Packaged files
