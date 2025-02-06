@@ -33,10 +33,7 @@ ASCII_LOGO = '''================================================================
 # Menu Templates
 MENU_SEPARATOR = "-" * 80
 
-MAIN_MENU = """
-Recent Downloads:"""
-
-MAIN_MENU_FOOTER = """
+MAIN_MENU_FOOTER = """===============================================================================
 Selection; New URL = 0, Continue = 1-9, Setup = S, Quit = Q: """
 
 SETUP_MENU = """
@@ -102,28 +99,65 @@ def format_file_state(state: str, info: Dict = None) -> str:
     return message
 
 def display_main_menu(config: Dict):
-   try:
-       clear_screen("Main Menu")
-       print(MAIN_MENU)
-       
-       for i in range(1, 10):
-           filename_key = f"filename_{i}"
-           filename = config.get(filename_key, "Empty")
-           url = config.get(f"url_{i}", "")
-           if filename != "Empty":
-               file_path = Path(DOWNLOADS_DIR) / filename
-               if file_path.exists():
-                   size = format_file_size(file_path.stat().st_size)
-                   print(f"    {i}. {filename} ({size})")
-               else:
-                   print(f"    {i}. {filename} (File missing)")
-           else:
-               print(f"    {i}. Empty")
-       
-       print(MAIN_MENU_FOOTER, end='')
-   except Exception as e:
-       logging.error(f"Error displaying menu: {e}")
-       print(MAIN_MENU_FOOTER, end='')
+    try:
+        clear_screen("Main Menu")
+        
+        # Define column widths for the table
+        col_widths = {
+            "number": 5,      # Width for the item number (e.g., "1.")
+            "filename": 30,   # Width for the filename
+            "progress": 10,   # Width for the progress percentage
+            "size": 15        # Width for the file size
+        }
+        
+        # Print the table header
+        print(f"{'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
+        print("-" * (col_widths['number'] + col_widths['filename'] + col_widths['progress'] + col_widths['size'] + 3))
+        
+        config_updated = False
+        for i in range(1, 10):
+            filename_key = f"filename_{i}"
+            filename = config.get(filename_key, "Empty")
+            url = config.get(f"url_{i}", "")
+            progress = config.get(f"progress_{i}", 0)
+            total_size = config.get(f"total_size_{i}", 0)
+            
+            if filename != "Empty":
+                downloads_path = Path(DOWNLOADS_DIR) / filename
+                temp_path = Path(TEMP_DIR) / f"{filename}.part"
+                
+                if downloads_path.exists():
+                    # Completed download
+                    size = format_file_size(downloads_path.stat().st_size)
+                    print(f"{i:<{col_widths['number']}} {filename[:col_widths['filename']]:<{col_widths['filename']}} {'100%':<{col_widths['progress']}} {size:<{col_widths['size']}}")
+                elif temp_path.exists():
+                    # Partial download
+                    current_size = format_file_size(temp_path.stat().st_size)
+                    total_size_str = format_file_size(total_size) if total_size > 0 else "?"
+                    print(f"{i:<{col_widths['number']}} {filename[:col_widths['filename']]:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                else:
+                    # File missing from both locations
+                    for j in range(i, 9):
+                        config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
+                        config[f"url_{j}"] = config.get(f"url_{j+1}", "")
+                        config[f"progress_{j}"] = config.get(f"progress_{j+1}", 0)
+                        config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
+                    config["filename_9"] = "Empty"
+                    config["url_9"] = ""
+                    config["progress_9"] = 0
+                    config["total_size_9"] = 0
+                    config_updated = True
+                    print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
+            else:
+                print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
+        
+        if config_updated:
+            save_config(config)
+            
+        print(MAIN_MENU_FOOTER, end='')
+    except Exception as e:
+        logging.error(f"Error displaying menu: {e}")
+        print(MAIN_MENU_FOOTER, end='')
 
 def setup_menu():
     """Display and handle the setup menu."""

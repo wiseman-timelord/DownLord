@@ -156,95 +156,125 @@ class DownloadManager:
         return local_size == remote_info.get('size', 0)
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-        temp_path = None
-        try:
-            # Process URL and get metadata
-            download_url, metadata = URLProcessor.process_url(remote_url, self.config)
-            
-            # Check existing download
-            exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
-            if exists and existing_path:
-                if self.verify_download(existing_path, metadata):
-                    display_success(f"File already exists and is complete: {out_path.name}")
-                    return True, None
-                    
-                if state.get('has_temp', False):
-                    temp_path = state['temp_path']
-                else:
-                    temp_path = TEMP_DIR / f"{out_path.name}.part"
-                    if existing_path.exists():
-                        existing_path.rename(temp_path)
-            else:
-                temp_path = TEMP_DIR / f"{out_path.name}.part"
+       temp_path = None
+       try:
+           # Process URL and get metadata
+           download_url, metadata = URLProcessor.process_url(remote_url, self.config)
+           
+           # Check existing download
+           exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
+           if exists and existing_path:
+               if self.verify_download(existing_path, metadata):
+                   display_success(f"File already exists and is complete: {out_path.name}")
+                   # Update progress to 100% for completed file
+                   for i in range(1, 10):
+                       if self.persistent[f"filename_{i}"] == out_path.name:
+                           self.persistent[f"progress_{i}"] = 100
+                           self.persistent[f"total_size_{i}"] = existing_path.stat().st_size
+                           save_config(self.persistent)
+                           break
+                   return True, None
+                   
+               if state.get('has_temp', False):
+                   temp_path = state['temp_path']
+               else:
+                   temp_path = TEMP_DIR / f"{out_path.name}.part"
+                   if existing_path.exists():
+                       existing_path.rename(temp_path)
+           else:
+               temp_path = TEMP_DIR / f"{out_path.name}.part"
 
-            # Setup download
-            existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
-            session = requests.Session()
-            retries = 0
-            written_size = existing_size
-            download_registered = False
+           # Setup download
+           existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
+           session = requests.Session()
+           retries = 0
+           written_size = existing_size
+           download_registered = False
 
-            while retries < self.config["download"]["max_retries"]:
-                try:
-                    headers = get_download_headers(existing_size)
-                    with session.get(
-                        download_url,
-                        stream=True,
-                        headers=headers,
-                        timeout=self.config["download"]["timeout"],
-                        verify=False  # Removed security verify_ssl check
-                    ) as response:
-                        # Handle rate limiting
-                        if response.status_code == 429:
-                            if self._handle_rate_limit(response):
-                                continue
-                            else:
-                                raise DownloadError("Rate limit exceeded")
+           while retries < self.config["download"]["max_retries"]:
+               try:
+                   headers = get_download_headers(existing_size)
+                   with session.get(
+                       download_url,
+                       stream=True,
+                       headers=headers,
+                       timeout=self.config["download"]["timeout"],
+                       verify=False
+                   ) as response:
+                       # Handle rate limiting
+                       if response.status_code == 429:
+                           if self._handle_rate_limit(response):
+                               continue
+                           else:
+                               raise DownloadError("Rate limit exceeded")
 
-                        response.raise_for_status()
-                        total_size = int(response.headers.get('content-length', 0)) + existing_size
-                        display_name = out_path.name[:22] + "..." + Path(out_path.name).suffix if len(out_path.name) > 25 else out_path.name
-                        
-                        with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
-                             tqdm(total=total_size, initial=existing_size,
-                                  unit='B', unit_scale=True, unit_divisor=1024,
-                                  desc=display_name,
-                                  bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
+                       response.raise_for_status()
+                       total_size = int(response.headers.get('content-length', 0)) + existing_size
+                       display_name = out_path.name[:22] + "..." + Path(out_path.name).suffix if len(out_path.name) > 25 else out_path.name
+                       
+                       with open(temp_path, 'ab' if existing_size else 'wb') as out_file, \
+                            tqdm(total=total_size, initial=existing_size,
+                                 unit='B', unit_scale=True, unit_divisor=1024,
+                                 desc=display_name,
+                                 bar_format='{desc:<25}: {percentage:3.0f}%| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as progress_bar:
 
-                            for chunk in response.iter_content(chunk_size=chunk_size):
-                                if chunk:
-                                    written_size += len(chunk)
-                                    if not download_registered and written_size >= self.config["download"]["file_tracking"]["min_register_size"]:
-                                        self._register_download(out_path.name, remote_url, metadata)
-                                        download_registered = True
-                                        
-                                    if self.config["download"]["bandwidth_limit"]:
-                                        time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
-                                        
-                                    out_file.write(chunk)
-                                    progress_bar.update(len(chunk))
+                           for chunk in response.iter_content(chunk_size=chunk_size):
+                               if chunk:
+                                   written_size += len(chunk)
+                                   if not download_registered and written_size >= self.config["download"]["file_tracking"]["min_register_size"]:
+                                       self._register_download(out_path.name, remote_url, metadata)
+                                       # Initialize progress tracking
+                                       for i in range(1, 10):
+                                           if self.persistent[f"filename_{i}"] == out_path.name:
+                                               self.persistent[f"total_size_{i}"] = total_size
+                                               self.persistent[f"progress_{i}"] = (written_size / total_size) * 100
+                                               save_config(self.persistent)
+                                               break
+                                       download_registered = True
+                                   
+                                   # Update progress every 1%
+                                   progress = (written_size / total_size) * 100
+                                   last_progress = self.persistent.get(f"progress_{i}", 0)
+                                   if progress - last_progress >= 1:  # Update every 1% change
+                                       for i in range(1, 10):
+                                           if self.persistent[f"filename_{i}"] == out_path.name:
+                                               self.persistent[f"progress_{i}"] = progress
+                                               save_config(self.persistent)
+                                               break
+                                       
+                                   if self.config["download"]["bandwidth_limit"]:
+                                       time.sleep(len(chunk) / self.config["download"]["bandwidth_limit"])
+                                       
+                                   out_file.write(chunk)
+                                   progress_bar.update(len(chunk))
 
-                        # File is complete, move to final location
-                        temp_path.rename(out_path)
-                        return True, None
+                       # File is complete, set progress to 100% and move to final location
+                       for i in range(1, 10):
+                           if self.persistent[f"filename_{i}"] == out_path.name:
+                               self.persistent[f"progress_{i}"] = 100
+                               save_config(self.persistent)
+                               break
+                               
+                       temp_path.rename(out_path)
+                       return True, None
 
-                except (Timeout, ConnectionError, RequestException) as e:
-                    retries += 1
-                    if retries >= self.config["download"]["max_retries"]:
-                        return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
-                    
-                    time.sleep(calculate_retry_delay(retries))
-                    logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
+               except (Timeout, ConnectionError, RequestException) as e:
+                   retries += 1
+                   if retries >= self.config["download"]["max_retries"]:
+                       return False, ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"])
+                   
+                   time.sleep(calculate_retry_delay(retries))
+                   logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
 
-        except Exception as e:
-            logging.error(f"Download error: {str(e)}")
-            return False, str(e)
-        finally:
-            # Clean up temp files if download failed
-            if temp_path and temp_path.exists():
-                self._cleanup_temp_files(out_path.name)
+       except Exception as e:
+           logging.error(f"Download error: {str(e)}")
+           return False, str(e)
+       finally:
+           # Clean up temp files if download failed
+           if temp_path and temp_path.exists():
+               self._cleanup_temp_files(out_path.name)
 
-        return False, "Maximum retries exceeded"
+       return False, "Maximum retries exceeded"
             
 class URLProcessor:
     @staticmethod
@@ -323,82 +353,82 @@ class URLProcessor:
 
     @staticmethod
     def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
-       if "cdn-lfs" in url:
-           try:
-               logging.info("Processing CDN URL")
-               headers = DEFAULT_HEADERS.copy()
-               remote_info = URLProcessor.get_remote_file_info(url, headers)
-               
-               if "filename=" in url:
-                   if "filename*=UTF-8''" in url:
-                       start = url.find("filename*=UTF-8''") + 17
-                       end = url.find("&", start)
-                       if end == -1:
-                           end = url.find(";", start)
-                       if end == -1:
-                           end = len(url)
-                       filename = unquote(url[start:end])
-                   else:
-                       start = url.find("filename=") + 9
-                       end = url.find("&", start)
-                       if end == -1:
-                           end = url.find(";", start)
-                       if end == -1:
-                           end = len(url)
-                       filename = unquote(url[start:end]).replace('"', '')
-                   
-                   if filename:
-                       logging.info(f"Found filename: {filename}")
-                       return url, {**remote_info, "filename": filename, "is_cdn": True}
-               
-               parts = url.split('/')
-               for part in parts:
-                   if len(part) >= 32 and all(c in '0123456789abcdef' for c in part):
-                       hash_name = f"hf_download_{part[:8]}.bin"
-                       logging.info(f"Using hash-based filename: {hash_name}")
-                       return url, {**remote_info, "filename": hash_name, "is_cdn": True}
-               
-               logging.warning("Using default filename")
-               return url, {**remote_info, "filename": "huggingface_download.bin", "is_cdn": True}
-           except Exception as e:
-               logging.error(f"Error processing CDN URL: {str(e)}")
-               return url, {"filename": "huggingface_download.bin", "is_cdn": True}
-      
-       hf_config = config["download"]["huggingface"]
-       headers = DEFAULT_HEADERS.copy()
-       if hf_config["use_auth"] and hf_config["token"]:
-           headers["authorization"] = f"Bearer {hf_config['token']}"
-       
-       if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
-           try:
-               model_id = model_match.group(1)
-               response = requests.get(f"https://huggingface.co/api/models/{model_id}/files", headers=headers)
-               response.raise_for_status()
-               files = response.json()
-               
-               if hf_config["prefer_torch"]:
-                   torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
-                   if torch_files:
-                       files = torch_files
-               
-               target_file = max(files, key=lambda x: x.get("size", 0))
-               download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
-               
-               # Get remote file info
-               remote_info = URLProcessor.get_remote_file_info(download_url, headers)
-               return (download_url, {
-                   **remote_info,
-                   "size": target_file.get("size", 0),
-                   "filename": target_file["rfilename"]
-               })
-           except Exception as e:
-               raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
-       
-       if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
-           remote_info = URLProcessor.get_remote_file_info(url, headers)
-           return url, remote_info
-           
-       raise DownloadError("Invalid HuggingFace URL format")
+        if "cdn-lfs" in url:
+            try:
+                logging.info("Processing CDN URL")
+                headers = DEFAULT_HEADERS.copy()
+                remote_info = URLProcessor.get_remote_file_info(url, headers)
+                
+                # Parse URL to get content disposition from query parameters
+                parsed_url = urlparse(url)
+                query_params = parse_qs(parsed_url.query)
+                content_disp_encoded = query_params.get('response-content-disposition', [None])[0]
+                
+                if content_disp_encoded:
+                    # Decode the content disposition value
+                    content_disp = unquote(content_disp_encoded)
+                    filename = extract_filename_from_disposition(content_disp)
+                    if filename:
+                        logging.info(f"Found filename in content disposition: {filename}")
+                        return url, {**remote_info, "filename": filename, "is_cdn": True}
+                
+                # Fallback to URL pattern matching if content disposition not found
+                if "filename*=UTF-8''" in url:
+                    start = url.find("filename*=UTF-8''") + 17
+                    end = url.find("&", start) or len(url)
+                    filename = unquote(url[start:end].split(";")[0])
+                    logging.info(f"Found UTF-8 filename in URL: {filename}")
+                    return url, {**remote_info, "filename": filename, "is_cdn": True}
+                
+                if "filename=" in url:
+                    start = url.find("filename=") + 9
+                    end = url.find("&", start) or len(url)
+                    filename = unquote(url[start:end].split(";")[0]).replace('"', '')
+                    logging.info(f"Found filename in URL: {filename}")
+                    return url, {**remote_info, "filename": filename, "is_cdn": True}
+                
+                raise DownloadError("Could not find filename in HuggingFace CDN URL")
+                
+            except Exception as e:
+                logging.error(f"Error processing CDN URL: {str(e)}")
+                raise DownloadError(f"Failed to process HuggingFace CDN URL: {str(e)}")
+        
+        # Handle non-CDN HuggingFace URLs
+        hf_config = config["download"]["huggingface"]
+        headers = DEFAULT_HEADERS.copy()
+        if hf_config["use_auth"] and hf_config["token"]:
+            headers["authorization"] = f"Bearer {hf_config['token']}"
+        
+        if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
+            try:
+                model_id = model_match.group(1)
+                response = requests.get(f"https://huggingface.co/api/models/{model_id}/files", headers=headers)
+                response.raise_for_status()
+                files = response.json()
+                
+                if hf_config["prefer_torch"]:
+                    torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
+                    if torch_files:
+                        files = torch_files
+                
+                target_file = max(files, key=lambda x: x.get("size", 0))
+                download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
+                
+                # Get remote file info
+                remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+                return (download_url, {
+                    **remote_info,
+                    "size": target_file.get("size", 0),
+                    "filename": target_file["rfilename"]
+                })
+            except Exception as e:
+                raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
+        
+        if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
+            remote_info = URLProcessor.get_remote_file_info(url, headers)
+            return url, remote_info
+            
+        raise DownloadError("Invalid HuggingFace URL format")
 
     @staticmethod
     def process_url(url: str, config: Dict) -> Tuple[str, Dict]:
@@ -459,16 +489,3 @@ def cleanup_orphaned_files() -> None:
                 persistent["url_9"] = ""
     
     save_config(persistent)
-
-def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-    temp_path = None
-    try:
-        # Process URL and get metadata
-        download_url, metadata = URLProcessor.process_url(remote_url, self.config)
-        
-        # Check existing download
-        exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
-        if exists and existing_path:
-            if self.verify_download(existing_path, metadata):
-                display_success(f"File already exists and is complete: {out_path.name}")
-                return True, None

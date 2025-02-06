@@ -74,11 +74,12 @@ def handle_download(url: str, config: dict) -> bool:
         if success:
             display_download_status(filename, FILE_STATES["complete"])
             display_file_info(out_path, url)
+            update_history(config, filename, url)  # Add to history
+            return True
         else:
             display_error(error)
             display_download_status(filename, FILE_STATES["error"])
-            
-        return success
+            return False
             
     except Exception as e:
         logging.error(f"Unexpected error: {str(e)}")
@@ -141,7 +142,9 @@ def prompt_for_download():
             continue
 
         if url:
-            handle_download(url, config)
+            success = handle_download(url, config)
+            if success:
+                config = load_config()  # Reload config after successful download
             input("\nPress Enter to continue...")
         else:
             display_error(ERROR_MESSAGES["invalid_choice"])
