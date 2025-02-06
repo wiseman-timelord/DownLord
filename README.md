@@ -35,6 +35,49 @@
     "total_size_9": 0
 }
 ```
+instead of...
+```
+{
+    "chunk": 4096000,
+    "retries": 100,
+    "filename_1": "Empty",
+    "filename_2": "Empty",
+    "filename_3": "Empty",
+    "filename_4": "Empty",
+    "filename_5": "Empty",
+    "filename_6": "Empty",
+    "filename_7": "Empty",
+    "filename_8": "Empty",
+    "filename_9": "Empty",
+    "url_1": "",
+    "url_2": "",
+    "url_3": "",
+    "url_4": "",
+    "url_5": "",
+    "url_6": "",
+    "url_7": "",
+    "url_8": "",
+    "url_9": "",
+    "progress_1": 0,
+    "progress_2": 0,
+    "progress_3": 0,
+    "progress_4": 0,
+    "progress_5": 0,
+    "progress_6": 0,
+    "progress_7": 0,
+    "progress_8": 0,
+    "progress_9": 0,
+    "total_size_1": 0,
+    "total_size_2": 0,
+    "total_size_3": 0,
+    "total_size_4": 0,
+    "total_size_5": 0,
+    "total_size_6": 0,
+    "total_size_7": 0,
+    "total_size_8": 0,
+    "total_size_9": 0
+}
+```
 2. the installer should show this...
 ```
 Persistence file already exists at: .\data\persistent.json
