@@ -115,7 +115,7 @@ Elapse/Remain:
 >> Created .\scripts\__init__.py [OK]
 >> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
-Persistence file already exists at: C:\Program_Filez\Downlord\DownLord-main\data\persistent.json
+Json already exists: .\data\persistent.json
 Do you want to overwrite it? (y/n): y
 >> Created default persistent [OK]
 Press Enter to exit...
