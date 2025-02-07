@@ -23,7 +23,7 @@ Found incomplete download, resuming...
 Resuming from: 54.69 MB
 ```
 ...so as to be reporting rather than announcing actions.
-
+4. The code needs, optimization and re-distributing, maybe this will be for the next revisit.
 
 - Features needing testing...
 1. Setup menu.
