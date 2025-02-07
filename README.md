@@ -19,7 +19,7 @@ Resuming from: 54.69 MB
 Initializing download sequence...
 Processing pasted URL...
 Found filename: unsloth.Q4_K_M.gguf
-Found incomplete download.
+Found incomplete download with filename.
 Resuming download from: 54.69 MB
 ```
 ...so as to be reporting rather than announcing actions, and without blank lines between if possible.
