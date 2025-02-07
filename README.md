@@ -24,7 +24,7 @@ DownLord is a streamlined tool designed for downloading large and important file
 #     Filename                            Progress     Size
 ---------------------------------------------------------------------------
 1     nsfw-i-hate-my-life-v2.Q3_K_M.gguf  100.0%       3.74 GB
-2     Empty                               -            -
+2     nsfw-i-hate-my-life-v2.Q6_K.gguf    75.3%        4.62 GB/6.14 GB
 3     Empty                               -            -
 4     Empty                               -            -
 5     Empty                               -            -
