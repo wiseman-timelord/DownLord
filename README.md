@@ -1,6 +1,6 @@
 # DownLord
 ## Status: Beta
-- Revisiting 2025/02. Done: Improved, Fixed, and Upgraded. Now more testing, then, any required fixing.
+- Revisiting 2025/02. Done: Improved, Fixed, and Upgraded. Still needs more testing, setup menu has not been tested, but the program seems to work otherwise.
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming when possible. 
