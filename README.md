@@ -118,7 +118,7 @@ Press Enter to exit...
 - Internet Connection and a URL to download.
 
 ### Install
-1. Clone the repository or download the script.
+1. Clone the repository or download the release/pre-release.
 2. Run the script "DownLord.bat".
 3. Select the Installer, to install requirements and setup files.
 
