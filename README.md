@@ -1,6 +1,6 @@
 # DownLord
 ## Status: Beta
-- Revisiting 2025/02. Done: Improved, Fixed, and Upgraded. Features needing testing...
+- Revisited 2025/02. Done: Improved, Fixed, and Upgraded. Features needing testing...
 1. Setup menu.
 2. Platforms other than huggingface.
 
