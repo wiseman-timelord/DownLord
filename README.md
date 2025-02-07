@@ -1,9 +1,6 @@
 # DownLord
 ## Status: Beta
-- Re-visiting 2025/02 - It is now as shown in the previews, but there is just a little more updating. Here is the remaining/current work...
-1. when the download is at 1% of the total download, I want it to save the, filename, complete url, total size, in a slot in the JSON. currently it is not doing this or at that point. currently if I terminate the window during download, then I am forced to re-obtain the url to continue, so its an obvious issue currently. 
-2. when the program loads if there are any files, temporary or completely downloaded, then if those files have no relating slot in the json, then it should be automatically removing those files. everything in the, temporary or downloads, folder must somehow be registered in the json, or it is trash.
-3. the % complete in given items on the menu, is calculated by comparing the local filesize with the total filesize specified in the Json. Ensure the handling of the json in relevance to the menu and updating the json at the, optimal and correct, points in the programs operation, are reviewed and decided upon.
+- Improved, Fixed, and Upgraded, on 2025/02.
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
