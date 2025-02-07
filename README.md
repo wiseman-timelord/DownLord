@@ -135,14 +135,16 @@ Press Enter to exit...
 - Python 3.6-3.11, 3.11 recommended.
 - Internet Connection and a URL to download.
 
-### Usage
+### Install
 1. Clone the repository or download the script.
 2. Run the script "DownLord.bat".
 3. Select the Installer, to install requirements and setup files.
-4. After install has finished, return to the menut, then press 1 to launch main program.
-5. Take a look in the settings menu, make sure everything is optimal.
-4. On Main Menu press 0 then enter the URL to download.
-5. The file will be downloaded to the `Downloads` directory.
+
+### Usage
+1. Run the script "DownLord.bat", and press 1 to launch main program.
+2. Take a look in the settings menu, make sure everything is optimal.
+3. On Main Menu press 0 then enter the URL to download, ensure it us a working URL.
+4. The complete download will be in `.\downloads`, move completed files out.
 
 ## Notation
 - Its intended to be the best method of downloading GGUF files from Huggingface, other download options will have limited testing. 
