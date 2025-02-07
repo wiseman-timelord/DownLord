@@ -65,6 +65,9 @@ def handle_download(url: str, config: dict) -> bool:
             display_error(ERROR_MESSAGES["filename_error"])
             return False
 
+        # Remove the call to update_history
+        # update_history(config, filename, url, metadata.get('size', 0))  # Commented out
+
         out_path = DOWNLOADS_DIR / filename
         display_download_status(filename, FILE_STATES["new"])
         
@@ -74,7 +77,6 @@ def handle_download(url: str, config: dict) -> bool:
         if success:
             display_download_status(filename, FILE_STATES["complete"])
             display_file_info(out_path, url)
-            update_history(config, filename, url)  # Add to history
             return True
         else:
             display_error(error)
