@@ -84,8 +84,10 @@ if /i "%choice%"=="2" (
     cls
     color 1B
     echo Running Installer...
-	call :DisplayTitle
-    python.exe .\installer.py
+	timeout /t 1 >nul
+	cls
+	call :DisplaySeparator
+	python.exe .\installer.py
     if errorlevel 1 (
         echo Error during installation
     )

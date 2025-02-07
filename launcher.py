@@ -18,14 +18,16 @@ from scripts.interface import (
     display_download_status,
     display_file_info,
     update_history,
-    ERROR_MESSAGES
+    ERROR_MESSAGES,
+    delete_file  # Add this
 )
 from scripts.temporary import (
     DOWNLOADS_DIR,
     LOG_FILE,
     APP_TITLE,
     RUNTIME_CONFIG,
-    FILE_STATES
+    FILE_STATES,
+    TEMP_DIR  # Add this
 )
 # Configure logging
 logging.basicConfig(

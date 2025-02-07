@@ -157,7 +157,7 @@ def check_permissions() -> bool:
 
 def main():
     """Main installation process."""
-    print(f"    {APP_TITLE} Install")
+    print(f"    {APP_TITLE}: Install and Setup")
     print("===============================================================================")
     # Check system requirements
     if not check_python_version() or not check_platform():
