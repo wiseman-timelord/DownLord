@@ -17,14 +17,13 @@ Resuming from: 54.69 MB
 ...it needs to be more like this...
 ```
 Initializing download sequence...
-Extracting filename...
-Found file: unsloth.Q4_K_M.gguf
-Found incomplete download, resuming...
-Resuming from: 54.69 MB
+Processing URL...
+Found filename: unsloth.Q4_K_M.gguf
+Found incomplete download.
+Resuming download from: 54.69 MB
 ```
-...so as to be reporting rather than announcing actions.
+...so as to be reporting rather than announcing actions, and without blank lines between if possible.
 4. The code needs, optimization and re-distributing, maybe this will be for the next revisit.
-
 - Features needing testing...
 1. Setup menu.
 2. Platforms other than huggingface.
