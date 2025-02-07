@@ -118,14 +118,14 @@ Press Enter to exit...
 - Internet Connection and a URL to download.
 
 ### Install
-1. Clone the repository or download the release/pre-release.
-2. Run the script "DownLord.bat".
-3. Select the Installer, to install requirements and setup files.
+1. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord`.
+2. Run the batch by right click then `Run As Administrator` on `DownLord.bat`.
+3. Select the Installer option, to, install python requirements and unpack/create program files.
 
 ### Usage
 1. Run the script "DownLord.bat", and press 1 to launch main program.
 2. Take a look in the settings menu, make sure everything is optimal.
-3. On Main Menu press 0 then enter the URL to download, ensure it us a working URL.
+3. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
 4. The complete download will be in `.\downloads`, move completed files out.
 
 ## Notation
