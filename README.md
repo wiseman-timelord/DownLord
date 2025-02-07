@@ -114,7 +114,7 @@ Press Enter to exit...
 
 ## Notation
 - Its intended as a better solution to downloading GGUF files from Huggingface, other download options are untested, and suggested "improvements" from the ai.
-- Sometimes such as on Huggingface, the user is required to start the download in a browser, then copy the download link registered in the browser after the download begins, then paste that in as the new URL, in order for the download to work. This is because of the design of the website.
+- Sometimes such as on Huggingface, the user must start the download in browser, then copy the link from the download manager in browser (not the page), then paste that as URL for DownLord. This is because of the design of the website.
 
 
 ### File Structure
