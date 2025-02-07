@@ -37,31 +37,50 @@ DownLord is a streamlined tool designed for downloading large and important file
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
 
 ```
+- Initializing Download, after insert URL...
+```
+===============================================================================
+    DownLord: Initiate Download
+===============================================================================
+
+Initializing download sequence...
+Processing URL...
+Extracting filename...
+Found file: unsloth.Q4_K_M.gguf
+
+Checking for existing downloads...
+Found incomplete previous download, will resume...
+Resuming from: 54.69 MB
+
+Establishing connection...
+Connecting to server...
+C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+
+Starting download of unsloth.Q4_K_M.gguf...
+
+```
 - Download screen is like this...
 ```
 ===============================================================================
-          ________                      .____                    .___
-          \______ \   ______  _  ______ |    |    ___________  __| _/
-           |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |
-           |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |
-          /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |
-                  \/                  \/        \/                \/
--------------------------------------------------------------------------------
-    Download Active
+    DownLord: Download Active
 ===============================================================================
 
 Filename:
-    nsfw-i-hate-my-life-v2.Q6_K.gguf
-Progress:
-    2.9%
-Speed:
-    547.97 KB/s
-Receive/Total:
-    179.69 MB/6.14 GB
-Elapse/Remain:
-    00:00:48<03:10:19
+    unsloth.Q4_K_M.gguf
 
-===============================================================================
+Progress:
+    1.5%
+
+Speed:
+    495.26 KB/s
+
+Receive/Total:
+    70.31 MB/4.58 GB
+
+Elapse/Remain:
+    00:00:30<02:39:17
+
 
 ```
 - Installer is comprehensive...
