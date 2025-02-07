@@ -113,7 +113,9 @@ Press Enter to exit...
 4. The complete download will be in `.\downloads`, move completed files out.
 
 ## Notation
-- Its intended to be the best method of downloading GGUF files from Huggingface, other download options will have limited testing. 
+- Its intended as a better solution to downloading GGUF files from Huggingface, other download options are untested, and suggested "improvements" from the ai.
+- Sometimes such as on Huggingface, the user is required to start the download in a browser, then copy the download link registered in the browser after the download begins, then paste that in as the new URL, in order for the download to work. This is because of the design of the website.
+
 
 ### File Structure
 - Packaged files
