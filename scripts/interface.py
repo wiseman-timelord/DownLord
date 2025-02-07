@@ -9,17 +9,21 @@ from typing import Dict, Optional, Union
 from datetime import datetime
 from scripts.temporary import (
     FILE_STATE_MESSAGES,
-    FILE_STATES,  # Add this
+    FILE_STATES,
     PERSISTENT_FILE,
     DOWNLOADS_DIR,
     RUNTIME_CONFIG,
     DEFAULT_CHUNK_SIZES,
     APP_TITLE,
     ERROR_TYPES,
-    DATA_DIR
+    DATA_DIR,
+    TEMP_DIR  # Add this
 )
 
 # ASCII Art
+# Menu Templates
+MENU_SEPARATOR = "-" * 80
+
 ASCII_LOGO = '''===============================================================================
           ________                      .____                    .___
           \______ \   ______  _  ______ |    |    ___________  __| _/
@@ -31,8 +35,10 @@ ASCII_LOGO = '''================================================================
     %s
 ==============================================================================='''
 
-# Menu Templates
-MENU_SEPARATOR = "-" * 80
+SIMPLE_HEADER = '''===============================================================================
+    DownLord: %s
+==============================================================================='''
+
 
 MAIN_MENU_FOOTER = """===============================================================================
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
@@ -74,10 +80,13 @@ SUCCESS_MESSAGES = {
     "resume_success": "Resuming download from {} bytes"
 }
 
-def clear_screen(title="Main Menu"):
-    """Clear the screen and display the logo with dynamic title."""
-    print("\033[H\033[J", end="")  # ANSI escape sequence for clear screen
-    print(ASCII_LOGO % title)
+def clear_screen(title="Main Menu", use_logo=True):
+    """Clear screen and display header."""
+    print("\033[H\033[J", end="")  # Clear screen
+    if use_logo:
+        print(ASCII_LOGO % title)
+    else:
+        print(SIMPLE_HEADER % title)
 
 def display_separator():
     """Display a menu separator line."""
@@ -250,9 +259,8 @@ def display_file_info(path: Path, url: str = None) -> None:
 
 def display_download_progress(filename: str, downloaded: int, total: int, speed: float, elapsed: int, remaining: int) -> None:
     """Display the download progress in a full-screen format."""
-    # Clear screen and show logo
     print("\033[H\033[J", end="")  # Clear screen
-    print(ASCII_LOGO % "Download Active")
+    print(SIMPLE_HEADER % "Download Active")
     
     # Format values
     progress = (downloaded / total * 100) if total > 0 else 0
@@ -264,22 +272,20 @@ def display_download_progress(filename: str, downloaded: int, total: int, speed:
     elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
     remaining_str = time.strftime("%H:%M:%S", time.gmtime(remaining)) if remaining else "Unknown"
 
-    print("\nFilename: ")
-    print(f"    {filename}")
+    print("\nFilename:")
+    print(f"    {filename}\n")
     
-    print("Progress: ")
-    print(f"    {progress:.1f}%")
+    print("Progress:")
+    print(f"    {progress:.1f}%\n")
 
     print("Speed:")
-    print(f"    {speed_str}")
+    print(f"    {speed_str}\n")
     
     print("Receive/Total:")
-    print(f"    {downloaded_str}/{total_str}")
+    print(f"    {downloaded_str}/{total_str}\n")
     
     print("Elapse/Remain:")
-    print(f"    {elapsed_str}<{remaining_str}")
-    
-    print("\n===============================================================================")
+    print(f"    {elapsed_str}<{remaining_str}\n")
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """Display the download completion message."""
@@ -311,7 +317,7 @@ def display_download_status(filename: str, state: str, info: Dict = None) -> Non
 def setup_menu():
     """Display and handle the setup menu."""
     while True:
-        clear_screen("Setup Menu")
+        clear_screen("Setup Menu", use_logo=False)
         print(SETUP_MENU)
         choice = input("Selection; Options = 1-3, Return = B: ").strip().lower()
         
@@ -328,7 +334,7 @@ def setup_menu():
 def internet_options_menu():
     """Display and handle the internet speed options menu."""
     config = load_config()
-    clear_screen("Connection Speed")
+    clear_screen("Connection Speed", use_logo=False)
     print(SPEED_MENU)
     connection_choice = input("Selection; Speed = 1-5, Return = B: ").strip().lower()
 
@@ -355,7 +361,7 @@ def internet_options_menu():
 def max_retries_menu():
     """Display and handle the maximum retries menu."""
     config = load_config()
-    clear_screen("Maximum Retries")
+    clear_screen("Maximum Retries", use_logo=False)
     print(f"\nCurrent Maximum Retries: {config['retries']}\n")
     
     retries = input("Selection; Enter Number or Back = B: ").strip().lower()

@@ -22,7 +22,9 @@ from .interface import (
     display_download_progress,
     display_download_complete,
     ERROR_MESSAGES, 
-    SUCCESS_MESSAGES
+    SUCCESS_MESSAGES,
+    clear_screen,  # Add this
+    format_file_size  # Add this too since it's used in the download messages
 )
 from .manage import cleanup_orphaned_files
 from .temporary import (
@@ -173,13 +175,21 @@ class DownloadManager:
         """Download a file with progress display and early metadata registration."""
         temp_path = None
         try:
+            # Clear screen and show initialization display
+            clear_screen("Initiate Download", use_logo=False)
+            print("\nInitializing download sequence...")
+            
+            print("Processing URL...")
             processor = URLProcessor()
             download_url, metadata = processor.process_url(remote_url, self.config)
-            filename = metadata.get("filename") or get_file_name_from_url(download_url)
             
+            print("Extracting filename...")
+            filename = metadata.get("filename") or get_file_name_from_url(download_url)
             if not filename:
                 return False, ERROR_MESSAGES["filename_error"]
+            print(f"Found file: {filename}")
 
+            print("\nChecking for existing downloads...")
             exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
             
             # Handle existing downloads
@@ -188,14 +198,20 @@ class DownloadManager:
                     display_success(f"File already exists and is complete: {out_path.name}")
                     return True, None
                     
+                print("Found incomplete previous download, will resume...")
                 temp_path = state.get('temp_path') if state.get('has_temp') else TEMP_DIR / f"{out_path.name}.part"
                 if existing_path.exists() and not state.get('has_temp'):
                     existing_path.rename(temp_path)
             else:
+                print("No existing download found, starting fresh...")
                 temp_path = TEMP_DIR / f"{out_path.name}.part"
 
             # Begin download
             existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
+            if existing_size > 0:
+                print(f"Resuming from: {format_file_size(existing_size)}")
+                
+            print("\nEstablishing connection...")
             session = requests.Session()
             retries = 0
             early_registration_done = False
@@ -203,6 +219,7 @@ class DownloadManager:
             while retries < self.config["download"]["max_retries"]:
                 try:
                     headers = get_download_headers(existing_size)
+                    print("Connecting to server...")
                     with session.get(
                         download_url,
                         stream=True,
@@ -215,7 +232,7 @@ class DownloadManager:
 
                         response.raise_for_status()
                         total_size = int(response.headers.get('content-length', 0)) + existing_size
-                        display_download_status(filename, FILE_STATES["new"])
+                        print(f"\nStarting download of {filename}...")
 
                         # Setup progress tracking
                         start_time = time.time()
@@ -237,8 +254,8 @@ class DownloadManager:
                                             self._register_early_metadata(filename, remote_url, total_size)
                                             early_registration_done = True
 
-                                    # Update display every second
-                                    if current_time - last_update_time >= 1:
+                                    # Update display every 2 seconds
+                                    if current_time - last_update_time >= 2:
                                         elapsed = int(current_time - start_time)
                                         speed = bytes_since_last_update / (current_time - last_update_time)
                                         remaining = int((total_size - written_size) / speed) if speed > 0 else 0
@@ -256,22 +273,59 @@ class DownloadManager:
                                         last_update_time = current_time
                                     
                                     out_file.write(chunk)
-
-                            # Finalize download
-                            temp_path.rename(out_path)
-                            display_download_complete(filename, datetime.now())
-                            
-                            # Update final size
-                            final_size = out_path.stat().st_size
-                            for i in range(1, 10):
-                                if self.persistent[f"filename_{i}"] == filename:
-                                    if self.persistent[f"total_size_{i}"] != final_size:
-                                        logging.info(f"Updating final size for {filename} from {self.persistent[f'total_size_{i}']} to {final_size}")
-                                        self.persistent[f"total_size_{i}"] = final_size
-                                        save_config(self.persistent)
-                                    break
-                            
-                            return True, None
+                                    
+                            # Ensure file is closed before moving
+                            out_file.flush()
+                            os.fsync(out_file.fileno())
+                        
+                        # Force garbage collection before move
+                        import gc
+                        gc.collect()
+                        
+                        # Attempt move with retries
+                        move_success = False
+                        move_retries = 5
+                        move_delay = 1.0
+                        
+                        for move_attempt in range(move_retries):
+                            try:
+                                if not temp_path.exists():
+                                    logging.error(f"Source file missing: {temp_path}")
+                                    return False, "Source file missing after download"
+                                    
+                                out_path.parent.mkdir(parents=True, exist_ok=True)
+                                temp_path.replace(out_path)
+                                move_success = True
+                                break
+                                
+                            except PermissionError as e:
+                                if move_attempt < move_retries - 1:
+                                    logging.warning(f"Move attempt {move_attempt + 1} failed, retrying in {move_delay}s: {e}")
+                                    time.sleep(move_delay)
+                                else:
+                                    logging.error(f"Failed to move file after {move_retries} attempts: {e}")
+                                    return False, f"Failed to move file: {str(e)}"
+                                    
+                            except Exception as e:
+                                logging.error(f"Unexpected error moving file: {e}")
+                                return False, f"Error moving file: {str(e)}"
+                        
+                        if not move_success:
+                            return False, "Failed to move downloaded file to destination"
+                        
+                        display_download_complete(filename, datetime.now())
+                        
+                        # Update final size
+                        final_size = out_path.stat().st_size
+                        for i in range(1, 10):
+                            if self.persistent[f"filename_{i}"] == filename:
+                                if self.persistent[f"total_size_{i}"] != final_size:
+                                    logging.info(f"Updating final size for {filename} from {self.persistent[f'total_size_{i}']} to {final_size}")
+                                    self.persistent[f"total_size_{i}"] = final_size
+                                    save_config(self.persistent)
+                                break
+                        
+                        return True, None
 
                 except (Timeout, ConnectionError, RequestException) as e:
                     retries += 1
@@ -285,6 +339,7 @@ class DownloadManager:
             logging.error(f"Download error: {str(e)}")
             return False, str(e)
         finally:
+            # Only cleanup if move failed and temp file still exists
             if temp_path and temp_path.exists():
                 self._cleanup_temp_files(out_path.name)
 
@@ -486,6 +541,41 @@ def get_file_name_from_url(url: str) -> Optional[str]:
     except Exception as e:
         logging.error(f"Error extracting filename from URL: {str(e)}")
         return None
+
+def move_with_retry(src: Path, dst: Path, max_retries: int = 5, delay: float = 1.0) -> bool:
+    """Move file with retry mechanism for Windows file locks."""
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            if not src.exists():
+                logging.error(f"Source file missing: {src}")
+                return False
+                
+            # Ensure destination directory exists
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Force close any potential file handles
+            import gc
+            gc.collect()
+            
+            # Attempt move
+            src.replace(dst)  # Using replace instead of rename
+            return True
+            
+        except PermissionError as e:
+            if attempt < max_retries - 1:
+                logging.warning(f"Move attempt {attempt + 1} failed, retrying in {delay}s: {e}")
+                time.sleep(delay)
+            else:
+                logging.error(f"Failed to move file after {max_retries} attempts: {e}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Unexpected error moving file: {e}")
+            return False
+            
+    return False
 
 def cleanup_orphaned_files() -> None:
     downloads_dir = Path("./downloads")
