@@ -129,12 +129,10 @@ def delete_file(config: Dict, index: int) -> bool:
         for i in range(index, 9):
             config[f"filename_{i}"] = config.get(f"filename_{i+1}", "Empty")
             config[f"url_{i}"] = config.get(f"url_{i+1}", "")
-            config[f"progress_{i}"] = config.get(f"progress_{i+1}", 0)
             config[f"total_size_{i}"] = config.get(f"total_size_{i+1}", 0)
         
         config["filename_9"] = "Empty"
         config["url_9"] = ""
-        config["progress_9"] = 0
         config["total_size_9"] = 0
 
         save_config(config)
@@ -169,7 +167,6 @@ def display_main_menu(config: Dict):
         for i in range(1, 10):
             filename = config_snapshot.get(f"filename_{i}", "Empty")
             url = config_snapshot.get(f"url_{i}", "")
-            progress = config_snapshot.get(f"progress_{i}", 0)
             total_size = config_snapshot.get(f"total_size_{i}", 0)
             
             if filename != "Empty":
@@ -186,11 +183,9 @@ def display_main_menu(config: Dict):
                 
                 if downloads_path.exists():
                     actual_size = downloads_path.stat().st_size
-                    # Verify size matches expected
-                    if total_size > 0 and actual_size != total_size:
+                    # Calculate progress based on actual size vs total size
+                    if total_size > 0:
                         progress = round((actual_size / total_size) * 100, 1)
-                        config[f"progress_{i}"] = progress
-                        config_changed = True
                     else:
                         progress = 100.0
                     
@@ -202,13 +197,8 @@ def display_main_menu(config: Dict):
                     current_size = format_file_size(temp_size)
                     total_size_str = format_file_size(total_size) if total_size > 0 else "?"
                     
-                    # Update progress if needed
-                    if total_size > 0:
-                        actual_progress = round((temp_size / total_size) * 100, 1)
-                        if abs(actual_progress - progress) > 0.1:  # Update if >0.1% difference
-                            progress = actual_progress
-                            config[f"progress_{i}"] = progress
-                            config_changed = True
+                    # Calculate progress for partial download
+                    progress = round((temp_size / total_size) * 100, 1) if total_size > 0 else 0.0
                     
                     print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
                 
@@ -217,12 +207,10 @@ def display_main_menu(config: Dict):
                     for j in range(i, 9):
                         config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
                         config[f"url_{j}"] = config.get(f"url_{j+1}", "")
-                        config[f"progress_{j}"] = config.get(f"progress_{j+1}", 0)
                         config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
                     
                     config["filename_9"] = "Empty"
                     config["url_9"] = ""
-                    config["progress_9"] = 0
                     config["total_size_9"] = 0
                     config_changed = True
                     print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
@@ -464,13 +452,6 @@ def validate_config(config: Dict) -> None:
                 config[key] = default[key]
             elif key.startswith(("filename_", "url_")) and not isinstance(config[key], str):
                 config[key] = default[key]
-            elif key.startswith("progress_"):
-                try:
-                    config[key] = float(config[key])
-                    if not 0 <= config[key] <= 100:
-                        config[key] = 0
-                except (ValueError, TypeError):
-                    config[key] = 0
             elif key.startswith("total_size_"):
                 try:
                     config[key] = int(config[key])
@@ -483,11 +464,11 @@ def validate_config(config: Dict) -> None:
         for i in range(1, 10):
             keys = [
                 f"filename_{i}", f"url_{i}",
-                f"progress_{i}", f"total_size_{i}"
+                f"total_size_{i}"
             ]
             for key in keys:
                 if key not in config:
-                    config[key] = default.get(key, 0 if "size" in key or "progress" in key else "")
+                    config[key] = default.get(key, 0 if "size" in key else "")
         
     except Exception as e:
         logging.error(f"Error validating config: {str(e)}")
@@ -503,6 +484,7 @@ def create_default_config() -> Dict:
     for i in range(1, 10):
         config[f"filename_{i}"] = "Empty"
         config[f"url_{i}"] = ""
+        config[f"total_size_{i}"] = 0
     return config
 
 def display_error(message: str):
@@ -513,28 +495,38 @@ def display_success(message: str):
     """Display a success message."""
     print(f"Success: {message}")
 
-def update_history(config: Dict, filename: str, url: str) -> None:
-   try:
-       # Validate inputs
-       if not filename or not url:
-           return
+def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -> None:
+    try:
+        # Validate inputs
+        if not filename or not url:
+            return
            
-       # Check if entry exists
-       for i in range(1, 10):
-           filename_key = f"filename_{i}"
-           url_key = f"url_{i}"
-           if config.get(filename_key) == filename and config.get(url_key) == url:
-               return
+        logging.info(f"Registering download: {filename} ({url}) size={total_size}")
+           
+        # Check if entry exists
+        for i in range(1, 10):
+            filename_key = f"filename_{i}"
+            url_key = f"url_{i}"
+            if config.get(filename_key) == filename and config.get(url_key) == url:
+                if total_size > 0:
+                    config[f"total_size_{i}"] = total_size
+                    save_config(config)
+                return
 
-       # Shift entries down
-       for i in range(9, 1, -1):
-           config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
-           config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+        # Shift entries down
+        for i in range(9, 1, -1):
+            config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
+            config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+            config[f"total_size_{i}"] = config.get(f"total_size_{i-1}", 0)
        
-       # Add new entry
-       config["filename_1"] = filename
-       config["url_1"] = url
-       save_config(config)
+        # Add new entry at position 1
+        config["filename_1"] = filename
+        config["url_1"] = url
+        config["total_size_1"] = total_size
+        
+        # Save changes
+        save_config(config)
+        logging.info(f"Successfully registered new download: {filename} ({url}) with size {total_size}")
        
-   except Exception as e:
-       logging.error(f"Error updating history: {e}")
+    except Exception as e:
+        logging.error(f"Error updating history: {e}")

@@ -44,7 +44,7 @@ class DownloadManager:
         self.config = self._load_config()
         self.persistent = load_config()
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        cleanup_orphaned_files()
+        self.cleanup_unregistered_files()
 
     def _load_config(self) -> Dict:
         config = RUNTIME_CONFIG.copy()
@@ -78,51 +78,58 @@ class DownloadManager:
         for i in range(index, 9):
             self.persistent[f"filename_{i}"] = self.persistent[f"filename_{i+1}"]
             self.persistent[f"url_{i}"] = self.persistent[f"url_{i+1}"]
+            self.persistent[f"total_size_{i}"] = self.persistent[f"total_size_{i+1}"]
         
         self.persistent["filename_9"] = "Empty"
         self.persistent["url_9"] = ""
+        self.persistent["total_size_9"] = 0
         save_config(self.persistent)
 
-    def _register_download(self, filename: str, url: str, remote_info: Dict) -> None:
-        """
-        Register download with duplicate handling and validation.
-        """
-        # Validate inputs
-        if not filename or not url:
-            logging.warning("Invalid filename or URL for registration")
-            return
+    def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
+        """Register download metadata at 1% progress."""
+        try:
+            slot_index = None
+            for i in range(1, 10):
+                if (self.persistent[f"filename_{i}"] == filename and 
+                    self.persistent[f"url_{i}"] == url):
+                    slot_index = i
+                    break
+                elif slot_index is None and self.persistent[f"filename_{i}"] == "Empty":
+                    slot_index = i
+                    break
 
-        # Check for exact duplicates first
-        for i in range(1, 10):
-            if (self.persistent[f"url_{i}"] == url and 
-                self.persistent[f"filename_{i}"] == filename):
-                logging.info(f"Download already registered: {filename}")
-                return
+            if slot_index is not None:
+                self.persistent[f"filename_{slot_index}"] = filename
+                self.persistent[f"url_{slot_index}"] = url
+                self.persistent[f"total_size_{slot_index}"] = total_size
+                save_config(self.persistent)
+                logging.info(f"Early metadata registered for {filename} in slot {slot_index}")
+        except Exception as e:
+            logging.error(f"Error registering early metadata: {str(e)}")
 
-        # Check for duplicate filenames with different URLs
-        filename_base, ext = os.path.splitext(filename)
-        counter = 1
-        new_filename = filename
-        while any(self.persistent[f"filename_{i}"] == new_filename 
-                 for i in range(1, 10)):
-            new_filename = f"{filename_base}_{counter}{ext}"
-            counter += 1
-            
-        # Shift entries down
-        for i in range(9, 1, -1):
-            self.persistent[f"filename_{i}"] = self.persistent[f"filename_{i-1}"]
-            self.persistent[f"url_{i}"] = self.persistent[f"url_{i-1}"]
+    def cleanup_unregistered_files(self) -> None:
+        """Remove files not registered in persistent.json."""
+        try:
+            registered_files = set()
+            for i in range(1, 10):
+                filename = self.persistent[f"filename_{i}"]
+                if filename != "Empty":
+                    registered_files.add(filename)
+                    registered_files.add(f"{filename}.part")
 
-        # Add new entry
-        self.persistent["filename_1"] = new_filename
-        self.persistent["url_1"] = url
-        save_config(self.persistent)
-        logging.info(f"Registered download: {new_filename} ({url})")
+            for folder in [DOWNLOADS_DIR, TEMP_DIR]:
+                for file_path in folder.glob("*"):
+                    if file_path.name not in registered_files:
+                        try:
+                            file_path.unlink()
+                            logging.info(f"Removed unregistered file: {file_path}")
+                        except Exception as e:
+                            logging.error(f"Error removing file {file_path}: {str(e)}")
+        except Exception as e:
+            logging.error(f"Error in cleanup_unregistered_files: {str(e)}")
 
     def _cleanup_temp_files(self, filename: str) -> None:
-        """
-        Clean up temporary download files.
-        """
+        """Clean up temporary download files."""
         try:
             temp_pattern = f"{filename}*.part"
             for temp_file in TEMP_DIR.glob(temp_pattern):
@@ -135,10 +142,7 @@ class DownloadManager:
             logging.error(f"Error during temp cleanup: {e}")
 
     def _handle_rate_limit(self, response: requests.Response) -> bool:
-        """
-        Handle rate limiting with exponential backoff.
-        Returns True if retry is possible, False if limit is permanent.
-        """
+        """Handle rate limiting with exponential backoff."""
         if response.status_code != 429:
             return False
 
@@ -156,21 +160,19 @@ class DownloadManager:
             delay = RETRY_STRATEGY["initial_delay"]
 
         logging.warning(f"Rate limited. Waiting {delay} seconds before retry")
-        time.sleep(max(1, delay))  # Ensure minimum 1 second delay
+        time.sleep(max(1, delay))
         return True
 
     def verify_download(self, filepath: Path, remote_info: Dict) -> bool:
+        """Verify if download is complete and matches expected size."""
         if not filepath.exists():
             return False
-            
-        local_size = filepath.stat().st_size
-        return local_size == remote_info.get('size', 0)
+        return filepath.stat().st_size == remote_info.get('size', 0)
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-        """Download a file with progress display."""
+        """Download a file with progress display and early metadata registration."""
         temp_path = None
         try:
-            # Process URL and get metadata
             processor = URLProcessor()
             download_url, metadata = processor.process_url(remote_url, self.config)
             filename = metadata.get("filename") or get_file_name_from_url(download_url)
@@ -178,27 +180,26 @@ class DownloadManager:
             if not filename:
                 return False, ERROR_MESSAGES["filename_error"]
 
-            # Check existing download
             exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
+            
+            # Handle existing downloads
             if exists and existing_path:
                 if self.verify_download(existing_path, metadata):
                     display_success(f"File already exists and is complete: {out_path.name}")
                     return True, None
                     
-                if state.get('has_temp', False):
-                    temp_path = state['temp_path']
-                else:
-                    temp_path = TEMP_DIR / f"{out_path.name}.part"
-                    if existing_path.exists():
-                        existing_path.rename(temp_path)
+                temp_path = state.get('temp_path') if state.get('has_temp') else TEMP_DIR / f"{out_path.name}.part"
+                if existing_path.exists() and not state.get('has_temp'):
+                    existing_path.rename(temp_path)
             else:
                 temp_path = TEMP_DIR / f"{out_path.name}.part"
 
-            # Setup download
+            # Begin download
             existing_size = temp_path.stat().st_size if temp_path and temp_path.exists() else 0
             session = requests.Session()
             retries = 0
-            
+            early_registration_done = False
+
             while retries < self.config["download"]["max_retries"]:
                 try:
                     headers = get_download_headers(existing_size)
@@ -209,32 +210,33 @@ class DownloadManager:
                         timeout=self.config["download"]["timeout"],
                         verify=False
                     ) as response:
-                        # Handle rate limiting
-                        if response.status_code == 429:
-                            if self._handle_rate_limit(response):
-                                continue
-                            else:
-                                raise DownloadError("Rate limit exceeded")
+                        if response.status_code == 429 and self._handle_rate_limit(response):
+                            continue
 
                         response.raise_for_status()
                         total_size = int(response.headers.get('content-length', 0)) + existing_size
-                        
-                        # Only show initial status message
                         display_download_status(filename, FILE_STATES["new"])
-                        
+
                         # Setup progress tracking
                         start_time = time.time()
                         last_update_time = start_time
                         bytes_since_last_update = 0
                         written_size = existing_size
-                        
+
                         with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 if chunk:
                                     written_size += len(chunk)
                                     bytes_since_last_update += len(chunk)
                                     current_time = time.time()
-                                    
+
+                                    # Register metadata at 1% progress
+                                    if not early_registration_done and total_size > 0:
+                                        progress = (written_size / total_size) * 100
+                                        if progress >= 1:
+                                            self._register_early_metadata(filename, remote_url, total_size)
+                                            early_registration_done = True
+
                                     # Update display every second
                                     if current_time - last_update_time >= 1:
                                         elapsed = int(current_time - start_time)
@@ -250,32 +252,26 @@ class DownloadManager:
                                             remaining
                                         )
                                         
-                                        # Update persistent storage
-                                        for i in range(1, 10):
-                                            if self.persistent[f"filename_{i}"] == filename:
-                                                self.persistent[f"progress_{i}"] = (written_size / total_size) * 100
-                                                self.persistent[f"total_size_{i}"] = total_size
-                                                save_config(self.persistent)
-                                                break
-                                        
                                         bytes_since_last_update = 0
                                         last_update_time = current_time
                                     
                                     out_file.write(chunk)
-                        
-                        # Move completed download to final location
-                        temp_path.rename(out_path)
-                        
-                        # Display completion and update config
-                        display_download_complete(filename, datetime.now())
-                        for i in range(1, 10):
-                            if self.persistent[f"filename_{i}"] == filename:
-                                self.persistent[f"progress_{i}"] = 100
-                                self.persistent[f"total_size_{i}"] = out_path.stat().st_size
-                                save_config(self.persistent)
-                                break
-                                
-                        return True, None
+
+                            # Finalize download
+                            temp_path.rename(out_path)
+                            display_download_complete(filename, datetime.now())
+                            
+                            # Update final size
+                            final_size = out_path.stat().st_size
+                            for i in range(1, 10):
+                                if self.persistent[f"filename_{i}"] == filename:
+                                    if self.persistent[f"total_size_{i}"] != final_size:
+                                        logging.info(f"Updating final size for {filename} from {self.persistent[f'total_size_{i}']} to {final_size}")
+                                        self.persistent[f"total_size_{i}"] = final_size
+                                        save_config(self.persistent)
+                                    break
+                            
+                            return True, None
 
                 except (Timeout, ConnectionError, RequestException) as e:
                     retries += 1
@@ -289,7 +285,6 @@ class DownloadManager:
             logging.error(f"Download error: {str(e)}")
             return False, str(e)
         finally:
-            # Clean up temp files if download failed
             if temp_path and temp_path.exists():
                 self._cleanup_temp_files(out_path.name)
 
@@ -504,7 +499,9 @@ def cleanup_orphaned_files() -> None:
                 for j in range(i, 9):
                     persistent[f"filename_{j}"] = persistent[f"filename_{j+1}"]
                     persistent[f"url_{j}"] = persistent[f"url_{j+1}"]
+                    persistent[f"total_size_{j}"] = persistent[f"total_size_{j+1}"]  # Add this
                 persistent["filename_9"] = "Empty"
                 persistent["url_9"] = ""
+                persistent["total_size_9"] = 0  # Add this
     
     save_config(persistent)
