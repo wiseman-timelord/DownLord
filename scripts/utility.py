@@ -177,7 +177,7 @@ class DownloadManager:
         temp_path = None
         try:
             clear_screen("Initiate Download", use_logo=False)
-            print("Initializing download sequence...")
+            print("\nInitializing download sequence...")
             print("Processing pasted URL...")
             
             processor = URLProcessor()
