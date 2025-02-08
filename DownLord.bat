@@ -71,12 +71,14 @@ if /i "%choice%"=="1" (
     color 1B
     call :DisplayTitle
     echo Starting %TITLE%...
-    python.exe .\launcher.py
+    set PYTHONUNBUFFERED=1
+	python.exe -u .\launcher.py
     if errorlevel 1 (
         echo Error launching %TITLE%
         pause
     )
-    pause
+    set PYTHONUNBUFFERED=0
+	pause
     goto MainMenu
 )
 
