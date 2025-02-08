@@ -22,13 +22,25 @@ PERSISTENT_FILE = DATA_DIR / "persistent.json"
 REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 LOG_FILE = DATA_DIR / "downlord.log"
 
+
+RETRY_OPTIONS = [100, 200, 400, 800]
+REFRESH_OPTIONS = [1, 2, 4, 8]
+
 # Configuration Defaults
 DEFAULT_CHUNK_SIZES = {
    "slow": 1024000,      # ~1MBit/s
    "mobile": 2048000,    # ~2.5MBit/s
-   "line": 4096000,      # ~5MBit/s
+   "cable": 4096000,      # ~5MBit/s
    "fibre": 8192000,     # ~10MBit/s
-   "custom": None        # User-defined
+   "lan": 16384000,     # ~20MBit/s
+}
+
+SPEED_DISPLAY = {
+    1024000: "1Mbps",
+    2048000: "2.5Mbps",
+    4096000: "5Mbps",
+    8192000: "10Mbps",
+    16384000: "20Mbps"
 }
 
 FILE_STATES = {
@@ -70,6 +82,13 @@ DISPLAY_FORMATS = {
    "status": "{filename}: {status}",
    "error": "Error: {message}",
    "success": "Success: {message}"
+}
+
+# Update DEFAULT_CONFIG in temporary.py
+DEFAULT_CONFIG = {
+    "chunk": DEFAULT_CHUNK_SIZES["cable"],  # Changed from "line" to "cable"
+    "retries": 100,
+    "refresh": 2  # Default refresh rate
 }
 
 # Runtime Configuration

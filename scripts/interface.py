@@ -17,7 +17,11 @@ from scripts.temporary import (
     APP_TITLE,
     ERROR_TYPES,
     DATA_DIR,
-    TEMP_DIR  # Add this
+    TEMP_DIR,
+    RETRY_OPTIONS,
+    REFRESH_OPTIONS,
+    DEFAULT_CHUNK_SIZES,
+    SPEED_DISPLAY
 )
 
 # ASCII Art
@@ -49,32 +53,12 @@ SETUP_MENU = """
 
 
 
+    1. Connection Speed       ({chunk})
 
-    1. Connection Speed
+    2. Maximum Retries        ({retries})
 
-    2. Maximum Retries
+    3. Screen Refresh         ({refresh}s)
 
-
-
-
-
-
-
-
-==============================================================================="""
-
-SPEED_MENU = """
-
-
-
-
-    1. Slow   ~1MBit/s   (Chunk Size  1024KB)
-
-    2. Mobile ~2.5MBit/s (Chunk Size  2048KB)
-
-    3. Line   ~5MBit/s   (Chunk Size  4096KB)
-
-    4. Fibre  ~10MBit/s  (Chunk Size  8192KB)
 
 
 
@@ -82,6 +66,7 @@ SPEED_MENU = """
 
 
 ==============================================================================="""
+
 
 # Error Messages
 ERROR_MESSAGES = {
@@ -99,8 +84,6 @@ ERROR_MESSAGES = {
 SUCCESS_MESSAGES = {
     "config_updated": "Configuration updated successfully.",
     "download_complete": "Download complete for file: {}",
-    "retries_updated": "Maximum retries updated successfully.",
-    "connection_updated": "Connection speed updated successfully.",
     "resume_success": "Resuming download from {} bytes"
 }
 
@@ -122,6 +105,10 @@ def format_file_size(size: int) -> str:
             return f"{size:.2f} {unit}"
         size /= 1024
     return f"{size:.2f} TB"
+    
+def format_connection_speed(chunk_size: int) -> str:
+    """Format connection speed for display."""
+    return SPEED_DISPLAY.get(chunk_size, "Custom")
 
 def format_file_state(state: str, info: Dict = None) -> str:
     message = FILE_STATE_MESSAGES.get(state, "Unknown state")
@@ -341,69 +328,51 @@ def display_download_status(filename: str, state: str, info: Dict = None) -> Non
 def setup_menu():
     """Display and handle the setup menu."""
     while True:
+        config = load_config()
         clear_screen("Setup Menu", use_logo=False)
-        print(SETUP_MENU)
-        choice = input("Selection; Options = 1-2, Return = B: ").strip().lower()
+        print(SETUP_MENU.format(
+            chunk=format_connection_speed(config["chunk"]),
+            retries=config["retries"],
+            refresh=config.get("refresh", 2)
+        ))
+        choice = input("Selection; Options = 1-3, Return = B: ").strip().lower()
         
         if choice == '1':
-            internet_options_menu()
+            # Cycle through chunk sizes
+            current_size = config["chunk"]
+            sizes = list(DEFAULT_CHUNK_SIZES.values())  # All defined sizes
+            try:
+                idx = sizes.index(current_size)
+                config["chunk"] = sizes[(idx + 1) % len(sizes)]
+            except ValueError:
+                config["chunk"] = sizes[0]
+            save_config(config)
+            
         elif choice == '2':
-            max_retries_menu()
+            # Cycle through retry options
+            current_retries = config["retries"]
+            try:
+                idx = RETRY_OPTIONS.index(current_retries)
+                config["retries"] = RETRY_OPTIONS[(idx + 1) % len(RETRY_OPTIONS)]
+            except ValueError:
+                config["retries"] = RETRY_OPTIONS[0]
+            save_config(config)
+            
+        elif choice == '3':
+            # Cycle through refresh rates
+            current_refresh = config.get("refresh", 2)
+            try:
+                idx = REFRESH_OPTIONS.index(current_refresh)
+                config["refresh"] = REFRESH_OPTIONS[(idx + 1) % len(REFRESH_OPTIONS)]
+            except ValueError:
+                config["refresh"] = REFRESH_OPTIONS[0]
+            save_config(config)
+            
         elif choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
             input("\nPress Enter to continue...")
-
-def internet_options_menu():
-    """Display and handle the internet speed options menu."""
-    config = load_config()
-    clear_screen("Connection Speed", use_logo=False)
-    print(SPEED_MENU)
-    connection_choice = input("Selection; Speed = 1-4, Return = B: ").strip().lower()
-
-    if connection_choice == 'b':
-        return
-
-    chunk_sizes = {
-        "1": DEFAULT_CHUNK_SIZES["slow"],
-        "2": DEFAULT_CHUNK_SIZES["mobile"],
-        "3": DEFAULT_CHUNK_SIZES["line"],
-        "4": DEFAULT_CHUNK_SIZES["fibre"]
-    }
-
-    if connection_choice in ["1", "2", "3", "4"]:
-        config["chunk"] = chunk_sizes[connection_choice]
-        save_config(config)
-        print(SUCCESS_MESSAGES["connection_updated"])
-    else:
-        print(ERROR_MESSAGES["invalid_choice"])
-    
-    input("\nPress Enter to continue...")
-
-def max_retries_menu():
-    """Display and handle the maximum retries menu."""
-    config = load_config()
-    clear_screen("Maximum Retries", use_logo=False)
-    print(f"\nCurrent Maximum Retries: {config['retries']}\n")
-    
-    retries = input("Selection; Enter Number or Back = B: ").strip().lower()
-    
-    if retries == 'b':
-        return
-
-    try:
-        retries = int(retries)
-        if retries > 0:
-            config["retries"] = retries
-            save_config(config)
-            print(SUCCESS_MESSAGES["retries_updated"])
-        else:
-            print(ERROR_MESSAGES["invalid_number"])
-    except ValueError:
-        print(ERROR_MESSAGES["invalid_number"])
-    
-    input("\nPress Enter to continue...")
 
 def display_download_prompt() -> str:
     """Display the download URL prompt."""
@@ -479,6 +448,8 @@ def validate_config(config: Dict) -> None:
                 config[key] = default[key]
             elif key == "retries" and not isinstance(config[key], int):
                 config[key] = default[key]
+            elif key == "refresh" and not isinstance(config[key], int):
+                config[key] = default[key]
             elif key.startswith(("filename_", "url_")) and not isinstance(config[key], str):
                 config[key] = default[key]
             elif key.startswith("total_size_"):
@@ -488,6 +459,13 @@ def validate_config(config: Dict) -> None:
                         config[key] = 0
                 except (ValueError, TypeError):
                     config[key] = 0
+        
+        # Validate settings are in allowed options
+        if config["retries"] not in RETRY_OPTIONS:
+            config["retries"] = default["retries"]
+            
+        if config.get("refresh") not in REFRESH_OPTIONS:
+            config["refresh"] = default["refresh"]
         
         # Ensure all required entries exist
         for i in range(1, 10):
@@ -506,10 +484,8 @@ def validate_config(config: Dict) -> None:
 
 def create_default_config() -> Dict:
     """Create a new default configuration."""
-    config = {
-        "chunk": DEFAULT_CHUNK_SIZES["line"],  # Changed from "okay" to "line"
-        "retries": 100
-    }
+    from scripts.temporary import DEFAULT_CONFIG
+    config = DEFAULT_CONFIG.copy()
     
     for i in range(1, 10):
         config[f"filename_{i}"] = "Empty"
