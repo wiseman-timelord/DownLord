@@ -57,38 +57,57 @@ def handle_download(url: str, config: dict) -> bool:
         display_error(ERROR_MESSAGES["invalid_url"])
         return False
 
-    try:
-        # Process URL and get metadata
-        processor = URLProcessor()
-        download_url, metadata = processor.process_url(url, config)
-        filename = metadata.get("filename") or get_file_name_from_url(download_url)
-        
-        if not filename:
-            display_error(ERROR_MESSAGES["filename_error"])
-            return False
-
-        # Remove the call to update_history
-        # update_history(config, filename, url, metadata.get('size', 0))  # Commented out
-
-        out_path = DOWNLOADS_DIR / filename
-        display_download_status(filename, FILE_STATES["new"])
-        
-        manager = DownloadManager()
-        success, error = manager.download_file(download_url, out_path, config["chunk"])
-        
-        if success:
-            display_download_status(filename, FILE_STATES["complete"])
-            display_file_info(out_path, url)
-            return True
-        else:
-            display_error(error)
-            display_download_status(filename, FILE_STATES["error"])
-            return False
+    while True:
+        try:
+            # Process URL and get metadata
+            processor = URLProcessor()
+            download_url, metadata = processor.process_url(url, config)
+            filename = metadata.get("filename") or get_file_name_from_url(download_url)
             
-    except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
-        display_error(str(e))
-        return False
+            if not filename:
+                display_error(ERROR_MESSAGES["filename_error"])
+                return False
+
+            out_path = DOWNLOADS_DIR / filename
+            display_download_status(filename, FILE_STATES["new"])
+            
+            manager = DownloadManager()
+            success, error = manager.download_file(download_url, out_path, config["chunk"])
+            
+            if success:
+                display_download_status(filename, FILE_STATES["complete"])
+                display_file_info(out_path, url)
+                return True
+            else:
+                display_error(error)
+                choice = input("\nSelection; Abandon = A or New URL = 0: ").strip().lower()
+                if choice == 'a':
+                    return False
+                elif choice == '0':
+                    url = display_download_prompt()
+                    if url.lower() == 'q':
+                        return False
+                    clear_screen()  # Clear screen for new attempt
+                    continue  # Try again with new URL
+                else:
+                    display_error("Invalid choice")
+                    return False
+                    
+        except Exception as e:
+            logging.error(f"Unexpected error: {str(e)}")
+            display_error(str(e))
+            choice = input("\nSelection; Abandon = A or New URL = 0: ").strip().lower()
+            if choice == 'a':
+                return False
+            elif choice == '0':
+                url = display_download_prompt()
+                if url.lower() == 'q':
+                    return False
+                clear_screen()  # Clear screen for new attempt
+                continue  # Try again with new URL
+            else:
+                display_error("Invalid choice")
+                return False
 
 def check_environment() -> bool:
     try:
