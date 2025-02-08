@@ -101,11 +101,10 @@ Press Enter to exit...
 
 
 ### Features
-- Connection Speed Selection - Choose from speeds of 1MB/s, 5MB/s, 10MB/s, 25MB/s or 50MB/s.
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
-- Setup Menu - Configure connection speed, maximum retries, and download settings.
-- Reading of complex URLs such as found on hugging face download, to correctly obtain filenames.
-- Configuration Persistence - The last used, URLs and settings, are saved in a configuration file.
+- Setup Menu - Configure maximum retries, and chunk speeds suited for, Sub1MB, Mobile, Line, Fibre.
+- Reading of complex URLs such as on hugging face downloads, while correctly obtaining filenames.
+- Configuration Persistence - Recent, URLs and settings, are saved in a Json configuration file.
 - Platform support - HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
 
 ## Requirements
