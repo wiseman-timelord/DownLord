@@ -44,20 +44,44 @@ MAIN_MENU_FOOTER = """==========================================================
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
 
 SETUP_MENU = """
-    1. Connection Speed
-    2. Maximum Retries
-    3. Return to Main
 
-"""
+
+
+
+
+
+    1. Connection Speed
+
+    2. Maximum Retries
+
+
+
+
+
+
+
+
+==============================================================================="""
 
 SPEED_MENU = """
-            1. Slow  ~1MBit/s (Chunk Size  1024KB)
-            2. Okay  ~5MBit/s (Chunk Size  4096KB)
-            3. Good ~10MBit/s (Chunk Size  8192KB)
-            4. Fast ~25MBit/s (Chunk Size 20480KB)
-            5. Uber ~50MBit/s (Chunk Size 40960KB)
 
-"""
+
+
+
+    1. Slow   ~1MBit/s   (Chunk Size  1024KB)
+
+    2. Mobile ~2.5MBit/s (Chunk Size  2048KB)
+
+    3. Line   ~5MBit/s   (Chunk Size  4096KB)
+
+    4. Fibre  ~10MBit/s  (Chunk Size  8192KB)
+
+
+
+
+
+
+==============================================================================="""
 
 # Error Messages
 ERROR_MESSAGES = {
@@ -319,7 +343,7 @@ def setup_menu():
     while True:
         clear_screen("Setup Menu", use_logo=False)
         print(SETUP_MENU)
-        choice = input("Selection; Options = 1-3, Return = B: ").strip().lower()
+        choice = input("Selection; Options = 1-2, Return = B: ").strip().lower()
         
         if choice == '1':
             internet_options_menu()
@@ -336,20 +360,19 @@ def internet_options_menu():
     config = load_config()
     clear_screen("Connection Speed", use_logo=False)
     print(SPEED_MENU)
-    connection_choice = input("Selection; Speed = 1-5, Return = B: ").strip().lower()
+    connection_choice = input("Selection; Speed = 1-4, Return = B: ").strip().lower()
 
     if connection_choice == 'b':
         return
 
     chunk_sizes = {
         "1": DEFAULT_CHUNK_SIZES["slow"],
-        "2": DEFAULT_CHUNK_SIZES["okay"],
-        "3": DEFAULT_CHUNK_SIZES["good"],
-        "4": DEFAULT_CHUNK_SIZES["fast"],
-        "5": DEFAULT_CHUNK_SIZES["uber"]
+        "2": DEFAULT_CHUNK_SIZES["mobile"],
+        "3": DEFAULT_CHUNK_SIZES["line"],
+        "4": DEFAULT_CHUNK_SIZES["fibre"]
     }
 
-    if connection_choice in chunk_sizes:
+    if connection_choice in ["1", "2", "3", "4"]:
         config["chunk"] = chunk_sizes[connection_choice]
         save_config(config)
         print(SUCCESS_MESSAGES["connection_updated"])
@@ -480,10 +503,11 @@ def validate_config(config: Dict) -> None:
         logging.error(f"Error validating config: {str(e)}")
         return default
 
+
 def create_default_config() -> Dict:
     """Create a new default configuration."""
     config = {
-        "chunk": DEFAULT_CHUNK_SIZES["okay"],
+        "chunk": DEFAULT_CHUNK_SIZES["line"],  # Changed from "okay" to "line"
         "retries": 100
     }
     

@@ -25,10 +25,9 @@ LOG_FILE = DATA_DIR / "downlord.log"
 # Configuration Defaults
 DEFAULT_CHUNK_SIZES = {
    "slow": 1024000,      # ~1MBit/s
-   "okay": 4096000,      # ~5MBit/s
-   "good": 8192000,      # ~10MBit/s
-   "fast": 16384000,     # ~25MBit/s
-   "uber": 40960000,     # ~50MBit/s
+   "mobile": 2048000,    # ~2.5MBit/s
+   "line": 4096000,      # ~5MBit/s
+   "fibre": 8192000,     # ~10MBit/s
    "custom": None        # User-defined
 }
 
