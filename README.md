@@ -99,7 +99,6 @@ Do you want to overwrite it? (y/n): y
 Press Enter to exit...
 ```
 
-
 ### Features
 - Download Resumption - If a download is interrupted, it can be resumed from where it left off.
 - Setup Menu - Configure maximum retries, and chunk speeds suited for, Sub1MB, Mobile, Line, Fibre.
@@ -128,7 +127,8 @@ Press Enter to exit...
 - On sites such as Huggingface, the user starts the download in browser, then copy the link from the download manager in browser (not the one from the page), then use that for the download URL. This is because of the design of the website.
 
 ### Development
-- The code needs optimization, and logically re-distributing among scripts, manager script is light.
+- The code needs optimization.
+- The code needs logically re-distributing among scripts in the optimal method. manager script is light, maybe it can manage other things too.
 
 ### File Structure
 - Packaged files
