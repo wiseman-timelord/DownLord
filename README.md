@@ -122,11 +122,11 @@ Press Enter to exit...
 3. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
 4. The complete download will be in `.\downloads`, move completed files out.
 
-## Notation
+### Notation
 - Its intended as a better solution to downloading GGUF files from sites such as Huggingface, and currently platforms other than huggingface are untested, hence beta software.
 - On sites such as Huggingface, the user starts the download in browser, then copy the link from the download manager in browser (not the one from the page), then use that for the download URL. This is because of the design of the website.
 
-### Development
+## Development
 - The code needs optimization.
 - The code needs logically re-distributing among scripts in the optimal method. manager script is light, maybe it can manage other things too.
 
