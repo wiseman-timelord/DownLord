@@ -130,8 +130,7 @@ Press Enter to exit...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
 
 ## Development
-- The code needs optimization.
-- The code needs logically re-distributing among scripts in the optimal method. manager script is light, maybe it can manage other things too.
+- After the `Revisit`, the code now needs a going over, such as, optimization, and also code logically re-distributing among scripts in the optimal method, mainly, manager script is light, maybe we can shift some relevantly themed functions over.
 
 ### File Structure
 - Packaged files
