@@ -127,7 +127,7 @@ Press Enter to exit...
 ### Notation
 - It works for regular larger http/https download, but but its made it for downloading GGUF files from Huggingface, otherwise done on, browser or `lfs`. Currently untested on pladforms such as GoogleDrive, etc, it likely wont work with every format of url.
 - On sites such as Huggingface, the user starts the download in browser, then copy the link from the download manager in browser (not the one from the page), then use that for the download URL. This is because of the design of the website.
-- You may find, that on a slow connection, the program hogs the bandwidth. This is deemed to be optimal to the task, try playing the game `RimWorld` or some other offline game, while you wait, but I advise `RimWorld`, especially with my mod(s) found on the Nexus under the same UserName. 
+- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
 
 ## Development
 - The code needs optimization.
