@@ -1,6 +1,6 @@
 # DownLord
 ## Status: Beta
-- Revisited 2025/02. Improved, Fixed, and Upgraded, but platforms other than huggingface need testing.
+- Revisited 2025/02. Improved, Fixed, and Upgraded.
 
 ## Description
 DownLord is a more personal approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
@@ -124,8 +124,10 @@ Press Enter to exit...
 4. The complete download will be in `.\downloads`, move completed files out.
 
 ## Notation
-- Its intended as a better solution to downloading GGUF files from Huggingface, other download options are untested, and suggested "improvements" from the ai.
-- Sometimes such as on Huggingface, the user must start the download in browser, then copy the link from the download manager in browser (not the page), then paste that as URL for DownLord. This is because of the design of the website.
+- Its intended as a better solution to downloading GGUF files from sites such as Huggingface, and currently platforms other than huggingface are untested, hence beta software.
+- On sites such as Huggingface, the user starts the download in browser, then copy the link from the download manager in browser (not the one from the page), then use that for the download URL. This is because of the design of the website.
+
+### Development
 - The code needs optimization, and logically re-distributing among scripts, manager script is light.
 
 ### File Structure
