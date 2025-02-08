@@ -67,9 +67,11 @@ Elapse/Remain:
 
 
 
-    1. Connection Speed
+    1. Connection Speed       (2.5Mbps)
 
-    2. Maximum Retries
+    2. Maximum Retries        (100)
+
+    3. Screen Refresh         (2s)
 
 
 
@@ -77,7 +79,7 @@ Elapse/Remain:
 
 
 ===============================================================================
-Selection; Options = 1-2, Return = B:
+Selection; Options = 1-3, Return = B:
 ```
 - Installation processes...
 ```
