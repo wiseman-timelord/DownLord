@@ -1,15 +1,12 @@
 # DownLord
 ## Status: Beta
-- Revisited 2025/02. Improved, Fixed, and Upgraded, but there are still issues...
-- Features needing testing...
-1. Platforms other than huggingface.
-- After completio
+- Revisited 2025/02. Improved, Fixed, and Upgraded, but platforms other than huggingface need testing.
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming when possible. 
 
 ### Preview
-- Launcher is downloading compitently...
+- Main menu...
 ```
 ===============================================================================
           ________                      .____                    .___
@@ -36,30 +33,7 @@ DownLord is a streamlined tool designed for downloading large and important file
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
 
 ```
-- Initializing Download, after insert URL...
-```
-===============================================================================
-    DownLord: Initiate Download
-===============================================================================
-
-Initializing download sequence...
-Processing URL...
-Extracting filename...
-Found file: unsloth.Q4_K_M.gguf
-
-Checking for existing downloads...
-Found incomplete previous download, will resume...
-Resuming from: 54.69 MB
-
-Establishing connection...
-Connecting to server...
-C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
-  warnings.warn(
-
-Starting download of unsloth.Q4_K_M.gguf...
-
-```
-- Download screen is like this...
+- Download display...
 ```
 ===============================================================================
     DownLord: Download Active
@@ -82,7 +56,7 @@ Elapse/Remain:
 
 
 ```
-- Setup menu is poplished...
+- Setup menu is functional...
 ```
 ===============================================================================
     DownLord: Setup Menu
@@ -105,7 +79,7 @@ Elapse/Remain:
 ===============================================================================
 Selection; Options = 1-2, Return = B:
 ```
-- Installer is comprehensive...
+- Installation processes...
 ```
 ===============================================================================
     DownLord: Install
