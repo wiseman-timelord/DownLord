@@ -1,8 +1,7 @@
 # DownLord
 ## Status: Beta
 - Revisited 2025/02. Improved, Fixed, and Upgraded, but there are still issues...
-1. It messed up the download, now testing the fix for this.
-2. During initialize download, if I resume by selecting a menu item, but the link is dead, then it will delete the file and wipe the relevant item. it should instead ask the user if they wish to delete the item or try another url, and if they enter a new url, then it needs to try that one, and clear the screen and start over with the initialize download this time with the new url. but if it doesnt work again, then once again prompt the user `Selection; Delete the Download = D or Enter alternate URL = 0:`.
+1. During initialize download, if I resume by selecting a menu item, but the same link link is no dead due to a timer, then it will delete the file and wipe the relevant item. it should instead ask the user if they wish to delete the item or try another url, and if they enter a new url, then it needs to try that one, and clear the screen and start over with the initialize download this time with the new url. but if it doesnt work again, then once again prompt the user `Selection; Abandon = A or New URL = 0:`.
 3. Initiate download text looks like this...
 ```
 Initializing download sequence...
@@ -19,14 +18,35 @@ Resuming from: 54.69 MB
 Initializing download sequence...
 Processing pasted URL...
 Found filename: unsloth.Q4_K_M.gguf
-Found incomplete download with same filename.
-Resuming download from: 54.69 MB
+Found incomplete file, resuming from: 54.69 MB
 ```
 ...so as to be reporting rather than announcing actions, and without blank lines between if possible.
-4. The code needs, optimization and re-distributing, maybe this will be for the next revisit.
+4. The speed menu looks like this...
+```
+SPEED_MENU = """
+            1. Slow  ~1MBit/s (Chunk Size  1024KB)
+            2. Okay  ~5MBit/s (Chunk Size  4096KB)
+            3. Good ~10MBit/s (Chunk Size  8192KB)
+            4. Fast ~25MBit/s (Chunk Size 20480KB)
+            5. Uber ~50MBit/s (Chunk Size 40960KB)
+
+"""
+```
+...It needs to function and look like this...
+```
+SPEED_MENU = """
+            1. Slow  ~1MBit/s (Chunk Size  1024KB)
+            2. Mobile  ~2.5MBit/s (Chunk Size  2048KB)
+            3. Line  ~5MBit/s (Chunk Size  4096KB)
+            4. Fibre ~10MBit/s (Chunk Size  8192KB)
+
+"""
+```
 - Features needing testing...
 1. Setup menu.
 2. Platforms other than huggingface.
+- After completion
+1. The code needs, optimization and re-distributing, maybe this will be for the next revisit.
 
 ## Description
 DownLord is a streamlined tool designed for downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption, and automatically maintains 9 slots, removing items from its list when manually moved from the downloads folder to its intended folder. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until they are done. It's tailored for substantial downloads, where, the browser may fail due to connecting on a bad line, and lfs would otherwise produce little/no information, such as ETA. The downloads are registered in up to 9 slots, when the downloads are complete, they appear in the downloads folder, and the user may move them to their intended destination. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming when possible. 
