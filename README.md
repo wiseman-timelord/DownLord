@@ -115,8 +115,8 @@ Press Enter to exit...
 - Internet Connection and a URL to download.
 
 ### Install
-1. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord`.
-2. Run the batch by right click then `Run As Administrator` on `DownLord.bat`.
+1. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install github projects to locations with spaces such as `Program Files`).
+2. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
 3. Select the Installer option, to, install python requirements and unpack/create program files.
 
 ### Usage
