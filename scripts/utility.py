@@ -208,7 +208,7 @@ class DownloadManager:
             session = requests.Session()
             retries = 0
             early_registration_done = False
-            refresh_rate = self.config["download"].get("refresh_rate", 2)  # Get refresh rate from config
+            refresh_rate = self.config["download"].get("refresh_rate", 2)
 
             while retries < self.config["download"]["max_retries"]:
                 try:
@@ -227,7 +227,6 @@ class DownloadManager:
                         response.raise_for_status()
                         total_size = int(response.headers.get('content-length', 0)) + existing_size
 
-                        # Setup progress tracking
                         start_time = time.time()
                         last_update_time = start_time
                         bytes_since_last_update = 0
@@ -236,46 +235,56 @@ class DownloadManager:
                         with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 if chunk:
-                                    written_size += len(chunk)
-                                    bytes_since_last_update += len(chunk)
-                                    current_time = time.time()
+                                    try:
+                                        written_size += len(chunk)
+                                        bytes_since_last_update += len(chunk)
+                                        current_time = time.time()
 
-                                    # Register metadata at 1% progress
-                                    if not early_registration_done and total_size > 0:
-                                        progress = (written_size / total_size) * 100
-                                        if progress >= 1:
-                                            self._register_early_metadata(filename, remote_url, total_size)
-                                            early_registration_done = True
+                                        if not early_registration_done and total_size > 0:
+                                            progress = (written_size / total_size) * 100
+                                            if progress >= 1:
+                                                self._register_early_metadata(filename, remote_url, total_size)
+                                                early_registration_done = True
 
-                                    # Update display based on refresh rate
-                                    if current_time - last_update_time >= refresh_rate:
-                                        elapsed = int(current_time - start_time)
-                                        speed = bytes_since_last_update / (current_time - last_update_time)
-                                        remaining = int((total_size - written_size) / speed) if speed > 0 else 0
+                                        if current_time - last_update_time >= refresh_rate:
+                                            elapsed = int(current_time - start_time)
+                                            speed = bytes_since_last_update / (current_time - last_update_time)
+                                            remaining = int((total_size - written_size) / speed) if speed > 0 else 0
+                                            
+                                            display_download_progress(
+                                                filename,
+                                                written_size,
+                                                total_size,
+                                                speed,
+                                                elapsed,
+                                                remaining
+                                            )
+                                            
+                                            bytes_since_last_update = 0
+                                            last_update_time = current_time
                                         
-                                        display_download_progress(
-                                            filename,
-                                            written_size,
-                                            total_size,
-                                            speed,
-                                            elapsed,
-                                            remaining
-                                        )
-                                        
-                                        bytes_since_last_update = 0
-                                        last_update_time = current_time
-                                    
-                                    out_file.write(chunk)
-                                    
-                            # Ensure file is closed before moving
+                                        out_file.write(chunk)
+                                    except OSError as e:
+                                        if e.errno == 28:  # No space left on device
+                                            print(f"\nError: {str(e)}")
+                                            while True:
+                                                choice = input("\nSelection; Continue = C, Abandon = A: ").strip().lower()
+                                                if choice == 'c':
+                                                    # Retry the current chunk
+                                                    continue
+                                                elif choice == 'a':
+                                                    return False, "Download abandoned due to insufficient disk space"
+                                                else:
+                                                    print("Invalid choice. Please enter C or A.")
+                                        else:
+                                            raise
+                                            
                             out_file.flush()
                             os.fsync(out_file.fileno())
                         
-                        # Force garbage collection before move
                         import gc
                         gc.collect()
                         
-                        # Attempt move with retries
                         move_success = False
                         move_retries = 5
                         move_delay = 1.0
@@ -308,7 +317,6 @@ class DownloadManager:
                         
                         display_download_complete(filename, datetime.now())
                         
-                        # Update final size
                         final_size = out_path.stat().st_size
                         for i in range(1, 10):
                             if self.persistent[f"filename_{i}"] == filename:
@@ -352,7 +360,6 @@ class DownloadManager:
             else:
                 return False, "Invalid choice"
         finally:
-            # Only cleanup if move failed and temp file still exists
             if temp_path and temp_path.exists():
                 self._cleanup_temp_files(out_path.name)
 
