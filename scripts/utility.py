@@ -213,6 +213,7 @@ class DownloadManager:
                 try:
                     headers = get_download_headers(existing_size)
                     print("Connecting to server...")
+                    print("(Ignore Certificate Warnings)")
                     with session.get(
                         download_url,
                         stream=True,
@@ -239,12 +240,10 @@ class DownloadManager:
                                     bytes_since_last_update += len(chunk)
                                     current_time = time.time()
 
-                                    # Register metadata at 1% progress
-                                    if not early_registration_done and total_size > 0:
-                                        progress = (written_size / total_size) * 100
-                                        if progress >= 1:
-                                            self._register_early_metadata(filename, remote_url, total_size)
-                                            early_registration_done = True
+                                    # Register metadata immediately at start
+                                    if not early_registration_done:
+                                        self._register_early_metadata(filename, remote_url, total_size)
+                                        early_registration_done = True
 
                                     # Update display based on refresh rate
                                     if current_time - last_update_time >= refresh_rate:
@@ -607,20 +606,27 @@ def move_with_retry(src: Path, dst: Path, max_retries: int = 5, delay: float = 1
     return False
 
 def cleanup_orphaned_files() -> None:
-    downloads_dir = Path("./downloads")
+    """Enhanced orphan cleanup"""
+    downloads_dir = Path(DOWNLOADS_DIR)
+    temp_dir = Path(TEMP_DIR)
     persistent = load_config()
     
+    # Keep track of all valid filenames including .part variants
+    valid_files = set()
     for i in range(1, 10):
-        filename = persistent[f"filename_{i}"]
+        filename = persistent.get(f"filename_{i}", "Empty")
         if filename != "Empty":
-            file_path = downloads_dir / filename
-            if not file_path.exists():
-                for j in range(i, 9):
-                    persistent[f"filename_{j}"] = persistent[f"filename_{j+1}"]
-                    persistent[f"url_{j}"] = persistent[f"url_{j+1}"]
-                    persistent[f"total_size_{j}"] = persistent[f"total_size_{j+1}"]  # Add this
-                persistent["filename_9"] = "Empty"
-                persistent["url_9"] = ""
-                persistent["total_size_9"] = 0  # Add this
+            valid_files.add(filename)
+            valid_files.add(f"{filename}.part")  # Protect active temp files
+
+    # Check both download and temp directories
+    for folder in [downloads_dir, temp_dir]:
+        for file_path in folder.glob("*"):
+            if file_path.name not in valid_files:
+                try:
+                    file_path.unlink()
+                    logging.info(f"Removed orphaned file: {file_path}")
+                except Exception as e:
+                    logging.error(f"Error removing orphan: {file_path} - {str(e)}")
     
     save_config(persistent)

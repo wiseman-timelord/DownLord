@@ -184,6 +184,21 @@ def display_main_menu(config: Dict):
         print("-" * len(header))
         
         config_changed = False
+
+        # Detect orphaned temp files and register them
+        temp_dir = Path(TEMP_DIR)
+        for temp_file in temp_dir.glob("*.part"):
+            filename = temp_file.name.replace(".part", "")
+            if not any(config_snapshot.get(f"filename_{i}") == filename for i in range(1, 10)):
+                # Find first empty slot
+                for i in range(1, 10):
+                    if config_snapshot.get(f"filename_{i}") == "Empty":
+                        config_snapshot[f"filename_{i}"] = filename
+                        config_snapshot[f"url_{i}"] = ""  # URL will be populated on resume
+                        config_snapshot[f"total_size_{i}"] = 0  # Total size unknown for orphaned files
+                        config_changed = True
+                        break
+
         for i in range(1, 10):
             filename = config_snapshot.get(f"filename_{i}", "Empty")
             url = config_snapshot.get(f"url_{i}", "")
@@ -191,7 +206,7 @@ def display_main_menu(config: Dict):
             
             if filename != "Empty":
                 downloads_path = Path(DOWNLOADS_DIR) / filename
-                temp_path = Path(DATA_DIR) / "temp" / f"{filename}.part"
+                temp_path = Path(TEMP_DIR) / f"{filename}.part"
                 
                 # Smart filename truncation preserving extension
                 if len(filename) > col_widths['filename']:
@@ -215,12 +230,21 @@ def display_main_menu(config: Dict):
                 elif temp_path.exists():
                     temp_size = temp_path.stat().st_size
                     current_size = format_file_size(temp_size)
-                    total_size_str = format_file_size(total_size) if total_size > 0 else "?"
+                    
+                    # Handle total size display
+                    if total_size > 0:
+                        total_size_str = format_file_size(total_size)
+                    else:
+                        total_size_str = "Unknown"  # Show "Unknown" when total size is not available
                     
                     # Calculate progress for partial download
                     progress = round((temp_size / total_size) * 100, 1) if total_size > 0 else 0.0
                     
-                    print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                    # Handle URL-less entries
+                    if not url:
+                        print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {'Unknown':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                    else:
+                        print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
                 
                 else:
                     # Clean up missing files
@@ -392,9 +416,12 @@ def setup_menu():
             print(ERROR_MESSAGES["invalid_choice"])
             input("\nPress Enter to continue...")
 
-def display_download_prompt() -> str:
+def display_download_prompt() -> Optional[str]:
     """Display the download URL prompt."""
-    return input("Selection; Enter URL or Q to Quit: ")
+    url = input("Selection; Enter Correct URL or Back To Menu = B: ").strip()
+    if url.lower() == 'b':
+        return None  # Signal to go back to the menu
+    return url
 
 def print_progress(message: str):
     """Print a progress message."""

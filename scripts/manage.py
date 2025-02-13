@@ -12,14 +12,21 @@ from .temporary import (
 def cleanup_orphaned_files() -> None:
     """Enhanced orphan cleanup"""
     downloads_dir = Path(DOWNLOADS_DIR)
-    temp_dir = Path(TEMP_DIR)
+    incomplete_dir = Path(TEMP_DIR)  # TEMP_DIR is now .\incomplete
     persistent = load_config()
     
-    # Check both download and temp directories
-    for folder in [downloads_dir, temp_dir]:
+    # Keep track of all valid filenames including .part variants
+    valid_files = set()
+    for i in range(1, 10):
+        filename = persistent.get(f"filename_{i}", "Empty")
+        if filename != "Empty":
+            valid_files.add(filename)
+            valid_files.add(f"{filename}.part")  # Protect active temp files
+
+    # Check both download and incomplete directories
+    for folder in [downloads_dir, incomplete_dir]:
         for file_path in folder.glob("*"):
-            filename = file_path.name.replace(".part", "")
-            if not any(persistent[f"filename_{i}"] == filename for i in range(1,10)):
+            if file_path.name not in valid_files:
                 try:
                     file_path.unlink()
                     logging.info(f"Removed orphaned file: {file_path}")
