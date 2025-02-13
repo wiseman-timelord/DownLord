@@ -5,7 +5,7 @@ import sys
 import logging
 from pathlib import Path
 from urllib.parse import urlparse
-from typing import Optional
+from typing import Optional, Dict  # Added Dict import
 from scripts.utility import DownloadManager, URLProcessor, get_file_name_from_url
 from scripts.interface import (
     display_main_menu,
@@ -155,11 +155,47 @@ def prompt_for_download():
 
         if choice == '0':
             url = display_download_prompt()
-            if url.lower() == 'q':
-                print("Quitting...")
-                break
+            if url is None:  # User chose to go back to the menu
+                continue
+            if url.lower() == 'b':  # Redundant check, but ensures consistency
+                continue
         elif choice.isdigit() and 1 <= int(choice) <= 9:
-            url = config.get(f"url_{choice}", "")
+            index = int(choice)
+            url = config.get(f"url_{index}", "")
+            filename = config.get(f"filename_{index}", "Empty")
+            
+            if filename == "Empty":
+                display_error(ERROR_MESSAGES["invalid_choice"])
+                input("\nPress Enter to continue...")
+                continue
+            
+            # Handle orphaned files (no URL)
+            if not url:
+                new_url = display_download_prompt()
+                if new_url is None:  # User chose to go back to the menu
+                    continue
+                
+                # Validate the new URL
+                if not validate_url(new_url):
+                    display_error(ERROR_MESSAGES["invalid_url"])
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                # Update the config with the new URL
+                config[f"url_{index}"] = new_url
+                save_config(config)
+                
+                # Start the download with the new URL and existing .part file
+                success = handle_download(new_url, config)
+                if success:
+                    config = load_config()  # Reload config after successful download
+                input("\nPress Enter to continue...")
+            else:
+                # Handle normal download
+                success = handle_download(url, config)
+                if success:
+                    config = load_config()  # Reload config after successful download
+                input("\nPress Enter to continue...")
         elif choice == 'd':  # Handle delete option
             delete_index = input("Enter the number of the file to delete (1-9): ").strip()
             if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
@@ -169,27 +205,37 @@ def prompt_for_download():
             continue
         else:
             display_error(ERROR_MESSAGES["invalid_choice"])
-            continue
+            input("\nPress Enter to continue...")
 
-        if url:
-            success = handle_download(url, config)
-            if success:
-                config = load_config()  # Reload config after successful download
-            input("\nPress Enter to continue...")
-        else:
-            display_error(ERROR_MESSAGES["invalid_choice"])
-            input("\nPress Enter to continue...")
+def check_for_orphaned_temp_files(config: Dict) -> None:
+    """Check the incomplete folder for orphaned temp files and register them in the config."""
+    incomplete_dir = Path(TEMP_DIR)
+    for temp_file in incomplete_dir.glob("*.part"):
+        filename = temp_file.name.replace(".part", "")
+        if not any(config.get(f"filename_{i}") == filename for i in range(1, 10)):
+            # Find the first empty slot
+            for i in range(1, 10):
+                if config.get(f"filename_{i}") == "Empty":
+                    config[f"filename_{i}"] = filename
+                    config[f"url_{i}"] = ""  # URL will be populated on resume
+                    config[f"total_size_{i}"] = 0  # Set total size to 0 (unknown)
+                    save_config(config)
+                    logging.info(f"Registered orphaned temp file: {filename} in slot {i}")
+                    break
+
 
 def main():
-    """
-    Main application entry point.
-    """
+    """Main application entry point."""
     print(f"\nInitializing {APP_TITLE}...")
     
     # Verify environment
     if not check_environment():
         input("\nPress Enter to exit...")
         return
+
+    # Load config and check for orphaned temp files
+    config = load_config()
+    check_for_orphaned_temp_files(config)
 
     try:
         prompt_for_download()

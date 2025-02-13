@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 SCRIPTS_DIR = BASE_DIR / "scripts"
-TEMP_DIR = BASE_DIR / "temp"
+TEMP_DIR = BASE_DIR / "incomplete"  # Changed from "temp" to "incomplete"
 REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 INIT_FILE = SCRIPTS_DIR / "__init__.py"
 PERSISTENT_FILE = DATA_DIR / "persistent.json"
@@ -87,7 +87,7 @@ def check_platform() -> bool:
 
 def create_directories():
     """Create all required application directories."""
-    directories = [DATA_DIR, DOWNLOADS_DIR, SCRIPTS_DIR, TEMP_DIR]
+    directories = [DATA_DIR, DOWNLOADS_DIR, SCRIPTS_DIR, TEMP_DIR]  # TEMP_DIR is now .\incomplete
     for directory in directories:
         existed = directory.exists()
         directory.mkdir(exist_ok=True)
