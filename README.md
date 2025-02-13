@@ -152,8 +152,8 @@ Press Enter to exit...
 ├── data\                     # Data related, Created by installer
 │   ├── persistent.json       # persistent settings, Created by installer
 │   ├── requirements.txt      # Python requirements, Created by installer
-│   └── downlord.log         # Log file, created by main program
-│   └── temp\                 # Storage of incomplete downloads
+│   └── downlord.log         # Log file, created by main program                
+├── incomplete\              # Storage of incomplete downloads.
 ├── scripts\                 # Already part of package
 │   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
 ```
