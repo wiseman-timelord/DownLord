@@ -59,7 +59,7 @@ SETUP_MENU = """
 
     3. Screen Refresh         ({refresh}s)
 
-
+    4. Downloads Location     ({downloads_location})
 
 
 
@@ -333,9 +333,10 @@ def setup_menu():
         print(SETUP_MENU.format(
             chunk=format_connection_speed(config["chunk"]),
             retries=config["retries"],
-            refresh=config.get("refresh", 2)
+            refresh=config.get("refresh", 2),
+            downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))  # Add downloads location
         ))
-        choice = input("Selection; Options = 1-3, Return = B: ").strip().lower()
+        choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
         
         if choice == '1':
             # Cycle through chunk sizes
@@ -367,6 +368,23 @@ def setup_menu():
             except ValueError:
                 config["refresh"] = REFRESH_OPTIONS[0]
             save_config(config)
+            
+        elif choice == '4':
+            # Set custom downloads location
+            new_location = input("Enter full path to custom location: ").strip()
+            if new_location:
+                try:
+                    # Validate the path
+                    new_path = Path(new_location)
+                    new_path.mkdir(parents=True, exist_ok=True)
+                    config["downloads_location"] = str(new_path)
+                    save_config(config)
+                    print(f"Downloads location updated to: {new_path}")
+                except Exception as e:
+                    print(f"Error setting downloads location: {e}")
+            else:
+                print("No path provided. Downloads location remains unchanged.")
+            input("\nPress Enter to continue...")
             
         elif choice == 'b':
             return
