@@ -334,7 +334,7 @@ def setup_menu():
             chunk=format_connection_speed(config["chunk"]),
             retries=config["retries"],
             refresh=config.get("refresh", 2),
-            downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))  # Add downloads location
+            downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))  # Ensure this is displayed
         ))
         choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
         
@@ -377,8 +377,8 @@ def setup_menu():
                     # Validate the path
                     new_path = Path(new_location)
                     new_path.mkdir(parents=True, exist_ok=True)
-                    config["downloads_location"] = str(new_path)
-                    save_config(config)
+                    config["downloads_location"] = str(new_path)  # Save the new location
+                    save_config(config)  # Ensure the config is saved
                     print(f"Downloads location updated to: {new_path}")
                 except Exception as e:
                     print(f"Error setting downloads location: {e}")
@@ -420,7 +420,7 @@ def save_config(config: Dict) -> bool:
     """Save configuration with atomic write and backup."""
     try:
         # Validate first
-        validate_config(config)
+        validate_config(config)  # Ensure downloads_location is validated
         
         # Create backup of existing config
         if PERSISTENT_FILE.exists():
@@ -468,6 +468,8 @@ def validate_config(config: Dict) -> None:
                 config[key] = default[key]
             elif key == "refresh" and not isinstance(config[key], int):
                 config[key] = default[key]
+            elif key == "downloads_location" and not isinstance(config[key], str):
+                config[key] = default[key]
             elif key.startswith(("filename_", "url_")) and not isinstance(config[key], str):
                 config[key] = default[key]
             elif key.startswith("total_size_"):
@@ -499,11 +501,13 @@ def validate_config(config: Dict) -> None:
         logging.error(f"Error validating config: {str(e)}")
         return default
 
-
 def create_default_config() -> Dict:
     """Create a new default configuration."""
-    from scripts.temporary import DEFAULT_CONFIG
+    from scripts.temporary import DEFAULT_CONFIG, DOWNLOADS_DIR
     config = DEFAULT_CONFIG.copy()
+    
+    # Add downloads location to default config
+    config["downloads_location"] = str(DOWNLOADS_DIR)
     
     for i in range(1, 10):
         config[f"filename_{i}"] = "Empty"
