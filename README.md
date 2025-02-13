@@ -108,6 +108,7 @@ Press Enter to exit...
 - Reading of complex URLs such as on hugging face downloads, while correctly obtaining filenames.
 - Configuration Persistence - Recent, URLs and settings, are saved in a Json configuration file.
 - Platform support - HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
+- Orphan Cleanup - Orphan files are accounted for, ensuring robust download recovery.
 
 ## Requirements
 - Windows 7-10, testing is done on 10.
