@@ -35,6 +35,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+from scripts.manage import cleanup_orphaned_files  # Add this import
 
 def validate_url(url: str) -> bool:
     """
@@ -135,11 +136,10 @@ def check_environment() -> bool:
         return False
 
 def prompt_for_download():
-    """
-    Main download prompt loop.
-    """
+    # Add this at start of loop
+    cleanup_orphaned_files()  # Ensure clean state before showing menu
     config = load_config()
-
+    
     while True:
         display_main_menu(config)
         choice = input().strip().lower()
