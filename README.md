@@ -73,13 +73,14 @@ Elapse/Remain:
 
     3. Screen Refresh         (2s)
 
+    4. Downloads Location     (C:\Program_Filez\DownLord\DownLord-v0.18\downloads)
 
 
 
 
 
 ===============================================================================
-Selection; Options = 1-3, Return = B:
+Selection; Options = 1-4, Return = B:
 ```
 - Installation processes...
 ```
