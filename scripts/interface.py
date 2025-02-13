@@ -528,9 +528,9 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
         # Validate inputs
         if not filename or not url:
             return
-           
+
         logging.info(f"Registering download: {filename} ({url}) size={total_size}")
-           
+
         # Check if entry exists
         for i in range(1, 10):
             filename_key = f"filename_{i}"
@@ -541,20 +541,37 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
                     save_config(config)
                 return
 
-        # Shift entries down
+        # Check for existing temp files without a menu entry
+        temp_path = Path(TEMP_DIR) / f"{filename}.part"
+        if temp_path.exists() and temp_path.stat().st_size > 0:  # Validate temp file
+            # Shift entries down to make room for the new entry
+            for i in range(9, 1, -1):
+                config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
+                config[f"url_{i}"] = config.get(f"url_{i-1}", "")
+                config[f"total_size_{i}"] = config.get(f"total_size_{i-1}", 0)
+
+            # Add new entry at position 1
+            config["filename_1"] = filename
+            config["url_1"] = url
+            config["total_size_1"] = temp_path.stat().st_size  # Register partial size
+            save_config(config)
+            logging.info(f"Registered partial download: {filename} ({url}) with size {temp_path.stat().st_size}")
+            return
+
+        # Shift entries down to make room for the new entry
         for i in range(9, 1, -1):
             config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
             config[f"url_{i}"] = config.get(f"url_{i-1}", "")
             config[f"total_size_{i}"] = config.get(f"total_size_{i-1}", 0)
-       
+
         # Add new entry at position 1
         config["filename_1"] = filename
         config["url_1"] = url
         config["total_size_1"] = total_size
-        
+
         # Save changes
         save_config(config)
         logging.info(f"Successfully registered new download: {filename} ({url}) with size {total_size}")
-       
+
     except Exception as e:
         logging.error(f"Error updating history: {e}")

@@ -70,7 +70,7 @@ class DownloadManager:
                 
         temp_path = TEMP_DIR / f"{filename}.part"
         if temp_path.exists():
-            return True, file_path, {'has_temp': True, 'temp_path': temp_path}
+            return True, temp_path, {'has_temp': True, 'temp_path': temp_path}
             
         if file_path.exists():
             return True, file_path, {}
@@ -335,20 +335,24 @@ class DownloadManager:
                 except (Timeout, ConnectionError, RequestException) as e:
                     retries += 1
                     if retries >= self.config["download"]["max_retries"]:
-                        display_error(ERROR_MESSAGES["download_error"].format(str(e), retries, self.config["download"]["max_retries"]))
-                        choice = input("\nSelection; Abandon = A or New URL = 0: ").strip().lower()
-                        if choice == 'a':
-                            return False, str(e)
+                        # Updated error message
+                        display_error("Download Initialization Failed.\nCheck link validity, internet, firewall, and then retry.")
+                        # New prompt
+                        choice = input("\nSelection; Retry = R, New URL = 0, Menu = B: ").strip().lower()
+                        if choice == 'r':
+                            return self.download_file(remote_url, out_path, chunk_size)  # Retry same URL
                         elif choice == '0':
                             new_url = display_download_prompt()
                             if new_url.lower() == 'q':
                                 return False, "User cancelled download"
                             return self.download_file(new_url, out_path, chunk_size)
+                        elif choice == 'b':
+                            return False, "Returning to menu"
                         else:
                             return False, "Invalid choice"
-                    
-                    time.sleep(calculate_retry_delay(retries))
-                    logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
+                    else:
+                        time.sleep(calculate_retry_delay(retries))
+                        logging.warning(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
 
         except Exception as e:
             logging.error(f"Download error: {str(e)}")

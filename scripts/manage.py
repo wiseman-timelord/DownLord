@@ -10,23 +10,21 @@ from .temporary import (
 )
 
 def cleanup_orphaned_files() -> None:
-    """Remove orphaned files from history."""
+    """Enhanced orphan cleanup"""
     downloads_dir = Path(DOWNLOADS_DIR)
+    temp_dir = Path(TEMP_DIR)
     persistent = load_config()
     
-    for i in range(1, 10):
-        filename = persistent[f"filename_{i}"]
-        if filename != "Empty":
-            file_path = downloads_dir / filename
-            if not file_path.exists():
-                for j in range(i, 9):
-                    persistent[f"filename_{j}"] = persistent[f"filename_{j+1}"]
-                    persistent[f"url_{j}"] = persistent[f"url_{j+1}"]
-                    persistent[f"total_size_{j}"] = persistent[f"total_size_{j+1}"]
-                persistent["filename_9"] = "Empty"
-                persistent["url_9"] = ""
-                persistent["total_size_9"] = 0
-                logging.info(f"Removed orphaned file from history: {filename}")
+    # Check both download and temp directories
+    for folder in [downloads_dir, temp_dir]:
+        for file_path in folder.glob("*"):
+            filename = file_path.name.replace(".part", "")
+            if not any(persistent[f"filename_{i}"] == filename for i in range(1,10)):
+                try:
+                    file_path.unlink()
+                    logging.info(f"Removed orphaned file: {file_path}")
+                except Exception as e:
+                    logging.error(f"Error removing orphan: {file_path} - {str(e)}")
     
     save_config(persistent)
 
