@@ -92,7 +92,7 @@ Selection; Options = 1-4, Return = B:
 >> Checked directory: .\data [OK]
 >> Checked directory: .\downloads [OK]
 >> Checked directory: .\scripts [OK]
->> Checked directory: .\temp [OK]
+>> Checked directory: .\incomplete [OK]
 >> Created .\scripts\__init__.py [OK]
 >> Created .\data\requirements.txt [OK]
 >> Installed Python dependencies [OK]
