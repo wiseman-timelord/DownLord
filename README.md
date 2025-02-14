@@ -22,7 +22,7 @@ DownLord is a more personal approach to downloading large and important files, s
 ---------------------------------------------------------------------------
 1     nsfw-i-hate-my-life-v2.Q3_K_M.gguf  100.0%       3.74 GB
 2     nsfw-i-hate-my-life-v2.Q6_K.gguf    75.3%        4.62 GB/6.14 GB
-3     Empty                               -            -
+3     ubuntu-24.04.1-desktop-amd64.iso    Unknown      1.21 GB/Unknown
 4     Empty                               -            -
 5     Empty                               -            -
 6     Empty                               -            -
