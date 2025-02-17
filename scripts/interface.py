@@ -1,9 +1,6 @@
 # .\scripts\interface.py
 
-import json
-import os
-import logging
-import time
+import json, os, logging, time
 from pathlib import Path
 from typing import Dict, Optional, Union
 from datetime import datetime
@@ -74,6 +71,8 @@ ERROR_MESSAGES = {
     "invalid_url": "Invalid URL. Please enter a valid URL starting with http:// or https://",
     "download_error": "An error occurred while downloading: {}. Retrying ({}/{})",
     "config_error": "Error reading configuration file. Using default settings.",
+    "missing_config": "Missing configuration file - please run installer first!",
+    "corrupted_config": "Corrupted configuration file - please reinstall!",
     "save_config_error": "Error saving configuration: {}",
     "filename_error": "Unable to extract filename from the URL. Please try again.",
     "invalid_number": "Invalid input. Please enter a number.",
@@ -89,7 +88,8 @@ SUCCESS_MESSAGES = {
 
 def clear_screen(title="Main Menu", use_logo=True):
     """Clear screen and display header."""
-    print("\033[H\033[J", end="")  # Clear screen
+    time.sleep(2)  # Waits for 2 seconds, do not remove.
+    print("\033[H\033[J", end="")
     if use_logo:
         print(ASCII_LOGO % title)
     else:
@@ -428,20 +428,20 @@ def print_progress(message: str):
     print(f">> {message}")
 
 def load_config() -> Dict:
-   try:
-       if PERSISTENT_FILE.exists():
-           with open(PERSISTENT_FILE, "r") as file:
-               config = json.load(file)
-               validate_config(config)
-               return config
-       logging.warning("No config file found, creating default")
-       return create_default_config()
-   except json.JSONDecodeError as e:
-       logging.error(f"Error decoding config: {e}")
-       return create_default_config()
-   except Exception as e:
-       logging.error(f"Error loading config: {e}")
-       return create_default_config()
+    """Load configuration with proper error handling."""
+    if not PERSISTENT_FILE.exists():
+        raise FileNotFoundError(f"Missing configuration file: {PERSISTENT_FILE.name}")
+    
+    try:
+        with open(PERSISTENT_FILE, "r") as file:
+            config = json.load(file)
+            # Basic validation
+            if "downloads_location" not in config:
+                raise ValueError("Invalid configuration format")
+            return config
+    except json.JSONDecodeError as e:
+        logging.error(f"Corrupted config file: {e}")
+        raise RuntimeError("Configuration file is corrupted") from e
 
 def save_config(config: Dict) -> bool:
     """Save configuration with atomic write and backup."""
@@ -476,71 +476,6 @@ def save_config(config: Dict) -> bool:
         if backup_path.exists():
             backup_path.replace(PERSISTENT_FILE)
         return False
-
-def validate_config(config: Dict) -> None:
-    """Validate configuration with complete field checking."""
-    default = create_default_config()
-    
-    try:
-        # Validate all required fields
-        for key in default:
-            if key not in config:
-                config[key] = default[key]
-                continue
-            
-            # Type validation for specific fields
-            if key == "chunk" and not isinstance(config[key], int):
-                config[key] = default[key]
-            elif key == "retries" and not isinstance(config[key], int):
-                config[key] = default[key]
-            elif key == "refresh" and not isinstance(config[key], int):
-                config[key] = default[key]
-            elif key == "downloads_location" and not isinstance(config[key], str):
-                config[key] = default[key]
-            elif key.startswith(("filename_", "url_")) and not isinstance(config[key], str):
-                config[key] = default[key]
-            elif key.startswith("total_size_"):
-                try:
-                    config[key] = int(config[key])
-                    if config[key] < 0:
-                        config[key] = 0
-                except (ValueError, TypeError):
-                    config[key] = 0
-        
-        # Validate settings are in allowed options
-        if config["retries"] not in RETRY_OPTIONS:
-            config["retries"] = default["retries"]
-            
-        if config.get("refresh") not in REFRESH_OPTIONS:
-            config["refresh"] = default["refresh"]
-        
-        # Ensure all required entries exist
-        for i in range(1, 10):
-            keys = [
-                f"filename_{i}", f"url_{i}",
-                f"total_size_{i}"
-            ]
-            for key in keys:
-                if key not in config:
-                    config[key] = default.get(key, 0 if "size" in key else "")
-        
-    except Exception as e:
-        logging.error(f"Error validating config: {str(e)}")
-        return default
-
-def create_default_config() -> Dict:
-    """Create a new default configuration."""
-    from scripts.temporary import DEFAULT_CONFIG, DOWNLOADS_DIR
-    config = DEFAULT_CONFIG.copy()
-    
-    # Add downloads location to default config
-    config["downloads_location"] = str(DOWNLOADS_DIR)
-    
-    for i in range(1, 10):
-        config[f"filename_{i}"] = "Empty"
-        config[f"url_{i}"] = ""
-        config[f"total_size_{i}"] = 0
-    return config
 
 def display_error(message: str):
     """Display an error message."""

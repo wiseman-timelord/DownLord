@@ -11,7 +11,7 @@ from urllib.parse import unquote
 APP_TITLE = "DownLord"
 
 # Directory Structure
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent.parent.resolve()
 DATA_DIR = BASE_DIR / "data"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 SCRIPTS_DIR = BASE_DIR / "scripts"
@@ -169,7 +169,7 @@ HISTORY_ENTRY = {
 # URL Patterns
 URL_PATTERNS = {
    "huggingface": {
-       "pattern": r"huggingface.co|hf.co",
+       "pattern": r"huggingface\.co|hf\.co",
        "direct_download": False,
        "requires_auth": False,
        "api_pattern": r"^https://huggingface.co/api/.*",
@@ -292,24 +292,3 @@ DEFAULT_HEADERS = {
    "Accept": "*/*",
    "Connection": "keep-alive"
 }
-
-def calculate_retry_delay(retries: int) -> float:
-   return min(
-       RETRY_STRATEGY["initial_delay"] * (RETRY_STRATEGY["backoff_factor"] ** retries),
-       RETRY_STRATEGY["max_delay"]
-   )
-
-def get_download_headers(existing_size: int = 0) -> Dict:
-   headers = DEFAULT_HEADERS.copy()
-   if existing_size:
-       headers["Range"] = f"bytes={existing_size}-"
-   return headers
-
-def extract_filename_from_disposition(disposition: str) -> Optional[str]:
-   if 'filename=' in disposition:
-       filename_match = re.search(r'filename="([^"]+)"', disposition)
-       if not filename_match:
-           filename_match = re.search(r'filename\*=UTF-8\'\'([^;]+)', disposition)
-       if filename_match:
-           return unquote(filename_match.group(1)).strip('"')
-   return None

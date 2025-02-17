@@ -29,9 +29,7 @@ from .interface import (
 from .manage import cleanup_orphaned_files
 from .temporary import (
     URL_PATTERNS, CONTENT_TYPES, TEMP_DIR, LOG_FILE, RUNTIME_CONFIG,
-    RETRY_STRATEGY, DEFAULT_HEADERS, calculate_retry_delay,
-    get_download_headers, extract_filename_from_disposition,
-    FILE_STATES
+    RETRY_STRATEGY, DEFAULT_HEADERS, FILE_STATES
 )
 
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
@@ -42,22 +40,25 @@ class DownloadError(Exception):
     pass
 
 class DownloadManager:
-    def __init__(self):
+    def __init__(self, downloads_location: Path):  # Add downloads_location parameter
         self.config = self._load_config()
         self.persistent = load_config()
+        self.downloads_location = downloads_location  # Store the configured downloads location
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self.cleanup_unregistered_files()
 
     def _load_config(self) -> Dict:
+        """Load and merge runtime configuration with persistent settings."""
         config = RUNTIME_CONFIG.copy()
         persistent = load_config()
         config["download"]["chunk_size"] = persistent["chunk"]
         config["download"]["max_retries"] = persistent["retries"]
-        config["download"]["refresh_rate"] = persistent.get("refresh", 2)  # Add refresh rate with default
+        config["download"]["refresh_rate"] = persistent.get("refresh", 2)
         return config
 
     def _check_existing_download(self, url: str, filename: str) -> Tuple[bool, Optional[Path], Dict]:
-        downloads_dir = Path("./downloads")
+        """Check if a download already exists, either complete or partial."""
+        downloads_dir = self.downloads_location  # Use the configured downloads location
         file_path = downloads_dir / filename
         
         for i in range(1, 10):
@@ -78,6 +79,7 @@ class DownloadManager:
         return False, None, {}
 
     def _remove_from_persistent(self, index: int) -> None:
+        """Remove an entry from the persistent configuration."""
         for i in range(index, 9):
             self.persistent[f"filename_{i}"] = self.persistent[f"filename_{i+1}"]
             self.persistent[f"url_{i}"] = self.persistent[f"url_{i+1}"]
@@ -173,14 +175,16 @@ class DownloadManager:
         return filepath.stat().st_size == remote_info.get('size', 0)
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
+        """Download a file from a remote URL with retries and resume support."""
         temp_path = None
         try:
-            clear_screen("Initiate Download", use_logo=False)
-            print("\nInitializing download sequence...")
-            print("Processing pasted URL...")
+            print(f"\nInitializing download for: {remote_url}")
+            print("Phase 1: URL processing...")
             
             processor = URLProcessor()
             download_url, metadata = processor.process_url(remote_url, self.config)
+            print(f"Resolved download URL: {download_url}")
+            print(f"Metadata: {json.dumps(metadata, indent=2)}")
             
             filename = metadata.get("filename") or get_file_name_from_url(download_url)
             if not filename:
@@ -207,7 +211,7 @@ class DownloadManager:
             session = requests.Session()
             retries = 0
             early_registration_done = False
-            refresh_rate = self.config["download"].get("refresh_rate", 2)  # Get refresh rate from config
+            refresh_rate = self.config["download"].get("refresh_rate", 2)
 
             while retries < self.config["download"]["max_retries"]:
                 try:
@@ -334,9 +338,7 @@ class DownloadManager:
                 except (Timeout, ConnectionError, RequestException) as e:
                     retries += 1
                     if retries >= self.config["download"]["max_retries"]:
-                        # Updated error message
                         display_error("Download Initialization Failed.\nCheck link validity, internet, firewall, and then retry.")
-                        # New prompt
                         choice = input("\nSelection; Retry = R, New URL = 0, Menu = B: ").strip().lower()
                         if choice == 'r':
                             return self.download_file(remote_url, out_path, chunk_size)  # Retry same URL
@@ -450,25 +452,31 @@ class URLProcessor:
 
     @staticmethod
     def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
+        """Process HuggingFace URLs for downloading."""
         if "cdn-lfs" in url:
             try:
                 logging.info("Processing CDN URL")
                 headers = DEFAULT_HEADERS.copy()
+
+                # Verify URL is accessible
+                test_response = requests.head(url, headers=headers, allow_redirects=True, timeout=5)
+                if test_response.status_code != 200:
+                    raise DownloadError(f"URL returned status code: {test_response.status_code}")
+
                 remote_info = URLProcessor.get_remote_file_info(url, headers)
-                
+
                 # Parse URL to get content disposition from query parameters
                 parsed_url = urlparse(url)
                 query_params = parse_qs(parsed_url.query)
                 content_disp_encoded = query_params.get('response-content-disposition', [None])[0]
-                
                 if content_disp_encoded:
-                    # Decode the content disposition value
-                    content_disp = unquote(content_disp_encoded)
+                    # Decode and clean the content disposition
+                    content_disp = unquote(content_disp_encoded).replace('\r', '').replace('\n', '')
                     filename = extract_filename_from_disposition(content_disp)
                     if filename:
                         logging.info(f"Found filename in content disposition: {filename}")
-                        return url, {**remote_info, "filename": filename, "is_cdn": True}
-                
+                        return url, {"filename": filename, "is_cdn": True}
+
                 # Fallback to URL pattern matching if content disposition not found
                 if "filename*=UTF-8''" in url:
                     start = url.find("filename*=UTF-8''") + 17
@@ -476,41 +484,41 @@ class URLProcessor:
                     filename = unquote(url[start:end].split(";")[0])
                     logging.info(f"Found UTF-8 filename in URL: {filename}")
                     return url, {**remote_info, "filename": filename, "is_cdn": True}
-                
+
                 if "filename=" in url:
                     start = url.find("filename=") + 9
                     end = url.find("&", start) or len(url)
                     filename = unquote(url[start:end].split(";")[0]).replace('"', '')
                     logging.info(f"Found filename in URL: {filename}")
                     return url, {**remote_info, "filename": filename, "is_cdn": True}
-                
+
                 raise DownloadError("Could not find filename in HuggingFace CDN URL")
-                
+
             except Exception as e:
-                logging.error(f"Error processing CDN URL: {str(e)}")
-                raise DownloadError(f"Failed to process HuggingFace CDN URL: {str(e)}")
-        
+                logging.error(f"CDN URL processing failed: {str(e)}")
+                raise DownloadError(f"HuggingFace CDN error: {str(e)}")
+
         # Handle non-CDN HuggingFace URLs
         hf_config = config["download"]["huggingface"]
         headers = DEFAULT_HEADERS.copy()
         if hf_config["use_auth"] and hf_config["token"]:
             headers["authorization"] = f"Bearer {hf_config['token']}"
-        
+
         if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
             try:
                 model_id = model_match.group(1)
                 response = requests.get(f"https://huggingface.co/api/models/{model_id}/files", headers=headers)
                 response.raise_for_status()
                 files = response.json()
-                
+
                 if hf_config["prefer_torch"]:
                     torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
                     if torch_files:
                         files = torch_files
-                
+
                 target_file = max(files, key=lambda x: x.get("size", 0))
                 download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
-                
+
                 # Get remote file info
                 remote_info = URLProcessor.get_remote_file_info(download_url, headers)
                 return (download_url, {
@@ -520,11 +528,11 @@ class URLProcessor:
                 })
             except Exception as e:
                 raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
-        
+
         if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
             remote_info = URLProcessor.get_remote_file_info(url, headers)
             return url, remote_info
-            
+
         raise DownloadError("Invalid HuggingFace URL format")
 
     @staticmethod
@@ -557,76 +565,60 @@ def get_file_name_from_url(url: str) -> Optional[str]:
         if filename := os.path.basename(unquote(parsed_url.path)):
             if '.' in filename:
                 return filename
-            
+
         response = requests.head(url, allow_redirects=True)
         if 'Content-Disposition' in response.headers:
             value, params = cgi.parse_header(response.headers['Content-Disposition'])
             if filename := params.get('filename'):
                 return filename
-                
+
         return filename if filename else None
-            
+
     except Exception as e:
         logging.error(f"Error extracting filename from URL: {str(e)}")
         return None
 
-def move_with_retry(src: Path, dst: Path, max_retries: int = 5, delay: float = 1.0) -> bool:
-    """Move file with retry mechanism for Windows file locks."""
-    import time
     
-    for attempt in range(max_retries):
-        try:
-            if not src.exists():
-                logging.error(f"Source file missing: {src}")
-                return False
-                
-            # Ensure destination directory exists
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Force close any potential file handles
-            import gc
-            gc.collect()
-            
-            # Attempt move
-            src.replace(dst)  # Using replace instead of rename
-            return True
-            
-        except PermissionError as e:
-            if attempt < max_retries - 1:
-                logging.warning(f"Move attempt {attempt + 1} failed, retrying in {delay}s: {e}")
-                time.sleep(delay)
-            else:
-                logging.error(f"Failed to move file after {max_retries} attempts: {e}")
-                return False
-                
-        except Exception as e:
-            logging.error(f"Unexpected error moving file: {e}")
-            return False
-            
-    return False
+def calculate_retry_delay(retries: int) -> float:
+    """Calculate retry delay based on retry strategy."""
+    return min(
+        RETRY_STRATEGY["initial_delay"] * (RETRY_STRATEGY["backoff_factor"] ** retries),
+        RETRY_STRATEGY["max_delay"]
+    )
 
-def cleanup_orphaned_files() -> None:
-    """Enhanced orphan cleanup"""
-    downloads_dir = Path(DOWNLOADS_DIR)
-    temp_dir = Path(TEMP_DIR)
-    persistent = load_config()
-    
-    # Keep track of all valid filenames including .part variants
-    valid_files = set()
-    for i in range(1, 10):
-        filename = persistent.get(f"filename_{i}", "Empty")
-        if filename != "Empty":
-            valid_files.add(filename)
-            valid_files.add(f"{filename}.part")  # Protect active temp files
+def get_download_headers(existing_size: int = 0) -> Dict:
+    """Generate HTTP headers for download requests."""
+    headers = DEFAULT_HEADERS.copy()
+    if existing_size:
+        headers["Range"] = f"bytes={existing_size}-"
+    return headers
 
-    # Check both download and temp directories
-    for folder in [downloads_dir, temp_dir]:
-        for file_path in folder.glob("*"):
-            if file_path.name not in valid_files:
-                try:
-                    file_path.unlink()
-                    logging.info(f"Removed orphaned file: {file_path}")
-                except Exception as e:
-                    logging.error(f"Error removing orphan: {file_path} - {str(e)}")
-    
-    save_config(persistent)
+def extract_filename_from_disposition(disposition: str) -> Optional[str]:
+    """Extract filename from Content-Disposition header."""
+    try:
+        if not disposition:
+            print("No Content-Disposition header found")
+            return None
+
+        print(f"Raw Content-Disposition: {disposition}")
+
+        # Check for filename* with RFC 5987 encoding first
+        filename_match = re.search(r"filename\*?=utf-8''([^;]+)", disposition, re.IGNORECASE)
+        if filename_match:
+            filename = unquote(filename_match.group(1)).strip('"')
+            return filename
+
+        # Fallback to filename=
+        filename_match = re.search(r'filename="([^"]+)"', disposition)
+        if not filename_match:
+            filename_match = re.search(r"filename=([^;]+)", disposition)
+        if filename_match:
+            filename = unquote(filename_match.group(1).strip('"'))
+            return filename
+
+        return None
+
+    except Exception as e:
+        logging.error(f"Filename extraction error: {str(e)}")
+        print(f"Error parsing Content-Disposition: {str(e)}")
+        return None
