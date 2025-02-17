@@ -1,8 +1,7 @@
 # .\launcher.py
 
-import os
-import sys
-import logging
+# Imports
+import os, sys, logging, json
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Optional, Dict  # Added Dict import
@@ -12,14 +11,16 @@ from scripts.interface import (
     setup_menu,
     load_config,
     save_config,
+    PERSISTENT_FILE,
     display_error,
     display_success,
     display_download_prompt,
     display_download_status,
     display_file_info,
     update_history,
+    delete_file,
+    clear_screen,  # Add this import
     ERROR_MESSAGES,
-    delete_file  # Add this
 )
 from scripts.temporary import (
     DOWNLOADS_DIR,
@@ -60,19 +61,39 @@ def handle_download(url: str, config: dict) -> bool:
 
     while True:
         try:
-            # Process URL and get metadata
+            # Clear the screen and display the "Initialize Download" header
+            clear_screen("Initialize Download", use_logo=False)
+
             processor = URLProcessor()
             download_url, metadata = processor.process_url(url, config)
-            filename = metadata.get("filename") or get_file_name_from_url(download_url)
             
-            if not filename:
-                display_error(ERROR_MESSAGES["filename_error"])
+            if not download_url or not metadata:
+                error_msg = "Failed to process URL. Check if it's a valid Hugging Face CDN link."
+                display_error(error_msg)
+                logging.error(f"URL processing failed: {url}")
                 return False
 
-            out_path = DOWNLOADS_DIR / filename
+            filename = metadata.get("filename") or get_file_name_from_url(download_url)
+            if not filename:
+                display_error(ERROR_MESSAGES["filename_error"] + " (no filename in metadata)")
+                return False
+
+            # Use the configured downloads location
+            downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
+            out_path = downloads_location / filename  # Correct output path
+
+            # Display the "Starting new download" message
             display_download_status(filename, FILE_STATES["new"])
-            
-            manager = DownloadManager()
+
+            # Print the initialization details
+            print(f"\nInitializing download for: {url}")
+            print("Phase 1: URL processing...")
+            print(f"Resolved download URL: {download_url}")
+            print(f"Metadata: {json.dumps(metadata, indent=2)}")
+            print(f"Found filename: {filename}")
+
+            # Pass the configured downloads location to DownloadManager
+            manager = DownloadManager(downloads_location)
             success, error = manager.download_file(download_url, out_path, config["chunk"])
             
             if success:
@@ -111,30 +132,68 @@ def handle_download(url: str, config: dict) -> bool:
                 return False
 
 def check_environment() -> bool:
+    """Verify environment with proper error handling."""
     try:
-        DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
-        config = load_config()
+        # Check if config file exists
+        if not PERSISTENT_FILE.exists():
+            raise FileNotFoundError(f"Missing configuration file: {PERSISTENT_FILE.name}")
         
-        if not config:
-            display_error(ERROR_MESSAGES["config_error"])
-            return False
+        # Load config and get absolute paths
+        config = load_config()
+        default_downloads = DOWNLOADS_DIR.resolve()
+        configured_downloads = Path(config.get("downloads_location", "")).expanduser().resolve()
+
+        # Check if configured path needs reset
+        needs_reset = False
+        reset_reason = ""
+        
+        # 1. Check path exists and is directory
+        if not configured_downloads.exists():
+            reset_reason = f"Path does not exist: {configured_downloads}"
+            needs_reset = True
+        elif not configured_downloads.is_dir():
+            reset_reason = f"Path is not a directory: {configured_downloads}"
+            needs_reset = True
+
+        if needs_reset:
+            logging.warning(f"Resetting downloads location. Reason: {reset_reason}")
+            print(f"\nConfiguration reset required:")
+            print(f"• {reset_reason}")
+            print(f"• Default location: {default_downloads}")
             
-        test_file = DOWNLOADS_DIR / ".write_test"
+            # Update and save config
+            config["downloads_location"] = str(default_downloads)
+            if save_config(config):
+                print("✓ Configuration updated successfully")
+            else:
+                print("⚠ Failed to save configuration changes!")
+                return False
+
+            # Ensure directory structure
+            default_downloads.mkdir(parents=True, exist_ok=True)
+
+        # Final validation
+        test_file = default_downloads / ".write_test"
         try:
             test_file.touch()
             test_file.unlink()
         except PermissionError:
-            display_error("No write permission in downloads directory")
+            display_error(f"Write permission denied in: {default_downloads}")
             return False
             
-        display_success("Environment check passed")
         return True
         
+    except FileNotFoundError as e:
+        clear_screen()
+        print(f"\nCritical Error: {str(e)}")
+        print("Please run the installer first!")
+        input("\nPress any key to exit...")
+        sys.exit(1)
     except Exception as e:
         logging.error(f"Environment check failed: {str(e)}")
-        display_error(f"Environment verification failed: {str(e)}")
+        display_error(f"Startup failed: {str(e)}")
         return False
-
+        
 def prompt_for_download():
     # Add this at start of loop
     cleanup_orphaned_files()  # Ensure clean state before showing menu
@@ -159,6 +218,14 @@ def prompt_for_download():
                 continue
             if url.lower() == 'b':  # Redundant check, but ensures consistency
                 continue
+
+            # Use the configured downloads location
+            downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
+            success = handle_download(url, config)
+            if success:
+                config = load_config()  # Reload config after successful download
+            input("\nPress Enter to continue...")
+
         elif choice.isdigit() and 1 <= int(choice) <= 9:
             index = int(choice)
             url = config.get(f"url_{index}", "")

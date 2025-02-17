@@ -30,7 +30,7 @@ pathlib>=1.0.1'''
 PERSISTENT_TEXT = '''{
     "chunk": 4096000,
     "retries": 100,
-    "downloads_location": ".\downloads",
+    "downloads_location": "downloads",
     "filename_1": "Empty",
     "filename_2": "Empty",
     "filename_3": "Empty",
