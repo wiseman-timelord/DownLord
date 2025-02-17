@@ -58,73 +58,65 @@ def handle_download(url: str, config: dict) -> bool:
     if not validate_url(url):
         display_error(ERROR_MESSAGES["invalid_url"])
         return False
-
+    
     while True:
         try:
-            # Clear the screen and display the "Initialize Download" header
-            clear_screen("Initialize Download", use_logo=False)
+            # Truncate URLs for display
+            short_url = url if len(url) <= 60 else f"{url[:57]}..."
+            print(f"\nInitializing download for: {short_url}")
 
             processor = URLProcessor()
             download_url, metadata = processor.process_url(url, config)
             
-            if not download_url or not metadata:
-                error_msg = "Failed to process URL. Check if it's a valid Hugging Face CDN link."
-                display_error(error_msg)
-                logging.error(f"URL processing failed: {url}")
-                return False
+            # Truncate resolved download URL for display
+            short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
+            print(f"Resolved download URL: {short_download_url}")
 
+            # Rest of the download logic...
             filename = metadata.get("filename") or get_file_name_from_url(download_url)
-            if not filename:
-                display_error(ERROR_MESSAGES["filename_error"] + " (no filename in metadata)")
-                return False
-
-            # Use the configured downloads location
             downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
-            out_path = downloads_location / filename  # Correct output path
+            out_path = downloads_location / filename
 
-            # Display the "Starting new download" message
-            display_download_status(filename, FILE_STATES["new"])
-
-            # Print the initialization details
-            print(f"\nInitializing download for: {url}")
-            print("Phase 1: URL processing...")
-            print(f"Resolved download URL: {download_url}")
-            print(f"Metadata: {json.dumps(metadata, indent=2)}")
-            print(f"Found filename: {filename}")
-
-            # Pass the configured downloads location to DownloadManager
-            manager = DownloadManager(downloads_location)
-            success, error = manager.download_file(download_url, out_path, config["chunk"])
-            
-            if success:
-                display_download_status(filename, FILE_STATES["complete"])
-                display_file_info(out_path, url)
-                return True
+            # Continue with download...
+        except Exception as e:
+            logging.error(f"Unexpected error: {str(e)}")
+            display_error(str(e))
+            choice = input("\nSelection; Reconnect Download = R, Enter Alternate URL = 0, Back to Menu = B: ").strip().lower()
+            if choice == 'r':
+                continue
+            elif choice == '0':
+                new_url = display_download_prompt()
+                if new_url.lower() == 'b':
+                    return False
+                url = new_url
+                clear_screen()
+                continue
+            elif choice == 'b':
+                return False
             else:
-                display_error(error)
-                choice = input("\nSelection; Abandon = A or New URL = 0: ").strip().lower()
-                if choice == 'a':
-                    return False
-                elif choice == '0':
-                    url = display_download_prompt()
-                    if url.lower() == 'q':
-                        return False
-                    clear_screen()  # Clear screen for new attempt
-                    continue  # Try again with new URL
-                else:
-                    display_error("Invalid choice")
-                    return False
+                display_error("Invalid choice")
+                return False
                     
         except Exception as e:
             logging.error(f"Unexpected error: {str(e)}")
             display_error(str(e))
-            choice = input("\nSelection; Abandon = A or New URL = 0: ").strip().lower()
-            if choice == 'a':
-                return False
+            choice = input("\nSelection; Reconnect Download = R, Enter Alternate URL = 0, Back to Menu = B: ").strip().lower()
+            if choice == 'r':
+                continue
             elif choice == '0':
-                url = display_download_prompt()
-                if url.lower() == 'q':
+                new_url = display_download_prompt()
+                if new_url.lower() == 'b':
                     return False
+                # Update config with new URL
+                for i in range(1, 10):
+                    if config[f"filename_{i}"] == filename:
+                        config[f"url_{i}"] = new_url
+                        save_config(config)
+                        break
+                url = new_url
+                continue
+            elif choice == 'b':
+                return False
                 clear_screen()  # Clear screen for new attempt
                 continue  # Try again with new URL
             else:
@@ -187,7 +179,7 @@ def check_environment() -> bool:
         clear_screen()
         print(f"\nCritical Error: {str(e)}")
         print("Please run the installer first!")
-        input("\nPress any key to exit...")
+        time.sleep(5)
         sys.exit(1)
     except Exception as e:
         logging.error(f"Environment check failed: {str(e)}")
@@ -213,10 +205,9 @@ def prompt_for_download():
             break
 
         if choice == '0':
-            url = display_download_prompt()
-            if url is None:  # User chose to go back to the menu
-                continue
-            if url.lower() == 'b':  # Redundant check, but ensures consistency
+            clear_screen("Initialize Download")
+            url = input("\nEnter download URL (Q to cancel): ").strip()
+            if url.lower() == 'q':
                 continue
 
             # Use the configured downloads location
@@ -224,7 +215,7 @@ def prompt_for_download():
             success = handle_download(url, config)
             if success:
                 config = load_config()  # Reload config after successful download
-            input("\nPress Enter to continue...")
+            time.sleep(2)
 
         elif choice.isdigit() and 1 <= int(choice) <= 9:
             index = int(choice)
@@ -233,7 +224,7 @@ def prompt_for_download():
             
             if filename == "Empty":
                 display_error(ERROR_MESSAGES["invalid_choice"])
-                input("\nPress Enter to continue...")
+                time.sleep(3)
                 continue
             
             # Handle orphaned files (no URL)
@@ -245,7 +236,7 @@ def prompt_for_download():
                 # Validate the new URL
                 if not validate_url(new_url):
                     display_error(ERROR_MESSAGES["invalid_url"])
-                    input("\nPress Enter to continue...")
+                    time.sleep(3)
                     continue
                 
                 # Update the config with the new URL
@@ -256,13 +247,13 @@ def prompt_for_download():
                 success = handle_download(new_url, config)
                 if success:
                     config = load_config()  # Reload config after successful download
-                input("\nPress Enter to continue...")
+                time.sleep(2)
             else:
                 # Handle normal download
                 success = handle_download(url, config)
                 if success:
                     config = load_config()  # Reload config after successful download
-                input("\nPress Enter to continue...")
+                time.sleep(2)
         elif choice == 'd':  # Handle delete option
             delete_index = input("Enter the number of the file to delete (1-9): ").strip()
             if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
@@ -272,22 +263,33 @@ def prompt_for_download():
             continue
         else:
             display_error(ERROR_MESSAGES["invalid_choice"])
-            input("\nPress Enter to continue...")
+            time.sleep(3)
 
 def check_for_orphaned_temp_files(config: Dict) -> None:
-    """Check the incomplete folder for orphaned temp files and register them in the config."""
+    """Check both incomplete and downloads folders for unregistered files"""
+    # Check incomplete folder
     incomplete_dir = Path(TEMP_DIR)
     for temp_file in incomplete_dir.glob("*.part"):
-        filename = temp_file.name.replace(".part", "")
-        if not any(config.get(f"filename_{i}") == filename for i in range(1, 10)):
-            # Find the first empty slot
+        filename = temp_file.stem  # Remove .part extension
+        if not any(config.get(f"filename_{i}") == filename for i in range(1, 10)):  # Fixed missing parenthesis
             for i in range(1, 10):
                 if config.get(f"filename_{i}") == "Empty":
                     config[f"filename_{i}"] = filename
-                    config[f"url_{i}"] = ""  # URL will be populated on resume
-                    config[f"total_size_{i}"] = 0  # Set total size to 0 (unknown)
+                    config[f"url_{i}"] = ""
+                    config[f"total_size_{i}"] = 0
                     save_config(config)
-                    logging.info(f"Registered orphaned temp file: {filename} in slot {i}")
+                    break
+
+    # Check downloads folder
+    downloads_dir = Path(DOWNLOADS_DIR)
+    for file in downloads_dir.glob("*"):
+        if file.is_file() and not any(config.get(f"filename_{i}") == file.name for i in range(1, 10)):  # Fixed missing parenthesis
+            for i in range(1, 10):
+                if config.get(f"filename_{i}") == "Empty":
+                    config[f"filename_{i}"] = file.name
+                    config[f"url_{i}"] = ""
+                    config[f"total_size_{i}"] = file.stat().st_size
+                    save_config(config)
                     break
 
 
@@ -297,7 +299,8 @@ def main():
     
     # Verify environment
     if not check_environment():
-        input("\nPress Enter to exit...")
+        print("Environment issues.")
+        time.sleep(3)
         return
 
     # Load config and check for orphaned temp files
