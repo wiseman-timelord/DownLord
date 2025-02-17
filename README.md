@@ -1,6 +1,6 @@
 # DownLord
 ## Status: Beta
-- Working, recently re-visited 2025/02. 
+- Working, recently re-visited 2025/02, but improving broke other things,  working on completion. 
 - Current Issues: 
 1. detection of files in, `.\incomplete` and `.\downloads`, upon startup of program is supposed to happen, so that ALL files present in such locations have a relating entry in the json, that  is displayed on the menu. From such files as are in `.\incomplete` would be displayed the progress `##.#MB/Unknown`, we can obtain the filename and the current filesize. For files in . files in `.\downloads` should already have a relating, `filename` and `url` and `total size`, in the json, but if not then it must also be indexed, but we can assume it is complete, so the total filesize will be the same as the current filesize. when we dont have the url its displayed as `Unknown` also.    
 2. it is also not saving an entry into the json for new downloads, possibly its waiting until the end of the download, but this doesnt help us if we start the download, then close the terminal window. it needs to input the, url and filename and total size, to the json, and it should do it immediately upon confirmation of the total filesize.
