@@ -96,8 +96,8 @@ class ConfigManager:
             if config["retries"] not in RETRY_OPTIONS:
                 config["retries"] = default["retries"]
                 
-            if config.get("refresh") not in REFRESH_OPTIONS:
-                config["refresh"] = default["refresh"]
+            if key == "refresh" and not isinstance(config[key], int):
+                config[key] = default[key]
             
             # Ensure all required entries exist
             for i in range(1, 10):

@@ -23,47 +23,24 @@ from scripts.temporary import (
 
 # ASCII Art
 # Menu Templates
-MENU_SEPARATOR = "-" * 80
+SEPARATOR_THIN = "-" * 120
+SEPARATOR_THICK = "=" * 120
+MENU_SEPARATOR = SEPARATOR_THIN
 
-ASCII_LOGO = '''===============================================================================
-          ________                      .____                    .___
-          \______ \   ______  _  ______ |    |    ___________  __| _/
-           |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ | 
-           |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ | 
-          /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ | 
-                  \/                  \/        \/                \/ 
--------------------------------------------------------------------------------
-    %s
-==============================================================================='''
-
-SIMPLE_HEADER = '''===============================================================================
+SIMPLE_HEADER = f'''{SEPARATOR_THICK}
     DownLord: %s
-==============================================================================='''
+{SEPARATOR_THICK}'''
 
-
-MAIN_MENU_FOOTER = """===============================================================================
+MAIN_MENU_FOOTER = f"""{SEPARATOR_THICK}
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
 
-SETUP_MENU = """
-
-
-
-
-
-    1. Connection Speed       ({chunk})
-
-    2. Maximum Retries        ({retries})
-
-    3. Screen Refresh         ({refresh}s)
-
-    4. Downloads Location     ({downloads_location})
-
-
-
-
-
-==============================================================================="""
-
+SETUP_MENU = f"""
+{SEPARATOR_THICK}
+    1. Connection Speed       ({{chunk}})
+    2. Maximum Retries        ({{retries}})
+    3. Screen Refresh         ({{refresh}}s)
+    4. Downloads Location     ({{downloads_location}})
+{SEPARATOR_THICK}"""
 
 # Error Messages
 ERROR_MESSAGES = {
@@ -90,10 +67,7 @@ def clear_screen(title="Main Menu", use_logo=True):
     """Clear screen and display header."""
     time.sleep(2)  # Waits for 2 seconds, do not remove.
     print("\033[H\033[J", end="")
-    if use_logo:
-        print(ASCII_LOGO % title)
-    else:
-        print(SIMPLE_HEADER % title)
+    print(SIMPLE_HEADER % title)
 
 def display_separator():
     """Display a menu separator line."""
@@ -177,6 +151,9 @@ def display_main_menu(config: Dict):
             "progress": 12,
             "size": 20
         }
+        
+        # Add three blank lines before the header
+        print("\n\n\n\n\n")
         
         # Print header
         header = f"{'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}"
@@ -263,6 +240,9 @@ def display_main_menu(config: Dict):
         
         if config_changed:
             save_config(config)
+        
+        # Add three blank lines after the file list
+        print("\n\n\n\n\n")
             
         print(MAIN_MENU_FOOTER, end='')
         
@@ -294,8 +274,7 @@ def display_file_info(path: Path, url: str = None) -> None:
 
 def display_download_progress(filename: str, downloaded: int, total: int, speed: float, elapsed: int, remaining: int) -> None:
     """Display the download progress in a full-screen format."""
-    print("\033[H\033[J", end="")  # Clear screen
-    print(SIMPLE_HEADER % "Download Active")
+    clear_screen("Download Active")
     
     # Format values
     progress = (downloaded / total * 100) if total > 0 else 0
@@ -325,7 +304,7 @@ def display_download_progress(filename: str, downloaded: int, total: int, speed:
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """Display the download completion message."""
     print(f"\nDownload completed on {timestamp.strftime('%Y/%m/%d')} at {timestamp.strftime('%H:%M')}.")
-    print("\n===============================================================================")
+    print(SEPARATOR_THIN)
     input("Press any key to return to menu...")
 
 def display_download_status(filename: str, state: str, info: Dict = None) -> None:
@@ -357,8 +336,8 @@ def setup_menu():
         print(SETUP_MENU.format(
             chunk=format_connection_speed(config["chunk"]),
             retries=config["retries"],
-            refresh=config.get("refresh", 2),
-            downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))  # Ensure this is displayed
+            timeout_length=config.get("timeout_length", 60),
+            downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))
         ))
         choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
         
@@ -384,14 +363,18 @@ def setup_menu():
             save_config(config)
             
         elif choice == '3':
-            # Cycle through refresh rates
-            current_refresh = config.get("refresh", 2)
+            # Set custom timeout length
             try:
-                idx = REFRESH_OPTIONS.index(current_refresh)
-                config["refresh"] = REFRESH_OPTIONS[(idx + 1) % len(REFRESH_OPTIONS)]
+                new_timeout = int(input("Enter timeout length in seconds (e.g., 60): ").strip())
+                if new_timeout < 10:
+                    print("Timeout must be at least 10 seconds.")
+                else:
+                    config["timeout_length"] = new_timeout
+                    save_config(config)
+                    print(f"Timeout length updated to: {new_timeout}s")
             except ValueError:
-                config["refresh"] = REFRESH_OPTIONS[0]
-            save_config(config)
+                print("Invalid input. Please enter a number.")
+            time.sleep(2)
             
         elif choice == '4':
             # Set custom downloads location
@@ -408,13 +391,13 @@ def setup_menu():
                     print(f"Error setting downloads location: {e}")
             else:
                 print("No path provided. Downloads location remains unchanged.")
-            input("\nPress Enter to continue...")
+            time.sleep(3)
             
         elif choice == 'b':
             return
         else:
             print(ERROR_MESSAGES["invalid_choice"])
-            input("\nPress Enter to continue...")
+            time.sleep(3)
 
 def display_download_prompt() -> Optional[str]:
     """Display the download URL prompt."""

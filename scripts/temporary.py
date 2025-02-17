@@ -94,7 +94,7 @@ DEFAULT_CONFIG = {
 # Runtime Configuration
 RUNTIME_CONFIG = {
    "download": {
-       "timeout": 30,
+       "timeout": 60,  # Changed from 30 to 60
        "parallel_downloads": False,
        "max_parallel": 3,
        "bandwidth_limit": None,
@@ -109,7 +109,7 @@ RUNTIME_CONFIG = {
            "track_partial": True,
            "verify_existing": True,
            "cleanup_orphans": True,
-           "min_register_size": 1048576  # 1MB in bytes
+           "min_register_size": 1048576
        }
    },
    "storage": {
@@ -274,9 +274,9 @@ ERROR_TYPES = {
 # Retry Strategy
 RETRY_STRATEGY = {
     "max_attempts": 5,
-    "initial_delay": 1,
-    "max_delay": 60,
-    "backoff_factor": 2,
+    "initial_delay": 5,
+    "max_delay": 300,
+    "backoff_factor": 3,
     "jitter": True,
     "retry_on_status": [408, 429, 500, 502, 503, 504],
     "retry_on_exceptions": [
