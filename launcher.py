@@ -7,6 +7,7 @@ import json
 import time
 from pathlib import Path
 from typing import Optional, Dict
+from scripts.configure import ConfigManager
 from scripts.interface import (
     display_main_menu,
     setup_menu,
