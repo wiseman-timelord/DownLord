@@ -75,7 +75,8 @@ REM Process user input
 if /i "%choice%"=="1" (
     color 1B
     call :DisplayTitle
-    echo Starting %TITLE%...
+    echo.
+	echo Starting %TITLE%...
     set PYTHONUNBUFFERED=1
 	python.exe -u .\launcher.py
     if errorlevel 1 (
