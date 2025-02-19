@@ -1,10 +1,9 @@
 # Script: .\scripts\configure.py
 
 # Imports
-import json
+import json, time
 from pathlib import Path
 from typing import Dict
-from .interface import display_error
 from .temporary import (
     PERSISTENT_FILE,
     DEFAULT_CONFIG,
@@ -93,8 +92,8 @@ class ConfigManager:
             downloads_path.mkdir(parents=True, exist_ok=True)
             config["downloads_location"] = str(downloads_path)
         except Exception as e:
-            display_error(f"Invalid downloads location: {e}")
-            config["downloads_location"] = str(DOWNLOADS_DIR)
+            print(f"Error: Invalid downloads location: {e}")
             time.sleep(3)
+            config["downloads_location"] = str(DOWNLOADS_DIR)
 
         return config

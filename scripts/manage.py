@@ -1,9 +1,6 @@
 # Script: `.\scripts\manage.py`
 
-import os
-import re
-import time
-import requests
+import os, cgi, re, time, requests
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -209,7 +206,7 @@ class URLProcessor:
                 if "filename*=UTF-8''" in url:
                     start = url.find("filename*=UTF-8''") + 17
                     end = url.find("&", start) or len(url)
-                    filename = unquote(url[start:end].split(";")[0]
+                    filename = unquote(url[start:end].split(";")[0])
                     print(f"Found UTF-8 filename in URL: {filename}")
                     return url, {**remote_info, "filename": filename, "is_cdn": True}
 
@@ -672,6 +669,7 @@ def get_file_name_from_url(url: str) -> Optional[str]:
 
     except Exception as e:
         display_error(f"Error extracting filename from URL: {str(e)}")
+        time.sleep(3)
         return None
 
 
