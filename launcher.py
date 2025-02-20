@@ -31,6 +31,35 @@ from scripts.manage import (
     DownloadError,
 )
 
+# Initialize
+def initialize_startup() -> Dict:
+    """
+    Perform all required initialization tasks at program startup.
+    Returns the loaded and validated configuration.
+    """
+    print(f"Initializing {APP_TITLE}...")
+
+    # 1. Verify environment
+    if not check_environment():
+        print("Environment issues detected. Exiting...")
+        time.sleep(3)
+        sys.exit(1)
+
+    # 2. Load configuration
+    config = ConfigManager.load()
+
+    # 3. Handle orphaned files
+    handle_orphaned_files(config)
+
+    # 4. Ensure downloads directory exists
+    downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
+    downloads_location.mkdir(parents=True, exist_ok=True)
+
+    # 5. Ensure temp directory exists
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Startup initialization complete.\n")
+    return config
 
 def handle_download(url: str, config: dict) -> bool:
     """
@@ -187,8 +216,7 @@ def prompt_for_download():
     """
     Main loop for handling user input and initiating downloads.
     """
-    # Add this at start of loop
-    handle_orphaned_files(ConfigManager.load())  # Ensure clean state before showing menu
+    # Ensure clean state before showing menu
     config = ConfigManager.load()
 
     while True:
@@ -271,28 +299,19 @@ def main():
     """
     Main application entry point.
     """
-    print(f"Initializing {APP_TITLE}...")
-
-    # Verify environment
-    if not check_environment():
-        print("Environment issues.")
-        time.sleep(3)
-        return
-
-    # Load config and check for orphaned temp files
-    config = ConfigManager.load()
-    handle_orphaned_files(config)
-
     try:
+        # Initialize the application
+        config = initialize_startup()
+
+        # Start the main menu loop
         prompt_for_download()
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
     except Exception as e:
         display_error(f"Unexpected error: {str(e)}")
-        display_error(f"An unexpected error occurred: {str(e)}")
         time.sleep(3)
     finally:
-        print(f"\nThank you for using {APP_TITLE}!")
+        print(f"\nFinding it useful? Donations to Wiseman-Timelord!")
 
 
 if __name__ == "__main__":
