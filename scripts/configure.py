@@ -81,10 +81,6 @@ class ConfigManager:
         if config["retries"] not in RETRY_OPTIONS:
             config["retries"] = RETRY_OPTIONS[0]
 
-        # Validate refresh rate
-        if config["refresh"] not in REFRESH_OPTIONS:
-            config["refresh"] = REFRESH_OPTIONS[0]
-
         # Validate downloads location
         downloads_location = config.get("downloads_location", str(DOWNLOADS_DIR))
         try:

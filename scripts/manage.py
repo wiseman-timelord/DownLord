@@ -1,5 +1,6 @@
 # Script: `.\scripts\manage.py`
 
+# Imports
 import os, cgi, re, time, requests
 from pathlib import Path
 from datetime import datetime
@@ -43,12 +44,16 @@ from .interface import (
     delete_file
 )
 
+# Constants
+FS_UPDATE_INTERVAL = 5  # File system updates every 5 seconds
+DISPLAY_REFRESH = 1     # Visual refresh every 1 second
 
+# Classes
 class DownloadError(Exception):
     """Custom exception for download-related errors."""
     pass
 
-
+# Functions
 def calculate_retry_delay(retries: int) -> float:
     """Calculate retry delay based on retry strategy."""
     return min(
@@ -93,6 +98,10 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
 
 class URLProcessor:
     """Process URLs for downloading files."""
+
+    @staticmethod
+    def validate_url(url: str) -> bool:
+        return url.startswith("http://") or url.startswith("https://")
 
     @staticmethod
     def get_remote_file_info(url: str, headers: Dict) -> Dict:
@@ -455,7 +464,6 @@ class DownloadManager:
             if exists and existing_path:
                 if self.verify_download(existing_path, metadata):
                     display_success(f"File already exists and is complete: {out_path.name}")
-                    
                     return True, None
 
                 temp_path = state.get('temp_path') if state.get('has_temp') else TEMP_DIR / f"{out_path.name}.part"
@@ -480,7 +488,8 @@ class DownloadManager:
 
             retries = 0
             early_registration_done = False
-            refresh_rate = self.config["download"].get("refresh_rate", 2)
+            last_fs_update = time.time()
+            last_display_update = last_fs_update
 
             while retries < self.config["download"]["max_retries"]:
                 try:
@@ -507,7 +516,6 @@ class DownloadManager:
 
                         # Setup progress tracking
                         start_time = time.time()
-                        last_update_time = start_time
                         bytes_since_last_update = 0
                         written_size = existing_size
 
@@ -518,22 +526,29 @@ class DownloadManager:
                                     bytes_since_last_update += len(chunk)
                                     current_time = time.time()
 
-                                    # Update display based on refresh rate
-                                    if current_time - last_update_time >= refresh_rate:
-                                        elapsed = int(current_time - start_time)
-                                        speed = bytes_since_last_update / (current_time - last_update_time)
-                                        remaining = int((total_size - written_size) / speed) if speed > 0 else 0
+                                    # File system updates (every 5 seconds)
+                                    if current_time - last_fs_update >= 5:
+                                        current_size = temp_path.stat().st_size
+                                        total_size = metadata.get('size', current_size)
+                                        last_fs_update = current_time
 
+                                    # Visual updates (every 1 second)
+                                    if current_time - last_display_update >= 1:
+                                        speed = bytes_since_last_update / (current_time - last_display_update)
+                                        elapsed = current_time - start_time
+                                        remaining = (total_size - written_size) / speed if speed > 0 else 0
+                                        
                                         display_download_state(
-                                            filename,
-                                            "progress",
-                                            downloaded=written_size,
-                                            total=total_size,
-                                            speed=speed
+                                            filename=filename,
+                                            current_size=written_size,
+                                            total_size=total_size,
+                                            speed=speed,
+                                            elapsed=elapsed,
+                                            remaining=remaining
                                         )
-
+                                        
                                         bytes_since_last_update = 0
-                                        last_update_time = current_time
+                                        last_display_update = current_time
 
                                     out_file.write(chunk)
 

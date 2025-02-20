@@ -130,9 +130,8 @@ DISPLAY_FORMATS = {
 
 # Default Configuration
 DEFAULT_CONFIG = {
-    "chunk": DEFAULT_CHUNK_SIZES["cable"],  # Changed from "line" to "cable"
+    "chunk": DEFAULT_CHUNK_SIZES["cable"],
     "retries": 100,
-    "refresh": 2  # Default refresh rate
 }
 
 # Runtime Configuration
@@ -172,6 +171,13 @@ RUNTIME_CONFIG = {
         "notification_sound": False,
         "progress_bar_style": "tqdm"
     }
+}
+
+RUNTIME_STATS = {
+    "current_size": 0,
+    "total_size": 0,
+    "last_fs_update": 0,
+    "download_speed": 0
 }
 
 # Content Types and Extensions

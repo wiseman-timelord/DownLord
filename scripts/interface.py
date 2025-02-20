@@ -36,8 +36,7 @@ SETUP_MENU = f"""
 {SEPARATOR_THICK}
     1. Connection Speed       ({{chunk}})
     2. Maximum Retries        ({{retries}})
-    3. Screen Refresh         ({{refresh}}s)
-    4. Downloads Location     ({{downloads_location}})
+    3. Downloads Location     ({{downloads_location}})
 {SEPARATOR_THICK}"""
 
 
@@ -164,20 +163,6 @@ def display_main_menu(config: Dict):
 
         config_changed = False
 
-        # Detect orphaned temp files and register them
-        temp_dir = Path(TEMP_DIR)
-        for temp_file in temp_dir.glob("*.part"):
-            filename = temp_file.name.replace(".part", "")
-            if not any(config_snapshot.get(f"filename_{i}") == filename for i in range(1, 10)):
-                # Find first empty slot
-                for i in range(1, 10):
-                    if config_snapshot.get(f"filename_{i}") == "Empty":
-                        config_snapshot[f"filename_{i}"] = filename
-                        config_snapshot[f"url_{i}"] = ""  # URL will be populated on resume
-                        config_snapshot[f"total_size_{i}"] = 0  # Total size unknown for orphaned files
-                        config_changed = True
-                        break
-
         for i in range(1, 10):
             filename = config_snapshot.get(f"filename_{i}", "Empty")
             url = config_snapshot.get(f"url_{i}", "")
@@ -276,31 +261,39 @@ def display_file_info(path: Path, url: str = None) -> None:
 
 def display_download_state(
     filename: str,
-    state: str,
-    downloaded: int = 0,
-    total: int = 0,
-    speed: float = 0
+    current_size: int,
+    total_size: int,
+    speed: float,
+    elapsed: float,
+    remaining: float
 ) -> None:
-    """
-    Unified progress/status display.
-    """
-    clear_screen("Download Status")
+    """Display download status in the new multi-line format."""
+    clear_screen("Download Active")
+    
+    progress = (current_size / total_size) * 100 if total_size > 0 else 0
+    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+    remaining_str = time.strftime("%H:%M:%S", time.gmtime(remaining)) if remaining > 0 else "--:--:--"
 
-    # State descriptors
-    states = {
-        "new": f"Starting: {filename}",
-        "progress": f"{filename} [{format_file_size(downloaded)}/{format_file_size(total)}] @ {format_file_size(speed)}/s",
-        "complete": f"Completed: {filename}",
-        "error": f"Failed: {filename}"
-    }
+    print(f"""
+{SEPARATOR_THICK}
+    DownLord: Download Active
+{SEPARATOR_THICK}
 
-    print(SEPARATOR_THICK)
-    print(f"\n{states.get(state, 'Unknown state')}\n")
-    print(SEPARATOR_THICK)
+Filename:
+    {filename}
 
-    if state == "progress":
-        progress_bar = "█" * int((downloaded/total)*50) if total > 0 else ""
-        print(f"[{progress_bar.ljust(50)}]")
+Progress:
+    {progress:.1f}%
+
+Speed:
+    {format_file_size(speed)}/s
+
+Received/Total:
+    {format_file_size(current_size)}/{format_file_size(total_size)}
+
+Elapsed/Remaining:
+    {elapsed_str}<{remaining_str}
+""")
 
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
@@ -313,16 +306,12 @@ def display_download_complete(filename: str, timestamp: datetime) -> None:
 
 
 def setup_menu():
-    """
-    Display and handle the setup menu.
-    """
     while True:
         config = ConfigManager.load()
         clear_screen("Setup Menu", use_logo=False)
         print(SETUP_MENU.format(
             chunk=format_connection_speed(config["chunk"]),
             retries=config["retries"],
-            timeout_length=config.get("timeout_length", 60),
             downloads_location=config.get("downloads_location", str(DOWNLOADS_DIR))
         ))
         choice = input("Selection; Options = 1-4, Return = B: ").strip().lower()
@@ -349,34 +338,19 @@ def setup_menu():
             ConfigManager.save(config)
 
         elif choice == '3':
-            # Set custom timeout length
-            try:
-                new_timeout = int(input("Enter timeout length in seconds (e.g., 60): ").strip())
-                if new_timeout < 10:
-                    print("Timeout must be at least 10 seconds.")
-                else:
-                    config["timeout_length"] = new_timeout
-                    ConfigManager.save(config)
-                    print(f"Timeout length updated to: {new_timeout}s")
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-            time.sleep(2)
-
-        elif choice == '4':
-            # Set custom downloads location
+            # Set custom downloads location (original option 4 moved to 3)
             new_location = input("Enter full path to custom location: ").strip()
             if new_location:
                 try:
-                    # Validate the path
                     new_path = Path(new_location)
                     new_path.mkdir(parents=True, exist_ok=True)
-                    config["downloads_location"] = str(new_path)  # Save the new location
-                    ConfigManager.save(config)  # Ensure the config is saved
+                    config["downloads_location"] = str(new_path)
+                    ConfigManager.save(config)
                     print(f"Downloads location updated to: {new_path}")
                 except Exception as e:
-                    print(f"Error setting downloads location: {e}")
+                    print(f"Error setting location: {e}")
             else:
-                print("No path provided. Downloads location remains unchanged.")
+                print("No path provided. Location unchanged.")
             time.sleep(3)
 
         elif choice == 'b':
