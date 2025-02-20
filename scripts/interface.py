@@ -33,10 +33,28 @@ MAIN_MENU_FOOTER = f"""{SEPARATOR_THICK}
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
 
 SETUP_MENU = f"""
-{SEPARATOR_THICK}
+
+
+
+
+
+
+
+
     1. Connection Speed       ({{chunk}})
+
     2. Maximum Retries        ({{retries}})
+
     3. Downloads Location     ({{downloads_location}})
+
+
+
+
+
+
+
+
+
 {SEPARATOR_THICK}"""
 
 
