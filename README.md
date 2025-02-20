@@ -102,9 +102,7 @@ Elapse/Remain:
 
     2. Maximum Retries        (100)
 
-    3. Screen Refresh         (2s)
-
-    4. Downloads Location     (C:\Program_Filez\DownLord\DownLord-v0.18\downloads)
+    3. Downloads Location     (C:\Program_Filez\DownLord\DownLord-v0.18\downloads)
 
 
 
