@@ -29,6 +29,10 @@ SIMPLE_HEADER = f'''{SEPARATOR_THICK}
     DownLord: %s
 {SEPARATOR_THICK}'''
 
+MULTI_HEADER = f'''{SEPARATOR_THICK}
+    DownLord: %s
+{SEPARATOR_THIN}'''
+
 MAIN_MENU_FOOTER = f"""{SEPARATOR_THICK}
 Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
 
@@ -66,6 +70,13 @@ def clear_screen(title="Main Menu", use_logo=True):
     print("\033[H\033[J", end="")
     print(SIMPLE_HEADER % title)
 
+def clear_screen_multi(title="Main Menu", use_logo=True):
+    """
+    Clear the screen and display the header.
+    """
+    time.sleep(1)  # Waits for 2 seconds, do not remove.
+    print("\033[H\033[J", end="")
+    print(MULTI_HEADER % title)
 
 def display_separator():
     """
@@ -157,7 +168,7 @@ def display_main_menu(config: Dict):
     Display the main menu with download options.
     """
     try:
-        clear_screen("Main Menu")
+        clear_screen_multi("Main Menu")
 
         # Snapshot config at start to prevent race conditions
         config_snapshot = json.loads(json.dumps(config))
@@ -171,13 +182,9 @@ def display_main_menu(config: Dict):
             "size": 20
         }
 
-        # Add three blank lines before the header
-        print("\n\n\n\n\n")
-
-        # Print header
-        header = f"{'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}"
-        print(header)
-        print("-" * len(header))
+        print(f"    {'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
+        print(SEPARATOR_THICK)
+        print()  # Add blank line before entries
 
         config_changed = False
 
@@ -185,6 +192,9 @@ def display_main_menu(config: Dict):
             filename = config_snapshot.get(f"filename_{i}", "Empty")
             url = config_snapshot.get(f"url_{i}", "")
             total_size = config_snapshot.get(f"total_size_{i}", 0)
+
+            # Add blank line before each entry
+            print()
 
             if filename != "Empty":
                 downloads_path = Path(DOWNLOADS_DIR) / filename
@@ -207,7 +217,7 @@ def display_main_menu(config: Dict):
                         progress = 100.0
 
                     size_str = format_file_size(actual_size)
-                    print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
+                    print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
 
                 elif temp_path.exists():
                     temp_size = temp_path.stat().st_size
@@ -224,9 +234,9 @@ def display_main_menu(config: Dict):
 
                     # Handle URL-less entries
                     if not url:
-                        print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {'Unknown':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                        print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {'Unknown':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
                     else:
-                        print(f"{i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
+                        print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
 
                 else:
                     # Clean up missing files
@@ -239,16 +249,15 @@ def display_main_menu(config: Dict):
                     config["url_9"] = ""
                     config["total_size_9"] = 0
                     config_changed = True
-                    print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
+                    print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
             else:
-                print(f"{i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
+                print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
 
         if config_changed:
             ConfigManager.save(config)
 
-        # Add three blank lines after the file list
-        print("\n\n\n\n\n")
-
+        # Add blank line before footer
+        print("\n")
         print(MAIN_MENU_FOOTER, end='')
 
     except Exception as e:
