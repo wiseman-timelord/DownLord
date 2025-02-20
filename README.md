@@ -132,6 +132,7 @@ Press Enter to exit...
 ```
 
 ### Features
+- Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.    
 - Download Resume - Interrupted downloads may resume, and orphan files are, detected and indexed.
 - Setup Menu - Configure maximum retries, and chunk speeds suited for, Sub1MB, Mobile, Line, Fibre.
 - Reading of complex URLs such as on hugging face downloads, while correctly obtaining filenames.
