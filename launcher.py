@@ -17,19 +17,20 @@ from scripts.interface import (
     display_download_prompt,
     clear_screen,
     update_history,
+    delete_file
 )
 from scripts.temporary import (
     DOWNLOADS_DIR,
     APP_TITLE,
     RUNTIME_CONFIG,
-    TEMP_DIR,
+    TEMP_DIR
 )
 from scripts.manage import (
     handle_orphaned_files,
     DownloadManager,
     URLProcessor,
     get_file_name_from_url,
-    DownloadError,
+    DownloadError
 )
 
 # Initialize
