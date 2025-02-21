@@ -1,7 +1,7 @@
 # Script: `.\scripts\manage.py`
 
 # Imports
-import os, cgi, re, time, requests
+import os, cgi, re, time, requests, json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -104,17 +104,38 @@ class URLProcessor:
         return url.startswith("http://") or url.startswith("https://")
 
     @staticmethod
-    def get_remote_file_info(url: str, headers: Dict) -> Dict:
-        """Get metadata about a remote file."""
+    def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
+        """Get metadata about a remote file with timeout countdown."""
+        timeout_length = config.get("timeout_length", 120)
+        start_time = time.time()
+        
+        print(f"\n[1/2] Establishing connection ({timeout_length}s timeout): ", end='', flush=True)
+        
         try:
-            response = requests.head(url, headers=headers, allow_redirects=True)
-            response.raise_for_status()
-            return {
-                'size': int(response.headers.get('content-length', 0)),
-                'modified': response.headers.get('last-modified'),
-                'etag': response.headers.get('etag'),
-                'content_type': response.headers.get('content-type')
-            }
+            while (time.time() - start_time) < timeout_length:
+                try:
+                    response = requests.head(
+                        url,
+                        headers=headers,
+                        allow_redirects=True,
+                        timeout=1
+                    )
+                    response.raise_for_status()
+                    elapsed = time.time() - start_time
+                    print(f"Completed in {elapsed:.1f}s")
+                    return {
+                        'size': int(response.headers.get('content-length', 0)),
+                        'modified': response.headers.get('last-modified'),
+                        'etag': response.headers.get('etag'),
+                        'content_type': response.headers.get('content-type')
+                    }
+                except (Timeout, ConnectionError):
+                    remaining = timeout_length - (time.time() - start_time)
+                    print(f"{remaining:.1f}s", end=' ', flush=True)
+                    continue
+                    
+            raise Timeout("Connection timed out")
+            
         except Exception as e:
             display_error(f"Remote info error: {str(e)}")
             time.sleep(3)
@@ -148,7 +169,7 @@ class URLProcessor:
         if release_match:
             owner, repo, tag, filename = release_match.groups()
             download_url = f"https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
             return download_url, {**remote_info, "filename": filename}
 
         # Handle raw content
@@ -159,7 +180,7 @@ class URLProcessor:
         if raw_match:
             owner, repo, branch, path = raw_match.groups()
             download_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
             filename = os.path.basename(path)
             return download_url, {**remote_info, "filename": filename}
 
@@ -171,7 +192,7 @@ class URLProcessor:
         if archive_match:
             owner, repo = archive_match.groups()
             download_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/main.zip"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
             filename = f"{repo}-main.zip"
             return download_url, {**remote_info, "filename": filename}
 
@@ -179,25 +200,36 @@ class URLProcessor:
 
     @staticmethod
     def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        """
-        Process HuggingFace URLs for downloading.
-        """
         if "cdn-lfs" in url:
             try:
-                print("Processing CDN URL")
+                print("\nProcessing CDN URL")  # Single newline
                 headers = DEFAULT_HEADERS.copy()
 
-                # Verify URL is accessible
-                test_response = requests.head(
-                    url,
-                    headers=headers,
-                    allow_redirects=True,
-                    timeout=config.get("timeout_length", 60)
-                )
-                if test_response.status_code != 200:
-                    raise DownloadError(f"URL returned status code: {test_response.status_code}")
+                # Verify URL accessibility
+                timeout_length = config.get("timeout_length", 120)
+                start_time = time.time()
+                print(f"Verifying URL accessibility ({timeout_length}s timeout): ", end='', flush=True)
+                
+                while (time.time() - start_time) < timeout_length:
+                    try:
+                        # Removed duplicate timeout print here
+                        test_response = requests.head(
+                            url,
+                            headers=headers,
+                            allow_redirects=True,
+                            timeout=1
+                        )
+                        if test_response.status_code != 200:
+                            raise DownloadError(f"URL returned status code: {test_response.status_code}")
+                        elapsed = time.time() - start_time
+                        print(f"Completed in {elapsed:.1f}s")
+                        break
+                    except (Timeout, ConnectionError):
+                        remaining = timeout_length - (time.time() - start_time)
+                        print(f"{remaining:.1f}s", end=' ', flush=True)
+                        continue
 
-                remote_info = URLProcessor.get_remote_file_info(url, headers)
+                remote_info = URLProcessor.get_remote_file_info(url, headers, config)
 
                 # Parse URL to get content disposition from query parameters
                 parsed_url = urlparse(url)
@@ -260,7 +292,7 @@ class URLProcessor:
                 download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
 
                 # Get remote file info
-                remote_info = URLProcessor.get_remote_file_info(download_url, headers)
+                remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
                 return (download_url, {
                     **remote_info,
                     "size": target_file.get("size", 0),
@@ -270,7 +302,7 @@ class URLProcessor:
                 raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
 
         if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
-            remote_info = URLProcessor.get_remote_file_info(url, headers)
+            remote_info = URLProcessor.get_remote_file_info(url, headers, config)
             return url, remote_info
 
         raise DownloadError("Invalid HuggingFace URL format")
@@ -288,11 +320,11 @@ class URLProcessor:
                 return URLProcessor.process_github_url(url, config)
             elif platform == "dropbox":
                 processed_url = url.replace("?dl=0", "?dl=1")
-                remote_info = URLProcessor.get_remote_file_info(processed_url, DEFAULT_HEADERS.copy())
+                remote_info = URLProcessor.get_remote_file_info(processed_url, DEFAULT_HEADERS.copy(), config)
                 return processed_url, remote_info
 
         # Handle as direct download if no platform matches
-        remote_info = URLProcessor.get_remote_file_info(url, DEFAULT_HEADERS.copy())
+        remote_info = URLProcessor.get_remote_file_info(url, DEFAULT_HEADERS.copy(), config)
         return url, remote_info
 
 
@@ -446,13 +478,13 @@ class DownloadManager:
             print(f"Initializing download for: {short_remote_url}")
             print("Processing download URL...")
 
-            processor = URLProcessor()
-            download_url, metadata = processor.process_url(remote_url, self.config)
+            print(f"\n[2/2] Retrieving file metadata: ", end='', flush=True)
+            download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
+            print("Done")  # Replace JSON dump
 
             # Truncate the resolved download URL for display
             short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
             print(f"Resolved download URL: {short_download_url}")
-            print(f"Metadata: {json.dumps(metadata, indent=2)}")
 
             filename = metadata.get("filename") or get_file_name_from_url(download_url)
             if not filename:
@@ -491,7 +523,7 @@ class DownloadManager:
             last_fs_update = time.time()
             last_display_update = last_fs_update
 
-            while retries < self.config["download"]["max_retries"]:
+            while retries < RUNTIME_CONFIG["download"]["max_retries"]:
                 try:
                     headers = get_download_headers(existing_size)
                     print("Connecting to server...")
@@ -500,7 +532,7 @@ class DownloadManager:
                         download_url,
                         stream=True,
                         headers=headers,
-                        timeout=60,  # Increased timeout
+                        timeout=RUNTIME_CONFIG["download"]["timeout"],
                         verify=False
                     ) as response:
                         if response.status_code == 429 and self._handle_rate_limit(response):
@@ -625,7 +657,7 @@ class DownloadManager:
 
                 except (Timeout, ConnectionError, RequestException) as e:
                     retries += 1
-                    if retries >= self.config["download"]["max_retries"]:
+                    if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
                         display_error("Download Initialization Failed.\nCheck link validity, internet, firewall, and then retry.")
                         choice = input("\nSelection; Resume Download = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
                         if choice == 'r':
@@ -639,7 +671,7 @@ class DownloadManager:
                             return False, "Invalid choice"
                     else:
                         time.sleep(calculate_retry_delay(retries))
-                        print(f"Retry {retries}/{self.config['download']['max_retries']}: {str(e)}")
+                        print(f"Retry {retries}/{RUNTIME_CONFIG['download']['max_retries']}: {str(e)}")
 
         except Exception as e:
             display_error(f"Download error: {str(e)}")

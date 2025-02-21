@@ -182,7 +182,7 @@ def display_main_menu(config: Dict):
             "size": 20
         }
 
-        print(f"    {'#':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
+        print(f"    {'#.':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
         print(SEPARATOR_THICK)
         print()  # Add blank line before entries
 
@@ -302,24 +302,30 @@ def display_download_state(
     remaining_str = time.strftime("%H:%M:%S", time.gmtime(remaining)) if remaining > 0 else "--:--:--"
 
     print(f"""
-{SEPARATOR_THICK}
-    DownLord: Download Active
-{SEPARATOR_THICK}
 
-Filename:
-    {filename}
 
-Progress:
-    {progress:.1f}%
 
-Speed:
-    {format_file_size(speed)}/s
 
-Received/Total:
-    {format_file_size(current_size)}/{format_file_size(total_size)}
 
-Elapsed/Remaining:
-    {elapsed_str}<{remaining_str}
+    Filename:
+        {filename}
+
+    Progress:
+        {progress:.1f}%
+
+    Speed:
+        {format_file_size(speed)}/s
+
+    Received/Total:
+        {format_file_size(current_size)}/{format_file_size(total_size)}
+
+    Elapsed/Remaining:
+        {elapsed_str}<{remaining_str}
+    
+    
+    
+    
+    
 """)
 
 
@@ -427,7 +433,10 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
         if not filename or not url:
             return
 
-        print(f"Registering download: {filename} ({url}) size={total_size}")
+        # Truncate the URL for display
+        short_url = url if len(url) <= 60 else f"{url[:57]}..."
+
+        print(f"Registering download: {filename} ({short_url}) size={total_size}")
 
         # Check if entry exists
         for i in range(1, 10):
@@ -451,7 +460,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
             config["url_1"] = url
             config["total_size_1"] = temp_path.stat().st_size
             ConfigManager.save(config)
-            print(f"Registered partial download: {filename} ({url}) with size {temp_path.stat().st_size}")
+            print(f"Registered partial download: {filename} ({short_url}) with size {temp_path.stat().st_size}")
             return
 
         # Shift entries down to make room for the new entry
@@ -467,7 +476,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
 
         # Save changes
         ConfigManager.save(config)
-        print(f"Successfully registered new download: {filename} ({url}) with size {total_size}")
+        print(f"Successfully registered new download: {filename} ({short_url}) with size {total_size}")
 
     except Exception as e:
         display_error(f"Error updating history: {e}")

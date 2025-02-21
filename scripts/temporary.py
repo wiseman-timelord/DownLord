@@ -132,13 +132,15 @@ DISPLAY_FORMATS = {
 DEFAULT_CONFIG = {
     "chunk": DEFAULT_CHUNK_SIZES["cable"],
     "retries": 100,
+    "timeout_length": 120,
+    "downloads_location": str(DOWNLOADS_DIR)
 }
 
 # Runtime Configuration
 RUNTIME_CONFIG = {
     "download": {
         "timeout": 60,  # Changed from 30 to 60
-        "parallel_downloads": False,
+        "max_retries": 5,
         "max_parallel": 3,
         "bandwidth_limit": None,
         "auto_resume": True,
