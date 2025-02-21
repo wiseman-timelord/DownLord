@@ -37,7 +37,7 @@ DownLord is a more personal approach to downloading large and important files, s
 =======================================================================================================================
 Selection; Options = 1-2, Exit = X:
 ```
-- Main menu...
+- Main menu looking sleek...
 ```
 ========================================================================================================================
     DownLord: Main Menu
