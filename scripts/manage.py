@@ -1,7 +1,7 @@
 # Script: `.\scripts\manage.py`
 
 # Imports
-import os, cgi, re, time, requests, json
+import os, cgi, re, time, requests, json, random, socket
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -40,6 +40,7 @@ from .interface import (
     clear_screen,
     format_file_size,
     display_download_prompt,
+    display_download_summary,
     update_history,
     delete_file
 )
@@ -108,36 +109,58 @@ class URLProcessor:
         """Get metadata about a remote file with timeout countdown."""
         timeout_length = config.get("timeout_length", 120)
         start_time = time.time()
-        
-        print(f"\nEstablishing connection: ", end='', flush=True)  # Removed timeout display
-        
+        attempt = 0
+        base_delay = 1
+        max_attempts = 5
+        last_update = 0
+        status_line_length = 120  # Match your separator width
+
+        def print_status(message):
+            # Pad the message with spaces to clear the line
+            padded_message = message.ljust(status_line_length)
+            print(f"\r{padded_message}", end='', flush=True)
+
+        print_status("Establishing connection...")
+
         try:
-            while (time.time() - start_time) < timeout_length:
+            while (time.time() - start_time) < timeout_length and attempt < max_attempts:
+                attempt += 1
                 try:
+                    # Update status every second
+                    current_time = time.time()
+                    if current_time - last_update > 1:
+                        remaining = timeout_length - (time.time() - start_time)
+                        status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
+                        print_status(status_msg)
+                        last_update = current_time
+
                     response = requests.head(
                         url,
                         headers=headers,
                         allow_redirects=True,
-                        timeout=1
+                        timeout=3  # Increased timeout
                     )
+                    
                     response.raise_for_status()
                     elapsed = time.time() - start_time
-                    print(f"Completed in {elapsed:.1f}s")  # Success message
+                    print_status(f"Connection established in {elapsed:.1f}s")  # Success message
+                    
                     return {
                         'size': int(response.headers.get('content-length', 0)),
                         'modified': response.headers.get('last-modified'),
                         'etag': response.headers.get('etag'),
                         'content_type': response.headers.get('content-type')
                     }
-                except (Timeout, ConnectionError):
-                    remaining = timeout_length - (time.time() - start_time)
-                    # Update the same line with the remaining time
-                    print(f"\rEstablishing connection: {remaining:.1f}s... ", end='', flush=True)
-                    time.sleep(0.1)  # Small delay to prevent CPU overload
+                    
+                except (Timeout, ConnectionError) as e:
+                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)  # Max 10s delay
+                    status_msg = f"Connection attempt {attempt}/{max_attempts} failed. Retrying in {delay:.1f}s..."
+                    print_status(status_msg)
+                    time.sleep(delay)
                     continue
                     
             # Timeout reached
-            print(f"\rConnection timed out after {timeout_length}s")  # Final timeout message
+            print_status(f"Connection timed out after {timeout_length}s")  # Final timeout message
             raise Timeout(f"Connection timed out after {timeout_length}s")
             
         except Exception as e:

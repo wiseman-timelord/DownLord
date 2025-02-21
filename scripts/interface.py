@@ -328,6 +328,50 @@ def display_download_state(
 """)
 
 
+def display_download_summary(
+    filename: str,
+    total_size: int,
+    average_speed: float,
+    elapsed: float,
+    timestamp: datetime,
+    destination: str
+) -> None:
+    """Display detailed download summary."""
+    clear_screen("Download Summary")
+    
+    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
+    size_str = format_file_size(total_size)
+    speed_str = f"{format_file_size(average_speed)}/s"
+    
+    print(f"""
+    
+    
+    
+    
+    Filename:
+        {filename}
+        
+    Completed:
+        {timestamp.strftime('%Y/%m/%d %H:%M:%S')}
+        
+    Total Size:
+        {size_str}
+        
+    Average Speed:
+        {speed_str}
+        
+    Elapsed Time:
+        {elapsed_str}
+        
+    Destination:
+        {destination}
+    
+    
+    
+{SEPARATOR_THICK}
+Press any key to return to Main Menu...""")
+    input()
+
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """
     Display the download completion message.
