@@ -631,7 +631,16 @@ class DownloadManager:
                         if not move_success:
                             return False, "Failed to move downloaded file to destination"
 
-                        display_download_complete(filename, datetime.now())
+                        elapsed = time.time() - start_time
+                        average_speed = written_size / elapsed if elapsed > 0 else 0
+                        display_download_summary(
+                            filename=filename,
+                            total_size=written_size,
+                            average_speed=average_speed,
+                            elapsed=elapsed,
+                            timestamp=datetime.now(),
+                            destination=str(out_path)
+                            )
 
                         # Update final size
                         final_size = out_path.stat().st_size
