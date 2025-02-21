@@ -1,12 +1,4 @@
 # DownLord
-## Status: Beta
-- Re-visiting 2025/02. The release version works, but does not register the download until after completion. For now, that is ok, but do not close the program and expect to continue the download later.
-
-## Description
-DownLord is a more personal approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
-
-### Preview
-- Batch Launcher (woo ascii)...
 ```
 =======================================================================================================================
 "                             ________                      .____                    .___                             "
@@ -16,27 +8,15 @@ DownLord is a more personal approach to downloading large and important files, s
 "                             /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |                              "
 "                                     \/                  \/        \/                \/                              "
 -----------------------------------------------------------------------------------------------------------------------
-    Batch Menu
-=======================================================================================================================
-
-
-
-
-
-
-    1. Launch DownLord
-
-    2. Install Requirements
-
-
-
-
-
-
-
-=======================================================================================================================
-Selection; Options = 1-2, Exit = X:
 ```
+## Status: Beta
+- Re-visiting 2025/02. The release version works, but does not register the download until after completion. For now, that is ok, but do not close the program and expect to continue the download later.
+
+## Description
+DownLord is a more personal approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
+
+### Preview
+
 - Main menu looking sleek...
 ```
 ========================================================================================================================
