@@ -109,7 +109,7 @@ class URLProcessor:
         timeout_length = config.get("timeout_length", 120)
         start_time = time.time()
         
-        print(f"\n[1/2] Establishing connection ({timeout_length}s timeout): ", end='', flush=True)
+        print(f"\nEstablishing connection: ", end='', flush=True)  # Removed timeout display
         
         try:
             while (time.time() - start_time) < timeout_length:
@@ -122,7 +122,7 @@ class URLProcessor:
                     )
                     response.raise_for_status()
                     elapsed = time.time() - start_time
-                    print(f"Completed in {elapsed:.1f}s")
+                    print(f"Completed in {elapsed:.1f}s")  # Success message
                     return {
                         'size': int(response.headers.get('content-length', 0)),
                         'modified': response.headers.get('last-modified'),
@@ -131,10 +131,14 @@ class URLProcessor:
                     }
                 except (Timeout, ConnectionError):
                     remaining = timeout_length - (time.time() - start_time)
-                    print(f"{remaining:.1f}s", end=' ', flush=True)
+                    # Update the same line with the remaining time
+                    print(f"\rEstablishing connection: {remaining:.1f}s... ", end='', flush=True)
+                    time.sleep(0.1)  # Small delay to prevent CPU overload
                     continue
                     
-            raise Timeout("Connection timed out")
+            # Timeout reached
+            print(f"\rConnection timed out after {timeout_length}s")  # Final timeout message
+            raise Timeout(f"Connection timed out after {timeout_length}s")
             
         except Exception as e:
             display_error(f"Remote info error: {str(e)}")
@@ -478,7 +482,7 @@ class DownloadManager:
             print(f"Initializing download for: {short_remote_url}")
             print("Processing download URL...")
 
-            print(f"\n[2/2] Retrieving file metadata: ", end='', flush=True)
+            print(f"\nRetrieving file metadata: ", end='', flush=True)  # Removed [2/2]
             download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
             print("Done")  # Replace JSON dump
 
