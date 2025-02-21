@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------------------------------------------------
 ```
 ## Status: Beta
-- Re-visiting 2025/02. The release version works, but does not register the download until after completion. For now, that is ok for me, but its not possible to, restart and resume. There are also wierd stats during download active, since summary screen was implemented.
+- Re-visiting 2025/02. The release version works, but there are some issues currently, see `Development` section below for more info.
 
 ## Description
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
