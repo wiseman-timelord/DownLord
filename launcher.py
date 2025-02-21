@@ -16,6 +16,7 @@ from scripts.interface import (
     display_success,
     display_download_prompt,
     clear_screen,
+    update_history,
 )
 from scripts.temporary import (
     DOWNLOADS_DIR,
