@@ -189,8 +189,16 @@ Press Enter to exit...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
 
 ## Development
-- Stats are wierd since summary screen implemented.
-
+1. Stats are wierd since summary screen was implemented...
+- `Received/Total` is showing `TotalDownloaded/PreviouslyDisplayedValueOfTotalDownloaded` instead of `TotalDownloaded/TotalFilesizeOnServer`.
+- `Elapsed/Remaining` is showing `00:03:02<--:--:--` instead of correctly calculating and displaying the remaining time based on the correct calculation.
+2. It says during initialization of download...
+```
+Successfully registered new download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...) with size 0
+```
+...but...
+- there is no new entry in the Json until the download has finished.
+- it says `size 0`, so clearly its not gaining the correct filesize from the server.
 
 ### File Structure
 - Packaged files
