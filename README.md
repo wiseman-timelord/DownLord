@@ -189,7 +189,8 @@ Press Enter to exit...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
 
 ## Development
-- After the `Revisit`, the code now needs a going over, such as, optimization, and also code logically re-distributing among scripts in the optimal method, mainly, manager script is light, maybe we can shift some relevantly themed functions over.
+- Stats are wierd since summary screen implemented.
+
 
 ### File Structure
 - Packaged files
@@ -200,20 +201,20 @@ Press Enter to exit...
 ├── LICENSE.txt           # License information
 └── README.md            # Project documentation
 ├── scripts\                # Core application scripts
+│   ├── configure.py        # program configuration
 │   ├── interface.py        # UI and user interaction
-│   ├── utility.py          # Download functionality
-│   └── temporary.py        # Constants and configurations
+│   ├── manage.py          # management of files
+│   └── temporary.py        # Global, constants and variables
 ```
 - Files created by installer/program.
 ```
 ├── downloads\               # Default download directory, created by installer
 ├── data\                     # Data related, Created by installer
 │   ├── persistent.json       # persistent settings, Created by installer
-│   ├── requirements.txt      # Python requirements, Created by installer
-│   └── downlord.log         # Log file, created by main program                
+│   └── requirements.txt      # Python requirements, Created by installer             
 ├── incomplete\              # Storage of incomplete downloads.
 ├── scripts\                 # Already part of package
-│   ├── __init__.py          # to fix scripts in `.\scripts`, created by installer.
+│   └── __init__.py          # to fix scripts in `.\scripts`, created by installer.
 ```
 
 ## DISCLAIMER
