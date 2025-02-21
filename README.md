@@ -93,6 +93,47 @@ Elapse/Remain:
 
 
 ```
+- Proper Download Initialization...
+```
+========================================================================================================================
+    DownLord: Initialize Download
+========================================================================================================================
+
+Enter download URL (Q to cancel): https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54ba7cd4b1c839b9f032c269075534e6b4f01988460ea615/bb9487edfa40bef4af3aae0644883b6f0081397d2ce34e6da660858012b86176?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Lamarckvergence-14B.i1-Q3_K_M.gguf%3B+filename%3D%22Lamarckvergence-14B.i1-Q3_K_M.gguf%22%3B&Expires=1740150705&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MDE1MDcwNX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2RuLWxmcy11cy0xLmhmLmNvL3JlcG9zLzY0LzM3LzY0Mzc4MGY4NWRiMjI5N2M1NGJhN2NkNGIxYzgzOWI5ZjAzMmMyNjkwNzU1MzRlNmI0ZjAxOTg4NDYwZWE2MTUvYmI5NDg3ZWRmYTQwYmVmNGFmM2FhZTA2NDQ4ODNiNmYwMDgxMzk3ZDJjZTM0ZTZkYTY2MDg1ODAxMmI4NjE3Nj9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPSoifV19&Signature=EB78zUiQOH8d3zCpppvVFT8aRyYQ0X5Frtaeumfq%7Etc8eESCvYbiNZDcSHv7WM1n3ynFODT2QAEbetCrIMf8-2GkSdmK89UA5SqtGJRx%7E7ttgechobAAIxmhpvBLYUmVwaAgP3rW1Bx7KbdM4ERVqrVebHqEWRm9HffVwvo0kvddpcEpX5Pjr1buj5yLsO71WDIiC7W8Fk4NSZkCUPAs6xXLhJykubP7ZVJZzmhjqgdmmHRFpFDjEUHjvocSdlgj6mtYCW%7EVIoU8IMwe9%7EP8vfcvdfLXEk64JJTGGwxoauCHKOJxRIWeHAW-Lw4HKlQVm9An%7EpvRJm1fk%7EuTfbtWtQ__&Key-Pair-Id=K24J24Z295AEI9
+
+Processing CDN URL
+Verifying URL accessibility (60s timeout): Connected in 0.6s
+
+[1/2] Establishing connection (60s timeout): Connected in 0.4s
+Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
+
+Initializing download for: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
+
+Processing CDN URL
+Verifying URL accessibility (60s timeout): Connected in 0.3s
+
+[1/2] Establishing connection (60s timeout): Connected in 0.3s
+Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
+Resolved download URL: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
+Registering download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54ba7cd4b1c839b9f032c269075534e6b4f01988460ea615/bb9487edfa40bef4af3aae0644883b6f0081397d2ce34e6da660858012b86176?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Lamarckvergence-14B.i1-Q3_K_M.gguf%3B+filename%3D%22Lamarckvergence-14B.i1-Q3_K_M.gguf%22%3B&Expires=1740150705&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MDE1MDcwNX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2RuLWxmcy11cy0xLmhmLmNvL3JlcG9zLzY0LzM3LzY0Mzc4MGY4NWRiMjI5N2M1NGJhN2NkNGIxYzgzOWI5ZjAzMmMyNjkwNzU1MzRlNmI0ZjAxOTg4NDYwZWE2MTUvYmI5NDg3ZWRmYTQwYmVmNGFmM2FhZTA2NDQ4ODNiNmYwMDgxMzk3ZDJjZTM0ZTZkYTY2MDg1ODAxMmI4NjE3Nj9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPSoifV19&Signature=EB78zUiQOH8d3zCpppvVFT8aRyYQ0X5Frtaeumfq%7Etc8eESCvYbiNZDcSHv7WM1n3ynFODT2QAEbetCrIMf8-2GkSdmK89UA5SqtGJRx%7E7ttgechobAAIxmhpvBLYUmVwaAgP3rW1Bx7KbdM4ERVqrVebHqEWRm9HffVwvo0kvddpcEpX5Pjr1buj5yLsO71WDIiC7W8Fk4NSZkCUPAs6xXLhJykubP7ZVJZzmhjqgdmmHRFpFDjEUHjvocSdlgj6mtYCW%7EVIoU8IMwe9%7EP8vfcvdfLXEk64JJTGGwxoauCHKOJxRIWeHAW-Lw4HKlQVm9An%7EpvRJm1fk%7EuTfbtWtQ__&Key-Pair-Id=K24J24Z295AEI9) size=0
+Successfully registered new download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54ba7cd4b1c839b9f032c269075534e6b4f01988460ea615/bb9487edfa40bef4af3aae0644883b6f0081397d2ce34e6da660858012b86176?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Lamarckvergence-14B.i1-Q3_K_M.gguf%3B+filename%3D%22Lamarckvergence-14B.i1-Q3_K_M.gguf%22%3B&Expires=1740150705&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MDE1MDcwNX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2RuLWxmcy11cy0xLmhmLmNvL3JlcG9zLzY0LzM3LzY0Mzc4MGY4NWRiMjI5N2M1NGJhN2NkNGIxYzgzOWI5ZjAzMmMyNjkwNzU1MzRlNmI0ZjAxOTg4NDYwZWE2MTUvYmI5NDg3ZWRmYTQwYmVmNGFmM2FhZTA2NDQ4ODNiNmYwMDgxMzk3ZDJjZTM0ZTZkYTY2MDg1ODAxMmI4NjE3Nj9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPSoifV19&Signature=EB78zUiQOH8d3zCpppvVFT8aRyYQ0X5Frtaeumfq%7Etc8eESCvYbiNZDcSHv7WM1n3ynFODT2QAEbetCrIMf8-2GkSdmK89UA5SqtGJRx%7E7ttgechobAAIxmhpvBLYUmVwaAgP3rW1Bx7KbdM4ERVqrVebHqEWRm9HffVwvo0kvddpcEpX5Pjr1buj5yLsO71WDIiC7W8Fk4NSZkCUPAs6xXLhJykubP7ZVJZzmhjqgdmmHRFpFDjEUHjvocSdlgj6mtYCW%7EVIoU8IMwe9%7EP8vfcvdfLXEk64JJTGGwxoauCHKOJxRIWeHAW-Lw4HKlQVm9An%7EpvRJm1fk%7EuTfbtWtQ__&Key-Pair-Id=K24J24Z295AEI9) with size 0
+Initializing download for: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
+Processing download URL...
+
+[2/2] Retrieving file metadata:
+Processing CDN URL
+Verifying URL accessibility (120s timeout): Connected in 0.3s
+
+[1/2] Establishing connection (120s timeout): Connected in 0.4s
+Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
+Done
+Resolved download URL: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
+Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
+Connecting to server...
+(Ignore Certificate Warnings)
+C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+```
 - Setup menu is functional...
 ```
 ===============================================================================
