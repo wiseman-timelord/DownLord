@@ -111,19 +111,19 @@ Download in progress...
 
 Enter download URL (Q to cancel): http://212.183.159.230/200MB.zip
 
-[1/2] Establishing connection (60s timeout): Completed in 0.1s
+Establishing connection: Completed in 0.1s
 
 Initializing download for: http://212.183.159.230/200MB.zip
 
-[1/2] Establishing connection (60s timeout): Completed in 0.1s
+Establishing connection: Completed in 0.1s
 Resolved download URL: http://212.183.159.230/200MB.zip
 Registering download: 200MB.zip (http://212.183.159.230/200MB.zip) size=209715200
 Successfully registered new download: 200MB.zip (http://212.183.159.230/200MB.zip) with size 209715200
 Initializing download for: http://212.183.159.230/200MB.zip
 Processing download URL...
 
-[2/2] Retrieving file metadata:
-[1/2] Establishing connection (120s timeout): Completed in 0.1s
+Retrieving file metadata:
+Establishing connection: Completed in 0.1s
 Done
 Resolved download URL: http://212.183.159.230/200MB.zip
 Found filename: 200MB.zip
