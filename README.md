@@ -160,12 +160,14 @@ Press Enter to exit...
 ```
 
 ### Features
-- Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.    
-- Download Resume - Interrupted downloads may resume, and orphan files are, detected and indexed.
-- Setup Menu - Configure maximum retries, and chunk speeds suited for, Sub1MB, Mobile, Line, Fibre.
+- Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.
+- Setup Menu - Configure maximum retries, and chunk speeds, and download dir.
 - Reading of complex URLs such as on hugging face downloads, while correctly obtaining filenames.
 - Configuration Persistence - Recent, URLs and settings, are saved in a Json configuration file.
-- Platform support - HuggingFace, Google Drive, Dropbox, GitHub, Direct HTTP/HTTPS.
+- Platform support - HuggingFace, HTTP/HTTPS.
+- Download Resume - If for some reason the computer or program crach, then downloads may resume (not working currently, see Development section).
+- Anti-Server-Spam - Requests are not sent more than once per second to the server.
+- Orphan Removal - Orphan files are, detected and indexed (not tested since revisit/refracture).
 
 ## Requirements
 - Windows 7-10, testing is done on 10.
