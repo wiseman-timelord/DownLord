@@ -59,7 +59,7 @@ SETUP_MENU = f"""
 
 
 
-{SEPARATOR_THICK}"""
+"""
 
 
 def clear_screen(title="Main Menu", use_logo=True):
@@ -306,7 +306,6 @@ def display_download_state(
 
 
 
-
     Filename:
         {filename}
 
@@ -321,11 +320,11 @@ def display_download_state(
 
     Elapsed/Remaining:
         {elapsed_str}<{remaining_str}
+
+
     
     
-    
-    
-    
+{SEPARATOR_THICK}Download in progress...    
 """)
 
 
