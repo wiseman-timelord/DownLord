@@ -22,15 +22,15 @@ DownLord is a more dedicated approach to downloading large and important files, 
 ========================================================================================================================
     DownLord: Main Menu
 ------------------------------------------------------------------------------------------------------------------------
-    #     Filename                                           Progress     Size
+    #.    Filename                                           Progress     Size
 ========================================================================================================================
 
 
-    1     Empty                                              -            -
+    1     1GB.bin                                            100.0%       1.00 GB
 
-    2     Empty                                              -            -
+    2     512MB.zip                                          100.0%       512.00 MB
 
-    3     Empty                                              -            -
+    3     100MB.bin                                          100.0%       100.00 MB
 
     4     Empty                                              -            -
 
@@ -46,8 +46,7 @@ DownLord is a more dedicated approach to downloading large and important files, 
 
 
 ========================================================================================================================
-Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q:
-
+Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q:
 
 ```
 - Download Initialization (using HuggingFace url)...
