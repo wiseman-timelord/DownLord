@@ -159,9 +159,10 @@ Press any key to return to Main Menu...
 - Multi-Platform - Programming towards download from, Normal http/https, HuggingHace (indirect link), GoogleDrive (untested).
 
 ## Requirements
-- Windows 7-10, testing is done on 10.
-- Python 3.6-3.11, 3.11 recommended.
-- Internet Connection and a URL to download.
+- Windows 7-10 - programing/testing is done on 10.
+- Python 3.6-3.11 - Python 3.11 is recommended.
+- Internet - Internet Connection and a valid URL to download.
+- Storage - The large files being downloaded must be stored.
 
 ### Install
 1. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install github projects to locations with spaces such as `Program Files`).
