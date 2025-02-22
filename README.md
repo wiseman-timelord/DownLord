@@ -115,49 +115,38 @@ C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib
   warnings.warn(
 
 ```
-- Setup menu is functional...
+- Download Summary...
 ```
-===============================================================================
-    DownLord: Setup Menu
-===============================================================================
+========================================================================================================================
+    DownLord: Download Summary
+========================================================================================================================
 
 
 
+    Filename:
+        Lamarckvergence-14B.i1-Q3_K_M.gguf
+
+    Completed:
+        2025/02/21 23:14:57
+
+    Total Size:
+        6.83 GB
+
+    Average Speed:
+        366.01 KB/s
+
+    Elapsed Time:
+        05:26:15
+
+    Locaton:
+        C:\Program_Filez\DownLord\DownLord-v0.22\downloads\Lamarckvergence-14B.i1-Q3_K_M.gguf
 
 
 
-    1. Connection Speed       (2.5Mbps)
-
-    2. Maximum Retries        (100)
-
-    3. Downloads Location     (C:\Program_Filez\DownLord\DownLord-v0.18\downloads)
-
-
-
-
-
-===============================================================================
-Selection; Options = 1-4, Return = B:
+========================================================================================================================
+Press any key to return to Main Menu...
 ```
-- Installation processes...
-```
-===============================================================================
-    DownLord: Install
-===============================================================================
->> Python version check passed [OK]
->> Platform check passed: windows [OK]
->> Checked directory: .\data [OK]
->> Checked directory: .\downloads [OK]
->> Checked directory: .\scripts [OK]
->> Checked directory: .\incomplete [OK]
->> Created .\scripts\__init__.py [OK]
->> Created .\data\requirements.txt [OK]
->> Installed Python dependencies [OK]
-Json already exists: .\data\persistent.json
-Do you want to overwrite it? (y/n): y
->> Created default persistent [OK]
-Press Enter to exit...
-```
+
 
 ### Features
 - Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.
