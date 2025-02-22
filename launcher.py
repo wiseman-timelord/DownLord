@@ -233,6 +233,13 @@ def prompt_for_download():
             config = ConfigManager.load()  # Reload config after setup
             continue
 
+        if choice == 'r':
+            handle_orphaned_files(config)
+            config = ConfigManager.load()  # Reload config after refresh
+            clear_screen()
+            continue
+
+
         if choice == 'q':
             print("Quitting...")
             break
