@@ -181,20 +181,7 @@ Press any key to return to Main Menu...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
 
 ## Development
-1. Stats are wierd since summary screen was implemented...
-- `Received/Total` is showing `TotalDownloaded/PreviouslyDisplayedValueOfTotalDownloaded` instead of `TotalDownloaded/TotalFilesizeOnServer`.
-- `Elapsed/Remaining` is showing `00:03:02<--:--:--` instead of correctly calculating and displaying the remaining time based on the correct calculation.
-2. It says during initialization of download...
-```
-Successfully registered new download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...) with size 0
-```
-...but...
-- there is no new entry in the Json until the download has finished.
-- it says `size 0`, so clearly its not gaining the correct filesize from the server.
-3. Main Menu needs a `Refresh = R` option on main menu, where it will search for changes in the presence of files and json items. The prompt would then be like this..
-```
-Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q:
-```
+1. While initializing the download, when it has the complete information, it is supposed to be registering the, filename and url and total size, in a free key in the json, before or as, the actual file transfer begins, so that if, for example, the program somehow, crashes or is closed, then the user can resume the download by loading the program, and selecting the item from the menu, to continue the relevant download.   
 
 ### File Structure
 - Packaged files
