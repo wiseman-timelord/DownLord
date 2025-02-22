@@ -346,8 +346,6 @@ def display_download_summary(
     print(f"""
     
     
-    
-    
     Filename:
         {filename}
         
@@ -363,7 +361,7 @@ def display_download_summary(
     Elapsed Time:
         {elapsed_str}
         
-    Destination:
+    Location:
         {destination}
     
     
