@@ -26,6 +26,22 @@ REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 RETRY_OPTIONS = [100, 200, 400, 800]
 REFRESH_OPTIONS = [1, 2, 4, 8]
 
+# Optimized download config
+URL_HANDLERS = {
+    "huggingface": {
+        "pattern": r"huggingface\.co|hf\.co",
+        "handler": "process_huggingface_url"
+    },
+    "google_drive": {
+        "pattern": r"drive\.google\.com",
+        "handler": "process_google_drive_url"
+    },
+    "direct": {
+        "pattern": r"^https?://",
+        "handler": "process_direct_url"
+    }
+}
+
 # Configuration Defaults
 DEFAULT_CHUNK_SIZES = {
     "slow": 1024000,      # ~1MBit/s

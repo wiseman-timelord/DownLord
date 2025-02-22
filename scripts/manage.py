@@ -45,6 +45,8 @@ from .interface import (
     delete_file
 )
 
+_pending_handlers = []
+
 # Constants
 FS_UPDATE_INTERVAL = 5  # File system updates every 5 seconds
 DISPLAY_REFRESH = 1     # Visual refresh every 1 second
@@ -54,6 +56,254 @@ class DownloadError(Exception):
     """Custom exception for download-related errors."""
     pass
 
+def register_handler(platform: str):
+    """Decorator to collect URL handlers to be registered later."""
+    def decorator(func):
+        _pending_handlers.append((platform, func))
+        return func
+    return decorator
+
+class URLProcessor:
+    """Process URLs for downloading files using registered handlers."""
+    
+    _handlers = {}  # Dictionary to store platform-specific handlers
+
+    @staticmethod
+    def validate_url(url: str) -> bool:
+        """Validate if the URL starts with http:// or https://."""
+        return url.startswith(("http://", "https://"))
+
+    @staticmethod
+    def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
+        """Get metadata about a remote file with timeout countdown."""
+        timeout_length = config.get("timeout_length", 120)
+        start_time = time.time()
+        attempt = 0
+        base_delay = 1
+        max_attempts = 5
+        last_update = 0
+        status_line_length = 120
+
+        def print_status(message):
+            padded_message = message.ljust(status_line_length)
+            print(f"\r{padded_message}", end='', flush=True)
+
+        print_status("Establishing connection...")
+
+        try:
+            while (time.time() - start_time) < timeout_length and attempt < max_attempts:
+                attempt += 1
+                try:
+                    current_time = time.time()
+                    if current_time - last_update > 1:
+                        remaining = timeout_length - (time.time() - start_time)
+                        status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
+                        print_status(status_msg)
+                        last_update = current_time
+
+                    response = requests.head(
+                        url,
+                        headers=headers,
+                        allow_redirects=True,
+                        timeout=3
+                    )
+                    response.raise_for_status()
+
+                    content_length = int(response.headers.get('content-length', 0))
+                    if content_length == 0:
+                        get_response = requests.get(
+                            url,
+                            headers={**headers, "Range": "bytes=0-0"},
+                            allow_redirects=True,
+                            timeout=3,
+                            stream=True
+                        )
+                        get_response.raise_for_status()
+                        if 'Content-Range' in get_response.headers:
+                            content_range = get_response.headers['Content-Range']
+                            total_size = int(content_range.split('/')[-1])
+                        else:
+                            total_size = 0
+                    else:
+                        total_size = content_length
+
+                    elapsed = time.time() - start_time
+                    print_status(f"Connection established in {elapsed:.1f}s")
+                    
+                    return {
+                        'size': total_size,
+                        'modified': response.headers.get('last-modified'),
+                        'etag': response.headers.get('etag'),
+                        'content_type': response.headers.get('content-type')
+                    }
+                    
+                except (Timeout, ConnectionError) as e:
+                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
+                    status_msg = f"Connection attempt {attempt}/{max_attempts} failed. Retrying in {delay:.1f}s..."
+                    print_status(status_msg)
+                    time.sleep(delay)
+                    continue
+                    
+            print_status(f"Connection timed out after {timeout_length}s")
+            raise Timeout(f"Connection timed out after {timeout_length}s")
+            
+        except Exception as e:
+            display_error(f"Remote info error: {str(e)}")
+            time.sleep(3)
+            return {}
+
+    @staticmethod
+    def compare_files(local_path: Path, remote_info: Dict) -> str:
+        """Compare local and remote file sizes."""
+        if not local_path.exists():
+            return DOWNLOAD_VALIDATION["new"]
+
+        local_size = local_path.stat().st_size
+        if local_size == remote_info.get('size', 0):
+            return DOWNLOAD_VALIDATION["complete"]
+        elif local_size < remote_info.get('size', 0):
+            return DOWNLOAD_VALIDATION["incomplete"]
+        return DOWNLOAD_VALIDATION["size_mismatch"]
+
+    @staticmethod
+    @register_handler("huggingface")
+    def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
+        """Process HuggingFace URLs for downloading."""
+        if "cdn-lfs" in url:
+            try:
+                print("\nProcessing CDN URL")
+                headers = DEFAULT_HEADERS.copy()
+                timeout_length = config.get("timeout_length", 120)
+                start_time = time.time()
+                print(f"Verifying URL accessibility ({timeout_length}s timeout): ", end='', flush=True)
+                
+                while (time.time() - start_time) < timeout_length:
+                    try:
+                        test_response = requests.head(
+                            url,
+                            headers=headers,
+                            allow_redirects=True,
+                            timeout=1
+                        )
+                        if test_response.status_code != 200:
+                            raise DownloadError(f"URL returned status code: {test_response.status_code}")
+                        elapsed = time.time() - start_time
+                        print(f"Completed in {elapsed:.1f}s")
+                        break
+                    except (Timeout, ConnectionError):
+                        remaining = timeout_length - (time.time() - start_time)
+                        print(f"{remaining:.1f}s", end=' ', flush=True)
+                        continue
+
+                remote_info = URLProcessor.get_remote_file_info(url, headers, config)
+                parsed_url = urlparse(url)
+                query_params = parse_qs(parsed_url.query)
+                content_disp_encoded = query_params.get('response-content-disposition', [None])[0]
+                if content_disp_encoded:
+                    content_disp = unquote(content_disp_encoded).replace('\r', '').replace('\n', '')
+                    filename = extract_filename_from_disposition(content_disp)
+                    if filename:
+                        print(f"Found filename: {filename}")
+                        return url, {"filename": filename, "is_cdn": True}
+
+                if "filename*=UTF-8''" in url:
+                    start = url.find("filename*=UTF-8''") + 17
+                    end = url.find("&", start) or len(url)
+                    filename = unquote(url[start:end].split(";")[0])
+                    print(f"Found UTF-8 filename in URL: {filename}")
+                    return url, {**remote_info, "filename": filename, "is_cdn": True}
+
+                if "filename=" in url:
+                    start = url.find("filename=") + 9
+                    end = url.find("&", start) or len(url)
+                    filename = unquote(url[start:end].split(";")[0]).replace('"', '')
+                    print(f"Found filename in URL: {filename}")
+                    return url, {**remote_info, "filename": filename, "is_cdn": True}
+
+                raise DownloadError("Could not find filename in HuggingFace CDN URL")
+
+            except Exception as e:
+                display_error(f"CDN URL processing failed: {str(e)}")
+                time.sleep(3)
+                raise DownloadError(f"HuggingFace CDN error: {str(e)}")
+
+        hf_config = config["download"]["huggingface"]
+        headers = DEFAULT_HEADERS.copy()
+        if hf_config["use_auth"] and hf_config["token"]:
+            headers["authorization"] = f"Bearer {hf_config['token']}"
+
+        if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
+            try:
+                model_id = model_match.group(1)
+                response = requests.head(
+                    url,
+                    headers=headers,
+                    allow_redirects=True,
+                    timeout=config.get("timeout_length", 60)
+                )
+                response.raise_for_status()
+                files = response.json()
+
+                if hf_config["prefer_torch"]:
+                    torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
+                    if torch_files:
+                        files = torch_files
+
+                target_file = max(files, key=lambda x: x.get("size", 0))
+                download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
+
+                remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
+                return (download_url, {
+                    **remote_info,
+                    "size": target_file.get("size", 0),
+                    "filename": target_file["rfilename"]
+                })
+            except Exception as e:
+                raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
+
+        if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
+            remote_info = URLProcessor.get_remote_file_info(url, headers, config)
+            return url, remote_info
+
+        raise DownloadError("Invalid HuggingFace URL format")
+
+    @staticmethod
+    @register_handler("google_drive")
+    def process_google_drive_url(url: str, config: Dict) -> Tuple[str, Dict]:
+        """Process Google Drive URLs for downloading."""
+        file_id_match = re.search(r"/d/([-\w]+)", url)
+        if file_id_match:
+            file_id = file_id_match.group(1)
+            download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
+            
+            session = requests.Session()
+            response = session.get(download_url, stream=True)
+            if "confirm=" in response.url:
+                confirm_param = re.search(r"confirm=([^&]+)", response.url).group(1)
+                download_url += f"&confirm={confirm_param}"
+
+            remote_info = URLProcessor.get_remote_file_info(download_url, DEFAULT_HEADERS.copy(), config)
+            return download_url, remote_info
+        raise DownloadError("Invalid Google Drive URL format")
+
+    @staticmethod
+    def process_url(url: str, config: Dict) -> Tuple[str, Dict]:
+        """Process URLs using registered handlers."""
+        for platform, pattern in URL_PATTERNS.items():
+            if not re.search(pattern["pattern"], url):
+                continue
+
+            handler = URLProcessor._handlers.get(platform)
+            if handler:
+                return handler(url, config)
+
+        # Handle as direct download if no platform matches
+        remote_info = URLProcessor.get_remote_file_info(url, DEFAULT_HEADERS.copy(), config)
+        return url, remote_info
+
+for platform, func in _pending_handlers:
+    URLProcessor._handlers[platform] = func
+
 # Functions
 def calculate_retry_delay(retries: int) -> float:
     """Calculate retry delay based on retry strategy."""
@@ -61,6 +311,7 @@ def calculate_retry_delay(retries: int) -> float:
         RETRY_STRATEGY["initial_delay"] * (RETRY_STRATEGY["backoff_factor"] ** retries),
         RETRY_STRATEGY["max_delay"]
     )
+
 
 
 def get_download_headers(existing_size: int = 0) -> Dict:
@@ -97,76 +348,90 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
         return None
 
 
-class URLProcessor:
-    """Process URLs for downloading files."""
+@staticmethod
+def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
+    """Get metadata about a remote file with timeout countdown."""
+    timeout_length = config.get("timeout_length", 120)
+    start_time = time.time()
+    attempt = 0
+    base_delay = 1
+    max_attempts = 5
+    last_update = 0
+    status_line_length = 120  # Match your separator width
 
-    @staticmethod
-    def validate_url(url: str) -> bool:
-        return url.startswith("http://") or url.startswith("https://")
+    def print_status(message):
+        # Pad the message with spaces to clear the line
+        padded_message = message.ljust(status_line_length)
+        print(f"\r{padded_message}", end='', flush=True)
 
-    @staticmethod
-    def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
-        """Get metadata about a remote file with timeout countdown."""
-        timeout_length = config.get("timeout_length", 120)
-        start_time = time.time()
-        attempt = 0
-        base_delay = 1
-        max_attempts = 5
-        last_update = 0
-        status_line_length = 120  # Match your separator width
+    print_status("Establishing connection...")
 
-        def print_status(message):
-            # Pad the message with spaces to clear the line
-            padded_message = message.ljust(status_line_length)
-            print(f"\r{padded_message}", end='', flush=True)
-
-        print_status("Establishing connection...")
-
-        try:
-            while (time.time() - start_time) < timeout_length and attempt < max_attempts:
-                attempt += 1
-                try:
-                    # Update status every second
-                    current_time = time.time()
-                    if current_time - last_update > 1:
-                        remaining = timeout_length - (time.time() - start_time)
-                        status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
-                        print_status(status_msg)
-                        last_update = current_time
-
-                    response = requests.head(
-                        url,
-                        headers=headers,
-                        allow_redirects=True,
-                        timeout=3  # Increased timeout
-                    )
-                    
-                    response.raise_for_status()
-                    elapsed = time.time() - start_time
-                    print_status(f"Connection established in {elapsed:.1f}s")  # Success message
-                    
-                    return {
-                        'size': int(response.headers.get('content-length', 0)),
-                        'modified': response.headers.get('last-modified'),
-                        'etag': response.headers.get('etag'),
-                        'content_type': response.headers.get('content-type')
-                    }
-                    
-                except (Timeout, ConnectionError) as e:
-                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)  # Max 10s delay
-                    status_msg = f"Connection attempt {attempt}/{max_attempts} failed. Retrying in {delay:.1f}s..."
+    try:
+        while (time.time() - start_time) < timeout_length and attempt < max_attempts:
+            attempt += 1
+            try:
+                # Update status every second
+                current_time = time.time()
+                if current_time - last_update > 1:
+                    remaining = timeout_length - (time.time() - start_time)
+                    status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
                     print_status(status_msg)
-                    time.sleep(delay)
-                    continue
-                    
-            # Timeout reached
-            print_status(f"Connection timed out after {timeout_length}s")  # Final timeout message
-            raise Timeout(f"Connection timed out after {timeout_length}s")
-            
-        except Exception as e:
-            display_error(f"Remote info error: {str(e)}")
-            time.sleep(3)
-            return {}
+                    last_update = current_time
+
+                # Attempt HEAD request first
+                response = requests.head(
+                    url,
+                    headers=headers,
+                    allow_redirects=True,
+                    timeout=3
+                )
+                response.raise_for_status()
+
+                # Check if Content-Length is present
+                content_length = int(response.headers.get('content-length', 0))
+                if content_length == 0:
+                    # Fallback to GET request with Range to get Content-Range
+                    get_response = requests.get(
+                        url,
+                        headers={**headers, "Range": "bytes=0-0"},
+                        allow_redirects=True,
+                        timeout=3,
+                        stream=True
+                    )
+                    get_response.raise_for_status()
+                    if 'Content-Range' in get_response.headers:
+                        content_range = get_response.headers['Content-Range']
+                        total_size = int(content_range.split('/')[-1])
+                    else:
+                        total_size = 0
+                else:
+                    total_size = content_length
+
+                elapsed = time.time() - start_time
+                print_status(f"Connection established in {elapsed:.1f}s")  # Success message
+                
+                return {
+                    'size': total_size,
+                    'modified': response.headers.get('last-modified'),
+                    'etag': response.headers.get('etag'),
+                    'content_type': response.headers.get('content-type')
+                }
+                
+            except (Timeout, ConnectionError) as e:
+                delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
+                status_msg = f"Connection attempt {attempt}/{max_attempts} failed. Retrying in {delay:.1f}s..."
+                print_status(status_msg)
+                time.sleep(delay)
+                continue
+                
+        # Timeout reached
+        print_status(f"Connection timed out after {timeout_length}s")
+        raise Timeout(f"Connection timed out after {timeout_length}s")
+        
+    except Exception as e:
+        display_error(f"Remote info error: {str(e)}")
+        time.sleep(3)
+        return {}
 
     @staticmethod
     def compare_files(local_path: Path, remote_info: Dict) -> str:
@@ -421,8 +686,34 @@ class DownloadManager:
                 break
 
     def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
-        """Register download metadata at 1% progress."""
-        self._register_file_entry(filename, url, total_size)
+        """
+        Register download metadata immediately after verifying total size.
+        Ensures the entry is added to the JSON configuration file early in the download process.
+        """
+        try:
+            # Ensure total_size is valid before registering
+            if total_size > 0:
+                # Register the file entry in the first available slot
+                for i in range(1, 10):
+                    if self.config[f"filename_{i}"] in ["Empty", filename]:
+                        self.config[f"filename_{i}"] = filename
+                        self.config[f"url_{i}"] = url
+                        self.config[f"total_size_{i}"] = total_size
+                        ConfigManager.save(self.config)
+                        print(f"Registered early metadata for: {filename} (Size: {total_size})")
+                        print("Setting up download...") # Long wait, after here and before `Download Active` display, leave in.  
+                        break
+            else:
+                display_error("Could not determine file size from server. Registration delayed.")
+                # Retry registration after a delay or when size is available
+                time.sleep(2)
+                if total_size > 0:  # Re-check size after delay
+                    self._register_early_metadata(filename, url, total_size)
+                else:
+                    display_error("Failed to register metadata due to unknown file size.")
+        except Exception as e:
+            display_error(f"Error registering early metadata: {str(e)}")
+            time.sleep(3)
 
     def cleanup_unregistered_files(self) -> None:
         """Remove files not registered in persistent.json."""

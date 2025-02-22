@@ -34,7 +34,7 @@ MULTI_HEADER = f'''{SEPARATOR_THICK}
 {SEPARATOR_THIN}'''
 
 MAIN_MENU_FOOTER = f"""{SEPARATOR_THICK}
-Selection; New URL = 0, Continue = 1-9, Delete = D, Setup = S, Quit = Q: """
+Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q: """
 
 SETUP_MENU = f"""
 
@@ -144,16 +144,19 @@ def delete_file(config: Dict, index: int) -> bool:
             time.sleep(3)
             return False
 
-        # Remove the entry from the config
+        # Shift entries to fill the gap
         for i in range(index, 9):
-            config[f"filename_{i}"] = config.get(f"filename_{i+1}", "Empty")
-            config[f"url_{i}"] = config.get(f"url_{i+1}", "")
-            config[f"total_size_{i}"] = config.get(f"total_size_{i+1}", 0)
+            next_i = i + 1
+            config[f"filename_{i}"] = config.get(f"filename_{next_i}", "Empty")
+            config[f"url_{i}"] = config.get(f"url_{next_i}", "")
+            config[f"total_size_{i}"] = config.get(f"total_size_{next_i}", 0)
 
+        # Clear the last entry
         config["filename_9"] = "Empty"
         config["url_9"] = ""
         config["total_size_9"] = 0
 
+        # Save the updated configuration
         ConfigManager.save(config)
         return True
 
