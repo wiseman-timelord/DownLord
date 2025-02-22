@@ -17,7 +17,7 @@ DownLord is a more dedicated approach to downloading large and important files, 
 
 ### Preview
 
-- Main menu looking sleek...
+- Main Menu (with test files)...
 ```
 ========================================================================================================================
     DownLord: Main Menu
