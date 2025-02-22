@@ -156,7 +156,7 @@ Press any key to return to Main Menu...
 - Download Resume - If for some reason the computer or program crach, then downloads may resume (not working currently, see Development section).
 - Anti-Server-Spam - Requests are not sent more than once per second to the server.
 - Orphan Removal - Orphan files are, detected and indexed (not tested since revisit/refracture).
-- Multi-Platform - Normal http/https downloads, HuggingHace downloads, GoogleDrive downloads.
+- Multi-Platform - Programming towards download from, Normal http/https, HuggingHace (indirect link), GoogleDrive (untested).
 
 ## Requirements
 - Windows 7-10, testing is done on 10.
