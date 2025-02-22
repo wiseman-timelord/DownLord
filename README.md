@@ -190,7 +190,10 @@ Successfully registered new download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https:
 ...but...
 - there is no new entry in the Json until the download has finished.
 - it says `size 0`, so clearly its not gaining the correct filesize from the server.
-3. Main Menu needs a `Refresh = R` option on main menu, where it will search for changes in the presence of files and json items.
+3. Main Menu needs a `Refresh = R` option on main menu, where it will search for changes in the presence of files and json items. The prompt would then be like this..
+```
+Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q:
+```
 
 ### File Structure
 - Packaged files
