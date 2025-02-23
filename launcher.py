@@ -69,7 +69,6 @@ def handle_download(url: str, config: dict) -> bool:
     """
     try:
         processor = URLProcessor()
-        # Single call to process_url with error handling
         try:
             download_url, metadata = processor.process_url(url, config)
         except DownloadError as e:
@@ -77,77 +76,66 @@ def handle_download(url: str, config: dict) -> bool:
             time.sleep(3)
             return False
 
-        filename = None
-        while True:
-            try:
-                # Truncate URLs for display
-                short_url = url if len(url) <= 60 else f"{url[:57]}..."
-                print(f"\nInitializing download for: {short_url}")
+        filename = metadata.get("filename") or get_file_name_from_url(download_url)
+        if not filename:
+            display_error("Unable to extract filename from the URL. Please try again.")
+            time.sleep(3)
+            return False
 
-                # Truncate resolved download URL for display
-                short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
-                print(f"Resolved download URL: {short_download_url}")
+        # Register the download in the JSON file BEFORE starting the download
+        update_history(config, filename, url, metadata.get('size', 0))
+        ConfigManager.save(config)  # Force immediate save
 
-                filename = metadata.get("filename") or get_file_name_from_url(download_url)
-                if not filename:
-                    display_error("Unable to extract filename from the URL. Please try again.")
-                    time.sleep(3)
-                    return False
+        # Initialize download manager AFTER registration
+        downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
+        dm = DownloadManager(downloads_location)
+        chunk_size = config.get("chunk", 4096000)
 
-                downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
-                out_path = downloads_location / filename
+        # Display distinct messages for user-provided and resolved URLs
+        short_url = url if len(url) <= 60 else f"{url[:57]}..."
+        short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
+        print(f"\nInitializing download for user-provided URL: {short_url}")
+        print(f"Resolved final download endpoint: {short_download_url}")
 
-                # Register the download in the JSON file
-                update_history(config, filename, url, metadata.get('size', 0))
-                ConfigManager.save(config)
+        # Execute the actual download
+        out_path = downloads_location / filename
+        success, error = dm.download_file(download_url, out_path, chunk_size)
 
-                # Initialize download manager with configured location
-                dm = DownloadManager(downloads_location)
-                chunk_size = config.get("chunk", 4096000)
+        if success:
+            display_success(f"Download complete for file: {filename}")
+            # Update the history with the final file size
+            update_history(config, filename, url, out_path.stat().st_size)
+            return True
+        else:
+            display_error(f"Download failed: {error}")
+            time.sleep(3)
+            return False
 
-                # Execute the actual download
-                success, error = dm.download_file(download_url, out_path, chunk_size)
-
-                if success:
-                    display_success(f"Download complete for file: {filename}")
-                    update_history(config, filename, url, out_path.stat().st_size)
-                    return True
-                else:
-                    display_error(f"Download failed: {error}")
-                    time.sleep(3)
-                    return False
-
-            except Exception as e:
-                display_error(f"Unexpected error: {str(e)}")
-                time.sleep(3)
-                choice = input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
-
-                if choice == 'r':
-                    continue
-                elif choice == '0':
-                    new_url = display_download_prompt()
-                    if new_url.lower() == 'b':
-                        return False
-                    # Update config if we have filename context
-                    if filename:
-                        for i in range(1, 10):
-                            if config[f"filename_{i}"] == filename:
-                                config[f"url_{i}"] = new_url
-                                ConfigManager.save(config)
-                                break
-                    url = new_url
-                    clear_screen()
-                    continue
-                elif choice == 'b':
-                    return False
-                else:
-                    display_error("Invalid choice. Please try again.")
-                    time.sleep(3)
-                    return False
     except Exception as e:
-        display_error(f"Fatal error in download handler: {str(e)}")
+        display_error(f"Unexpected error: {str(e)}")
         time.sleep(3)
-        return False
+        choice = input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
+
+        if choice == 'r':
+            return handle_download(url, config)  # Retry with the same URL
+        elif choice == '0':
+            new_url = display_download_prompt()
+            if new_url.lower() == 'b':
+                return False
+            # Update config if we have filename context
+            if filename:
+                for i in range(1, 10):
+                    if config[f"filename_{i}"] == filename:
+                        config[f"url_{i}"] = new_url
+                        ConfigManager.save(config)
+                        break
+            return handle_download(new_url, config)  # Retry with the new URL
+        elif choice == 'b':
+            return False
+        else:
+            display_error("Invalid choice. Please try again.")
+            time.sleep(3)
+            return False
 
 
 def check_environment() -> bool:
