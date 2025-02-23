@@ -8,6 +8,7 @@ from typing import Optional, Dict, List, Tuple
 from urllib.parse import urlparse, parse_qs, unquote
 from requests.exceptions import RequestException, Timeout, ConnectionError
 from tqdm import tqdm
+from urllib3.exceptions import IncompleteRead
 from .configure import ConfigManager
 from .temporary import (
     URL_PATTERNS,
@@ -166,108 +167,6 @@ class URLProcessor:
         return DOWNLOAD_VALIDATION["size_mismatch"]
 
     @staticmethod
-    @register_handler("huggingface")
-    def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        """Process HuggingFace URLs for downloading."""
-        if "cdn-lfs" in url:
-            try:
-                print("\nProcessing CDN URL")
-                headers = DEFAULT_HEADERS.copy()
-                timeout_length = config.get("timeout_length", 120)
-                start_time = time.time()
-                print(f"Verifying URL accessibility ({timeout_length}s timeout): ", end='', flush=True)
-                
-                while (time.time() - start_time) < timeout_length:
-                    try:
-                        test_response = requests.head(
-                            url,
-                            headers=headers,
-                            allow_redirects=True,
-                            timeout=1
-                        )
-                        if test_response.status_code != 200:
-                            raise DownloadError(f"URL returned status code: {test_response.status_code}")
-                        elapsed = time.time() - start_time
-                        print(f"Completed in {elapsed:.1f}s")
-                        break
-                    except (Timeout, ConnectionError):
-                        remaining = timeout_length - (time.time() - start_time)
-                        print(f"{remaining:.1f}s", end=' ', flush=True)
-                        continue
-
-                remote_info = URLProcessor.get_remote_file_info(url, headers, config)
-                parsed_url = urlparse(url)
-                query_params = parse_qs(parsed_url.query)
-                content_disp_encoded = query_params.get('response-content-disposition', [None])[0]
-                if content_disp_encoded:
-                    content_disp = unquote(content_disp_encoded).replace('\r', '').replace('\n', '')
-                    filename = extract_filename_from_disposition(content_disp)
-                    if filename:
-                        print(f"Found filename: {filename}")
-                        return url, {"filename": filename, "is_cdn": True}
-
-                if "filename*=UTF-8''" in url:
-                    start = url.find("filename*=UTF-8''") + 17
-                    end = url.find("&", start) or len(url)
-                    filename = unquote(url[start:end].split(";")[0])
-                    print(f"Found UTF-8 filename in URL: {filename}")
-                    return url, {**remote_info, "filename": filename, "is_cdn": True}
-
-                if "filename=" in url:
-                    start = url.find("filename=") + 9
-                    end = url.find("&", start) or len(url)
-                    filename = unquote(url[start:end].split(";")[0]).replace('"', '')
-                    print(f"Found filename in URL: {filename}")
-                    return url, {**remote_info, "filename": filename, "is_cdn": True}
-
-                raise DownloadError("Could not find filename in HuggingFace CDN URL")
-
-            except Exception as e:
-                display_error(f"CDN URL processing failed: {str(e)}")
-                time.sleep(3)
-                raise DownloadError(f"HuggingFace CDN error: {str(e)}")
-
-        hf_config = config["download"]["huggingface"]
-        headers = DEFAULT_HEADERS.copy()
-        if hf_config["use_auth"] and hf_config["token"]:
-            headers["authorization"] = f"Bearer {hf_config['token']}"
-
-        if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
-            try:
-                model_id = model_match.group(1)
-                response = requests.head(
-                    url,
-                    headers=headers,
-                    allow_redirects=True,
-                    timeout=config.get("timeout_length", 60)
-                )
-                response.raise_for_status()
-                files = response.json()
-
-                if hf_config["prefer_torch"]:
-                    torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
-                    if torch_files:
-                        files = torch_files
-
-                target_file = max(files, key=lambda x: x.get("size", 0))
-                download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
-
-                remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
-                return (download_url, {
-                    **remote_info,
-                    "size": target_file.get("size", 0),
-                    "filename": target_file["rfilename"]
-                })
-            except Exception as e:
-                raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
-
-        if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
-            remote_info = URLProcessor.get_remote_file_info(url, headers, config)
-            return url, remote_info
-
-        raise DownloadError("Invalid HuggingFace URL format")
-
-    @staticmethod
     @register_handler("google_drive")
     def process_google_drive_url(url: str, config: Dict) -> Tuple[str, Dict]:
         """Process Google Drive URLs for downloading."""
@@ -350,7 +249,9 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
 
 @staticmethod
 def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
-    """Get metadata about a remote file with timeout countdown."""
+    """
+    Get metadata about a remote file with timeout countdown.
+    """
     timeout_length = config.get("timeout_length", 120)
     start_time = time.time()
     attempt = 0
@@ -433,192 +334,6 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
         time.sleep(3)
         return {}
 
-    @staticmethod
-    def compare_files(local_path: Path, remote_info: Dict) -> str:
-        """Compare local and remote file sizes."""
-        if not local_path.exists():
-            return DOWNLOAD_VALIDATION["new"]
-
-        local_size = local_path.stat().st_size
-        if local_size == remote_info.get('size', 0):
-            return DOWNLOAD_VALIDATION["complete"]
-        elif local_size < remote_info.get('size', 0):
-            return DOWNLOAD_VALIDATION["incomplete"]
-        return DOWNLOAD_VALIDATION["size_mismatch"]
-
-    @staticmethod
-    def process_github_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        """Process GitHub URLs for downloading."""
-        headers = DEFAULT_HEADERS.copy()
-        if 'Authorization' in headers:
-            del headers['Authorization']
-
-        # Handle release assets
-        release_match = re.match(
-            r'https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.+)',
-            url
-        )
-        if release_match:
-            owner, repo, tag, filename = release_match.groups()
-            download_url = f"https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
-            return download_url, {**remote_info, "filename": filename}
-
-        # Handle raw content
-        raw_match = re.match(
-            r'https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)',
-            url
-        )
-        if raw_match:
-            owner, repo, branch, path = raw_match.groups()
-            download_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
-            filename = os.path.basename(path)
-            return download_url, {**remote_info, "filename": filename}
-
-        # Handle repository archive
-        archive_match = re.match(
-            r'https?://github\.com/([^/]+)/([^/]+)/?$',
-            url
-        )
-        if archive_match:
-            owner, repo = archive_match.groups()
-            download_url = f"https://github.com/{owner}/{repo}/archive/refs/heads/main.zip"
-            remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
-            filename = f"{repo}-main.zip"
-            return download_url, {**remote_info, "filename": filename}
-
-        raise DownloadError("Invalid GitHub URL format")
-
-    @staticmethod
-    def process_huggingface_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        if "cdn-lfs" in url:
-            try:
-                print("\nProcessing CDN URL")  # Single newline
-                headers = DEFAULT_HEADERS.copy()
-
-                # Verify URL accessibility
-                timeout_length = config.get("timeout_length", 120)
-                start_time = time.time()
-                print(f"Verifying URL accessibility ({timeout_length}s timeout): ", end='', flush=True)
-                
-                while (time.time() - start_time) < timeout_length:
-                    try:
-                        # Removed duplicate timeout print here
-                        test_response = requests.head(
-                            url,
-                            headers=headers,
-                            allow_redirects=True,
-                            timeout=1
-                        )
-                        if test_response.status_code != 200:
-                            raise DownloadError(f"URL returned status code: {test_response.status_code}")
-                        elapsed = time.time() - start_time
-                        print(f"Completed in {elapsed:.1f}s")
-                        break
-                    except (Timeout, ConnectionError):
-                        remaining = timeout_length - (time.time() - start_time)
-                        print(f"{remaining:.1f}s", end=' ', flush=True)
-                        continue
-
-                remote_info = URLProcessor.get_remote_file_info(url, headers, config)
-
-                # Parse URL to get content disposition from query parameters
-                parsed_url = urlparse(url)
-                query_params = parse_qs(parsed_url.query)
-                content_disp_encoded = query_params.get('response-content-disposition', [None])[0]
-                if content_disp_encoded:
-                    # Decode and clean the content disposition
-                    content_disp = unquote(content_disp_encoded).replace('\r', '').replace('\n', '')
-                    filename = extract_filename_from_disposition(content_disp)
-                    if filename:
-                        print(f"Found filename: {filename}")
-                        return url, {"filename": filename, "is_cdn": True}
-
-                # Fallback to URL pattern matching if content disposition not found
-                if "filename*=UTF-8''" in url:
-                    start = url.find("filename*=UTF-8''") + 17
-                    end = url.find("&", start) or len(url)
-                    filename = unquote(url[start:end].split(";")[0])
-                    print(f"Found UTF-8 filename in URL: {filename}")
-                    return url, {**remote_info, "filename": filename, "is_cdn": True}
-
-                if "filename=" in url:
-                    start = url.find("filename=") + 9
-                    end = url.find("&", start) or len(url)
-                    filename = unquote(url[start:end].split(";")[0]).replace('"', '')
-                    print(f"Found filename in URL: {filename}")
-                    return url, {**remote_info, "filename": filename, "is_cdn": True}
-
-                raise DownloadError("Could not find filename in HuggingFace CDN URL")
-
-            except Exception as e:
-                display_error(f"CDN URL processing failed: {str(e)}")
-                time.sleep(3)
-                raise DownloadError(f"HuggingFace CDN error: {str(e)}")
-
-        # Handle non-CDN HuggingFace URLs
-        hf_config = config["download"]["huggingface"]
-        headers = DEFAULT_HEADERS.copy()
-        if hf_config["use_auth"] and hf_config["token"]:
-            headers["authorization"] = f"Bearer {hf_config['token']}"
-
-        if model_match := re.match(URL_PATTERNS["huggingface"]["model_pattern"], url):
-            try:
-                model_id = model_match.group(1)
-                response = requests.head(
-                    url,
-                    headers=headers,
-                    allow_redirects=True,
-                    timeout=config.get("timeout_length", 60)
-                )
-                response.raise_for_status()
-                files = response.json()
-
-                if hf_config["prefer_torch"]:
-                    torch_files = [f for f in files if f["rfilename"].endswith((".pt", ".pth", ".safetensors"))]
-                    if torch_files:
-                        files = torch_files
-
-                target_file = max(files, key=lambda x: x.get("size", 0))
-                download_url = f"https://huggingface.co/{model_id}/resolve/main/{target_file['rfilename']}"
-
-                # Get remote file info
-                remote_info = URLProcessor.get_remote_file_info(download_url, headers, config)
-                return (download_url, {
-                    **remote_info,
-                    "size": target_file.get("size", 0),
-                    "filename": target_file["rfilename"]
-                })
-            except Exception as e:
-                raise DownloadError(f"Failed to process HuggingFace URL: {str(e)}")
-
-        if re.match(URL_PATTERNS["huggingface"]["file_pattern"], url):
-            remote_info = URLProcessor.get_remote_file_info(url, headers, config)
-            return url, remote_info
-
-        raise DownloadError("Invalid HuggingFace URL format")
-
-    @staticmethod
-    def process_url(url: str, config: Dict) -> Tuple[str, Dict]:
-        """Process URLs based on their platform type."""
-        for platform, pattern in URL_PATTERNS.items():
-            if not re.search(pattern["pattern"], url):
-                continue
-
-            if platform == "huggingface":
-                return URLProcessor.process_huggingface_url(url, config)
-            elif platform == "github":
-                return URLProcessor.process_github_url(url, config)
-            elif platform == "dropbox":
-                processed_url = url.replace("?dl=0", "?dl=1")
-                remote_info = URLProcessor.get_remote_file_info(processed_url, DEFAULT_HEADERS.copy(), config)
-                return processed_url, remote_info
-
-        # Handle as direct download if no platform matches
-        remote_info = URLProcessor.get_remote_file_info(url, DEFAULT_HEADERS.copy(), config)
-        return url, remote_info
-
 
 class DownloadManager:
     """Manage file downloads with retries and resume support."""
@@ -691,21 +406,20 @@ class DownloadManager:
         Ensures the entry is added to the JSON configuration file early in the download process.
         """
         try:
-            # Ensure total_size is valid before registering
-            if total_size > 0:
-                # Register the file entry in the first available slot
-                for i in range(1, 10):
-                    if self.config[f"filename_{i}"] in ["Empty", filename]:
-                        self.config[f"filename_{i}"] = filename
-                        self.config[f"url_{i}"] = url
-                        self.config[f"total_size_{i}"] = total_size
-                        ConfigManager.save(self.config)
-                        print(f"Registered early metadata for: {filename} (Size: {total_size})")
-                        print("Setting up download...") # Long wait, after here and before `Download Active` display, leave in.  
-                        break
-            else:
+            # Register even if total_size is unknown
+            for i in range(1, 10):
+                if self.config[f"filename_{i}"] in ["Empty", filename]:
+                    self.config[f"filename_{i}"] = filename
+                    self.config[f"url_{i}"] = url
+                    self.config[f"total_size_{i}"] = total_size if total_size > 0 else "Unknown"
+                    ConfigManager.save(self.config)
+                    print(f"Registered early metadata for: {filename} (Size: {total_size if total_size > 0 else 'Unknown'})")
+                    print("Setting up download...")  # Long wait, after here and before `Download Active` display, leave in.
+                    break
+
+            # If total_size is unknown, retry registration after a delay
+            if total_size <= 0:
                 display_error("Could not determine file size from server. Registration delayed.")
-                # Retry registration after a delay or when size is available
                 time.sleep(2)
                 if total_size > 0:  # Re-check size after delay
                     self._register_early_metadata(filename, url, total_size)
@@ -954,9 +668,9 @@ class DownloadManager:
                             elapsed=elapsed,
                             timestamp=datetime.now(),
                             destination=str(out_path)
-                            )
+                        )
 
-                        # Update final size
+                        # Update final size in the configuration
                         final_size = out_path.stat().st_size
                         for i in range(1, 10):
                             if self.config[f"filename_{i}"] == filename:
@@ -982,23 +696,27 @@ class DownloadManager:
                     else:
                         raise  # Re-raise other OSError exceptions
 
-                except (Timeout, ConnectionError, RequestException) as e:
+                except (Timeout, ConnectionError, RequestException, IncompleteRead) as e:
                     retries += 1
                     if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
-                        display_error("Download Initialization Failed.\nCheck link validity, internet, firewall, and then retry.")
-                        choice = input("\nSelection; Resume Download = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
-                        if choice == 'r':
-                            return self.download_file(remote_url, out_path, chunk_size)  # Retry same URL
-                        elif choice == '0':
-                            new_url = display_download_prompt()
-                            return self.download_file(new_url, out_path, chunk_size)
-                        elif choice == 'b':
-                            return False, "Returning to menu"
-                        else:
-                            return False, "Invalid choice"
-                    else:
+                        display_error("Connection interrupted. Retrying from last received byte...")
+                        # Reset retries counter to force resume
+                        retries = RUNTIME_CONFIG["download"]["max_retries"] - 1
                         time.sleep(calculate_retry_delay(retries))
-                        print(f"Retry {retries}/{RUNTIME_CONFIG['download']['max_retries']}: {str(e)}")
+                        continue
+
+                    display_error(f"Download error: {str(e)}")
+                    time.sleep(3)
+                    choice = input("\nSelection; Resume Download = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
+                    if choice == 'r':
+                        return self.download_file(remote_url, out_path, chunk_size)  # Retry same URL
+                    elif choice == '0':
+                        new_url = display_download_prompt()
+                        return self.download_file(new_url, out_path, chunk_size)
+                    elif choice == 'b':
+                        return False, "Returning to menu"
+                    else:
+                        return False, "Invalid choice"
 
         except Exception as e:
             display_error(f"Download error: {str(e)}")
@@ -1015,9 +733,15 @@ class DownloadManager:
             else:
                 return False, "Invalid choice"
         finally:
-            # Only cleanup if move failed and temp file still exists
+            # Only cleanup if ALL retries failed AND file is unregistered
             if temp_path and temp_path.exists():
-                self._cleanup_temp_files(out_path.name)
+                # Check if file is registered
+                is_registered = any(
+                    self.config[f"filename_{i}"] == out_path.name 
+                    for i in range(1, 10)
+                )
+                if not is_registered:
+                    self._cleanup_temp_files(out_path.name)
 
         return False, "Maximum retries exceeded"
 
@@ -1050,35 +774,39 @@ def get_file_name_from_url(url: str) -> Optional[str]:
 def handle_orphaned_files(config: dict) -> None:
     """
     Unified orphan handling: registration + cleanup.
+    Ensures files are only deleted if they are unregistered and have no corresponding JSON entry.
     """
     registered_files = set()
 
-    # 1. Register orphans
-    for folder in [TEMP_DIR, DOWNLOADS_DIR]:
-        for file in folder.glob("*"):
-            filename = file.stem if file.suffix == ".part" else file.name
-            if not any(config.get(f"filename_{i}") == filename for i in range(1, 10)):
-                # Register in first empty slot
-                for i in range(1, 10):
-                    if config[f"filename_{i}"] == "Empty":
-                        config[f"filename_{i}"] = filename
-                        config[f"url_{i}"] = ""
-                        config[f"total_size_{i}"] = file.stat().st_size
-                        registered_files.add(filename)
-                        break
+    # 1. Build a set of registered filenames (including .part files)
+    for i in range(1, 10):
+        filename = config.get(f"filename_{i}", "Empty")
+        if filename != "Empty":
+            registered_files.add(filename)  # Add the main filename
+            registered_files.add(f"{filename}.part")  # Add the corresponding .part file
 
-    # 2. Cleanup unregistered
-    for folder in [TEMP_DIR, DOWNLOADS_DIR]:
+    # 2. Cleanup unregistered files in both downloads and incomplete directories
+    for folder in [DOWNLOADS_DIR, TEMP_DIR]:
         for file in folder.glob("*"):
-            if file.name not in registered_files and not any(
-                config.get(f"filename_{i}") == file.name for i in range(1, 10)
-            ):
-                try:
-                    file.unlink()
-                    print(f"Removed unregistered file: {file}")
-                except Exception as e:
-                    display_error(f"Error removing file {file}: {str(e)}")
-                    time.sleep(3)
+            # Skip cleanup if the file is registered
+            if file.name in registered_files:
+                continue
+
+            # Skip cleanup if the file has a corresponding JSON entry
+            has_json_entry = any(
+                config.get(f"filename_{i}") == file.stem  # Check without .part extension
+                for i in range(1, 10)
+            )
+            if has_json_entry:
+                continue
+
+            # Cleanup unregistered files
+            try:
+                file.unlink()
+                print(f"Removed unregistered file: {file}")
+            except Exception as e:
+                display_error(f"Error removing file {file}: {str(e)}")
+                time.sleep(3)
 
 def cleanup_temp_files() -> None:
     """
@@ -1113,8 +841,6 @@ def move_with_retry(src: Path, dst: Path, max_retries: int = 5, delay: float = 1
     """
     Move file with retry mechanism for Windows file locks.
     """
-    import time
-
     for attempt in range(max_retries):
         try:
             if not src.exists():
@@ -1124,9 +850,26 @@ def move_with_retry(src: Path, dst: Path, max_retries: int = 5, delay: float = 1
             # Ensure destination directory exists
             dst.parent.mkdir(parents=True, exist_ok=True)
 
-            # Force close any potential file handles
-            import gc
-            gc.collect()
+            # Force close any potential file handles (Windows-specific)
+            if os.name == 'nt':
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                dll = ctypes.windll.LoadLibrary("kernel32.dll")
+                dll.LockFileEx.argtypes = [
+                    ctypes.c_void_p,  # hFile
+                    ctypes.c_uint32,  # dwFlags
+                    ctypes.c_uint32,  # dwReserved
+                    ctypes.c_uint32,  # nNumberOfBytesToLockLow
+                    ctypes.c_uint32,  # nNumberOfBytesToLockHigh
+                    ctypes.POINTER(ctypes.c_void_p)  # lpOverlapped
+                ]
+                dll.UnlockFileEx.argtypes = [
+                    ctypes.c_void_p,  # hFile
+                    ctypes.c_uint32,  # dwReserved
+                    ctypes.c_uint32,  # nNumberOfBytesToUnlockLow
+                    ctypes.c_uint32,  # nNumberOfBytesToUnlockHigh
+                    ctypes.POINTER(ctypes.c_void_p)  # lpOverlapped
+                ]
 
             # Attempt move
             src.replace(dst)  # Using replace instead of rename

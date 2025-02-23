@@ -155,8 +155,8 @@ DEFAULT_CONFIG = {
 # Runtime Configuration
 RUNTIME_CONFIG = {
     "download": {
-        "timeout": 60,  # Changed from 30 to 60
-        "max_retries": 5,
+        "timeout": 120,
+        "max_retries": 10,
         "max_parallel": 3,
         "bandwidth_limit": None,
         "auto_resume": True,
