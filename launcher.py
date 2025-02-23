@@ -94,7 +94,7 @@ def handle_download(url: str, config: dict) -> bool:
         # Display distinct messages for user-provided and resolved URLs
         short_url = url if len(url) <= 60 else f"{url[:57]}..."
         short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
-        print(f"\nInitializing download for user-provided URL: {short_url}")
+        print(f"Initializing download for URL: {short_url}")
         print(f"Resolved final download endpoint: {short_download_url}")
 
         # Execute the actual download
@@ -255,6 +255,17 @@ def prompt_for_download():
                 time.sleep(3)
                 continue
 
+            # Clear screen for Initialize Download
+            clear_screen("Initialize Download")
+
+            downloads_location = Path(config.get("downloads_location", str(DOWNLOADS_DIR)))
+            existing_file = downloads_location / filename
+            if existing_file.exists():
+                display_success(f"'{filename}' is already downloaded!")
+                time.sleep(2)
+                config = ConfigManager.load()  # Reload to refresh any changes
+                continue
+            
             # Handle orphaned files (no URL)
             if not url:
                 new_url = display_download_prompt()
