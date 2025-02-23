@@ -179,6 +179,8 @@ Press any key to return to Main Menu...
 
 ## Development
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
+2. It needs some kind of break during download loop, in order to be able to pause and resume or return to menu.
+3. when I select a number from the menu 1-9, then it seems to be initializing the download, without first printing the header for the Initialize Download screen, it should do this first, then initialize the download from the information in the slot in the json, or if it is complete already, then instead print that the download is already complete and reprint the menu. if its complete it will already be in `.\downloads` and not in `.\incomplete`.
 
 ### File Structure
 - Packaged files
