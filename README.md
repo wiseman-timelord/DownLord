@@ -50,29 +50,32 @@ Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit
 
 
 ```
-- Download Initialization (using HuggingFace url)...
+- Download Initialization (HuggingFace url)...
 ```
 ========================================================================================================================
     DownLord: Initialize Download
 ========================================================================================================================
 
-Enter download URL (Q to cancel): http://ipv4.download.thinkbroadband.com/50MB.zip
-Connection established in 0.2s                                                                                          Registering download: 50MB.zip (http://ipv4.download.thinkbroadband.com/50MB.zip) size=52428800
-Successfully registered new download: 50MB.zip (http://ipv4.download.thinkbroadband.com/50MB.zip) with size 52428800
+Enter download URL (Q to cancel): https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGUF/resolve/main/Nxcode-CQ-7B-orpo.Q3_K_M.gguf?download=true
+Connection established in 0.9s                                                                                          Registering download: Nxcode-CQ-7B-orpo.Q3_K_M.gguf (https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...) size=3808626784
+Successfully registered new download: Nxcode-CQ-7B-orpo.Q3_K_M.gguf (https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...) with size 3808626784
 
-Initializing download for user-provided URL: http://ipv4.download.thinkbroadband.com/50MB.zip
-Resolved final download endpoint: http://ipv4.download.thinkbroadband.com/50MB.zip
-Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip
+Initializing download for user-provided URL: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
+Resolved final download endpoint: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
+Initializing download for: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
 Processing download URL...
 
-Connection established in 0.2s                                                                                          Done
-Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip
-Found filename: 50MB.zip
+Connection established in 0.6s                                                                                          Done
+Resolved download URL: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
+Found filename: Nxcode-CQ-7B-orpo.Q3_K_M.gguf
 Connecting to server...
 (Ignore Certificate Warnings)
-Registered early metadata for: 50MB.zip (Size: 52428800)
+C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'huggingface.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+  warnings.warn(
+Registered early metadata for: Nxcode-CQ-7B-orpo.Q3_K_M.gguf (Size: 3808626784)
 Setting up download...
-
 
 ```
 - Download display...
@@ -86,25 +89,24 @@ Setting up download...
 
 
     Filename:
-        200MB.zip
+        Nxcode-CQ-7B-orpo.Q3_K_M.gguf
 
     Progress:
-        11.7%
+        0.1%
 
     Speed:
-        637.74 KB/s
+        56.37 KB/s
 
     Received/Total:
-        23.44 MB/200.00 MB
+        3.91 MB/3.55 GB
 
     Elapsed/Remaining:
-        00:00:39<00:04:43
+        00:01:09<18:18:34
 
 
 
 
-========================================================================================================================
-Download in progress...
+========================================================================================================================Download in progress...
 
 
 ```
@@ -150,7 +152,8 @@ Press any key to return to Main Menu...
 - Download Resume - If for some reason the computer or program crach, then downloads may resume (not working currently, see Development section).
 - Anti-Server-Spam - Requests are not sent more than once per second to the server.
 - Orphan Removal - Orphan files are, detected and indexed (not tested since revisit/refracture).
-- Multi-Platform - Programming towards download from, Normal http/https, HuggingHace (indirect link), GoogleDrive (untested).
+- Multi-Platform - Programming towards download from, Normal http/https, HuggingHace, GoogleDrive (untested).
+- Download Initialization - Tested and Improved, connection processes, handling direct links from HuggingFace.   
 
 ## Requirements
 - Windows 7-10 - programing/testing is done on 10.
@@ -171,15 +174,10 @@ Press any key to return to Main Menu...
 
 ### Notation
 - It works for regular larger http/https download, but but its made it for downloading GGUF files from Huggingface, otherwise done on, browser or `lfs`. Currently untested on pladforms such as GoogleDrive, etc, it likely wont work with every format of url.
-- On sites such as Huggingface, the user starts the download in browser, then copy the link from the download manager in browser (not the one from the page), then use that for the download URL. This is because of the design of the website.
-- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. Try playing the offline games, such as, `RimWorld` or `Fallout 4`, while you wait, that are especially good with my mod(s) found on the Nexus under the same UserName. 
+- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. While you wait, you could play `RimWorld` with mods from `RimWorldBase.com`, even better with my mod(s) found on the Nexus under the same UserName.
 
 ## Development
-1. While initializing the download, when it has the complete information, it is supposed to be registering the, filename and url and total size, in a free key in the json, before or as, the actual file transfer begins, so that if, for example, the program somehow, crashes or is closed, then the user can resume the download by loading the program, and selecting the item from the menu, to continue the relevant download.   
-2. While initializing download, you can see, that 2 lines are repeated twice, in various parts of the download initialization processes, `Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip` and `Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip`, determine, if this is correct or are we actually repeating steps, and if it is correct, then we need more fitting text to each line, to distinguish them from one another.
-3. regular download stats seem to work ok, but stats for huggingface downloads are wierd, possibly this affects the googledrive stats too.
-4. While downloads through normal HTTP/HTTPs work fine, the huggingface downloads seem to not be registered on the menu at the end, and the file is missing. something is wrong either in the, registration and/or moving, of, huggingface and presumably googledrive, downloads. Additionally if the file was moved, and if there was no registered item in the json, then when it loaded the menu, it should have registered the file with an unknown, filesize and url, not deleted it. 
-4. After everything else, but, Linux and Windows, compatibility.
+1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 
 ### File Structure
 - Packaged files
