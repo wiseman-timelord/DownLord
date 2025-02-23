@@ -149,7 +149,7 @@ Press any key to return to Main Menu...
 - Reading of complex URLs such as on hugging face downloads, while correctly obtaining filenames.
 - Configuration Persistence - Recent, URLs and settings, are saved in a Json configuration file.
 - Platform support - HuggingFace, HTTP/HTTPS.
-- Download Resume - If for some reason the computer or program crach, then downloads may resume (not working currently, see Development section).
+- Download Resume - If for some reason the computer or program crach, then downloads may resume.
 - Anti-Server-Spam - Requests are not sent more than once per second to the server.
 - Orphan Removal - Orphan files are, detected and indexed (not tested since revisit/refracture).
 - Multi-Platform - Programming towards download from, Normal http/https, HuggingHace, GoogleDrive (untested).
@@ -173,8 +173,9 @@ Press any key to return to Main Menu...
 4. The complete download will be in `.\downloads`, move completed files out.
 
 ### Notation
-- It works for regular larger http/https download, but but its made it for downloading GGUF files from Huggingface, otherwise done on, browser or `lfs`. Currently untested on pladforms such as GoogleDrive, etc, it likely wont work with every format of url.
-- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. While you wait, you could play `RimWorld` with mods from `RimWorldBase.com`, even better with my mod(s) found on the Nexus under the same UserName.
+- It works for regular larger http/https download, but but its made it for downloading GGUF files from Huggingface, otherwise done on, browser or `lfs`, less effectively for formats such as gguf.
+- Currently untested on pladform GoogleDrive, and otherwise the program is able to do most regular http/https such as Ubuntu iso from official site.
+- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. While you wait, you could play `RimWorld` with mods from NexusMods user under the same UserName.
 
 ## Development
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
