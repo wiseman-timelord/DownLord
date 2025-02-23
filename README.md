@@ -32,7 +32,7 @@ DownLord is a more dedicated approach to downloading large and important files, 
 
     3     100MB.bin                                          100.0%       100.00 MB
 
-    4     Empty                                              -            -
+    4     50MB.zip                                           7.8%         3.91 MB/50.00 MB
 
     5     Empty                                              -            -
 
@@ -48,6 +48,7 @@ DownLord is a more dedicated approach to downloading large and important files, 
 ========================================================================================================================
 Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q:
 
+
 ```
 - Download Initialization (using HuggingFace url)...
 ```
@@ -55,30 +56,23 @@ Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit
     DownLord: Initialize Download
 ========================================================================================================================
 
-Enter download URL (Q to cancel): https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54ba7cd4b1c839b9f032c269075534e6b4f01988460ea615/bb9487edfa40bef4af3aae0644883b6f0081397d2ce34e6da660858012b86176?response-content-disposition=attachment%3B+filename*%3DUTF-8%27%27Lamarckvergence-14B.i1-Q3_K_M.gguf%3B+filename%3D%22Lamarckvergence-14B.i1-Q3_K_M.gguf%22%3B&Expires=1740162855&Policy=eyJTdGF0ZW1lbnQiOlt7IkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MDE2Mjg1NX19LCJSZXNvdXJjZSI6Imh0dHBzOi8vY2RuLWxmcy11cy0xLmhmLmNvL3JlcG9zLzY0LzM3LzY0Mzc4MGY4NWRiMjI5N2M1NGJhN2NkNGIxYzgzOWI5ZjAzMmMyNjkwNzU1MzRlNmI0ZjAxOTg4NDYwZWE2MTUvYmI5NDg3ZWRmYTQwYmVmNGFmM2FhZTA2NDQ4ODNiNmYwMDgxMzk3ZDJjZTM0ZTZkYTY2MDg1ODAxMmI4NjE3Nj9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPSoifV19&Signature=JJ7LNcr64wcW%7EdU0oGEg5-ZC2jrjAgMDQmVG2hd%7EZGeOnzli1Ys2WEn9ZirQhLFs97doVLM5kqP6MfbgmzBy8PK54pjxDRfN3vZnvppgZklw50nexc63GrDOCJJnxzUZ1WNd3FTGyLfWabrWcZ521taFwsZsl8W9VA2O7y-Fl6nAjsdO9yyuyLP%7EzopY8uEDH5ZaG0%7E2uet9TsfpjgEHXvi8Pix2u0nZ4otIAlsTR206DDJICK9v8w5f86T-Fc-LRdchrGbdOG7n6TkcLmMdNWOeYjotQiz%7E9CKfyuESCTW24gYSTWNDxZGWlnPelgw1KgYq2rFJMiBNr%7E9jKETxDw__&Key-Pair-Id=K24J24Z295AEI9
+Enter download URL (Q to cancel): http://ipv4.download.thinkbroadband.com/50MB.zip
+Connection established in 0.2s                                                                                          Registering download: 50MB.zip (http://ipv4.download.thinkbroadband.com/50MB.zip) size=52428800
+Successfully registered new download: 50MB.zip (http://ipv4.download.thinkbroadband.com/50MB.zip) with size 52428800
 
-Processing CDN URL
-Verifying URL accessibility (60s timeout): Completed in 0.5s
-Connection established in 0.3s                                                                                          Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
-
-Initializing download for: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
-Resolved download URL: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
-Registering download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...) size=0
-Successfully registered new download: Lamarckvergence-14B.i1-Q3_K_M.gguf (https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...) with size 0
-Initializing download for: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
+Initializing download for user-provided URL: http://ipv4.download.thinkbroadband.com/50MB.zip
+Resolved final download endpoint: http://ipv4.download.thinkbroadband.com/50MB.zip
+Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip
 Processing download URL...
 
-Retrieving file metadata:
-Processing CDN URL
-Verifying URL accessibility (120s timeout): Completed in 0.3s
-Connection established in 0.2s                                                                                          Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
-Done
-Resolved download URL: https://cdn-lfs-us-1.hf.co/repos/64/37/643780f85db2297c54...
-Found filename: Lamarckvergence-14B.i1-Q3_K_M.gguf
+Connection established in 0.2s                                                                                          Done
+Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip
+Found filename: 50MB.zip
 Connecting to server...
 (Ignore Certificate Warnings)
-C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
-  warnings.warn(
+Registered early metadata for: 50MB.zip (Size: 52428800)
+Setting up download...
+
 
 ```
 - Download display...
