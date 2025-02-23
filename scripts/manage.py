@@ -89,7 +89,7 @@ class URLProcessor:
             padded_message = message.ljust(status_line_length)
             print(f"\r{padded_message}", end='', flush=True)
 
-        print_status("Establishing connection...")
+        print_status("\nEstablishing connection...")
 
         try:
             while (time.time() - start_time) < timeout_length and attempt < max_attempts:
@@ -510,7 +510,7 @@ class DownloadManager:
             print(f"Initializing download for: {short_remote_url}")
             print("Processing download URL...")
 
-            print(f"\nRetrieving file metadata: ", end='', flush=True)  # Removed [2/2]
+            print(f"Retrieving file metadata: ", end='', flush=True)  # Removed [2/2]
             download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
             print("Done")  # Replace JSON dump
 
