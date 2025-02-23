@@ -92,16 +92,16 @@ Setting up download...
         Nxcode-CQ-7B-orpo.Q3_K_M.gguf
 
     Progress:
-        0.1%
+        27.9%
 
     Speed:
-        56.37 KB/s
+        175.71 KB/s
 
     Received/Total:
-        3.91 MB/3.55 GB
+        1011.72 MB/3.55 GB
 
     Elapsed/Remaining:
-        00:01:09<18:18:34
+        00:00:22<04:14:31
 
 
 
