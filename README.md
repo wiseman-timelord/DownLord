@@ -182,15 +182,7 @@ Press any key to return to Main Menu...
 
 ## Development
 1. While initializing the download, when it has the complete information, it is supposed to be registering the, filename and url and total size, in a free key in the json, before or as, the actual file transfer begins, so that if, for example, the program somehow, crashes or is closed, then the user can resume the download by loading the program, and selecting the item from the menu, to continue the relevant download.   
-2. While initializing download, you can see, that 2 lines are repeated twice, in various parts of the download initialization processes...
-```
-Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip
-```
-...and...
-```
-Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip
-```
-...determine, if this is correct or are we actually repeating steps, and if it is correct, then we need more fitting text to each line, to distinguish them from one another.
+2. While initializing download, you can see, that 2 lines are repeated twice, in various parts of the download initialization processes, `Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip` and `Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip`, determine, if this is correct or are we actually repeating steps, and if it is correct, then we need more fitting text to each line, to distinguish them from one another.
 3. regular download stats seem to work ok, but stats for huggingface downloads are wierd, possibly this affects the googledrive stats too.
 4. After everything else, but, Linux and Windows, compatibility.
 
