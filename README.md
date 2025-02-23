@@ -191,6 +191,8 @@ Initializing download for: http://ipv4.download.thinkbroadband.com/50MB.zip
 Resolved download URL: http://ipv4.download.thinkbroadband.com/50MB.zip
 ```
 ...determine, if this is correct or are we actually repeating steps, and if it is correct, then we need more fitting text to each line, to distinguish them from one another.
+3. regular download stats seem to work ok, but stats for huggingface downloads are wierd, possibly this affects the googledrive stats too.
+4. After everything else, but, Linux and Windows, compatibility.
 
 ### File Structure
 - Packaged files
