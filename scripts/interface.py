@@ -308,7 +308,6 @@ def display_download_state(
 
 
 
-
     Filename:
         {filename}
 
@@ -325,10 +324,10 @@ def display_download_state(
         {elapsed_str}<{remaining_str}
 
 
+
     
     
-{SEPARATOR_THICK}Download in progress...    
-""")
+{SEPARATOR_THICK}Downloading your file... (Press P to Pause)""")
 
 
 def display_download_summary(
@@ -370,7 +369,7 @@ def display_download_summary(
     
     
 {SEPARATOR_THICK}
-Press any key to return to Main Menu...""")
+Press any key for Main Menu...""")
     input()
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:

@@ -1,7 +1,7 @@
 # Script: `.\scripts\manage.py`
 
 # Imports
-import os, cgi, re, time, requests, json, random, socket
+import os, cgi, re, time, requests, json, random, socket, msvcrt
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -43,6 +43,7 @@ from .interface import (
     display_download_prompt,
     display_download_summary,
     update_history,
+    SEPARATOR_THICK,
     delete_file
 )
 
@@ -611,6 +612,22 @@ class DownloadManager:
                                             remaining=remaining
                                         )
                                         
+                                        # --- Pause Check ---
+                                        if msvcrt.kbhit():
+                                            key = msvcrt.getch().decode().lower()
+                                            if key == 'p':
+                                                while True:
+                                                    choice = input("Selection; Resume Download = R, Back to Main = B: ").strip().lower()
+                                                    if choice == 'r':
+                                                        last_display_update = time.time()  # Reset timer
+                                                        break
+                                                    elif choice == 'b':
+                                                        return False, "Download cancelled by user"
+                                                    else:
+                                                        print("Invalid choice. Please enter R to resume or B for Main Menu.")
+                                                        time.sleep(2)
+                                        # --- End Pause Check ---
+                                        
                                         bytes_since_last_update = 0
                                         last_display_update = current_time
 
@@ -722,8 +739,8 @@ class DownloadManager:
             display_error(f"Download error: {str(e)}")
             display_error(str(e))
             time.sleep(3)
-            choice = input("\nSelection; New URL = 0, Back to Menu = B: ").strip().lower()
-            if choice == '0':
+            choice = input("\nSelection; Alternate URL = A, Back to Menu = B: ").strip().lower()
+            if choice == 'a':
                 new_url = display_download_prompt()
                 if new_url.lower() == 'q':
                     return False, "User cancelled download"
