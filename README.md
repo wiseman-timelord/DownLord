@@ -138,7 +138,7 @@ Downloading file... (Press P to Pause)
 
 
 ========================================================================================================================
-Press any key to return to Main Menu...
+Press any key for Main Menu...
 ```
 
 
