@@ -106,7 +106,7 @@ Setting up download...
 
 
 ========================================================================================================================
-Downloading file... (Press P to Pause)
+Downloading your file... (Press P to Pause)
 
 ```
 - Download Summary...
