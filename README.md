@@ -80,9 +80,8 @@ Setting up download...
 - Download display...
 ```
 ========================================================================================================================
-    DownLord: Download Active
+    DownLord: Download Active (resumed)
 ========================================================================================================================
-
 
 
 
@@ -91,23 +90,23 @@ Setting up download...
         Nxcode-CQ-7B-orpo.Q3_K_M.gguf
 
     Progress:
-        27.9%
+        35.9%
 
     Speed:
-        175.71 KB/s
+        719.94 KB/s
 
     Received/Total:
-        1011.72 MB/3.55 GB
+        1.27 GB/3.55 GB
 
     Elapsed/Remaining:
-        00:00:22<04:14:31
+        00:01:05<00:55:10
+
 
 
 
 
 ========================================================================================================================
-Download in progress...
-
+Downloading file... (Press P to Pause)
 
 ```
 - Download Summary...
