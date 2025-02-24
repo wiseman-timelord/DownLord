@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------------------------------------------------
 ```
 ## Status: Beta
-- Re-visited 2025/02. Remaining issue(s) detailed in `Development` section below.
+- Re-visited 2025/02. Works, but needs further testing.
 
 ## Description
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
@@ -172,13 +172,14 @@ Press any key for Main Menu...
 4. The complete download will be in `.\downloads`, move completed files out.
 
 ### Notation
-- It works for regular larger http/https download, but but its made it for downloading GGUF files from Huggingface, otherwise done on, browser or `lfs`, less effectively for formats such as gguf.
-- Currently untested on pladform GoogleDrive, and otherwise the program is able to do most regular http/https such as Ubuntu iso from official site.
-- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task. While you wait, you could play `RimWorld` with mods from NexusMods user under the same UserName.
+- It works for regular http/https download, but its intended for downloading GGUFs from Huggingface, that would otherwise be done on, browser or `lfs`, less effectively.
+- On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task, but if this becomes an issue, there is now a `Press P to Pause Download` feature.
 
 ## Development
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 2. Needs testing LLM to make sure it works correctly as regular downloads are at this point.
+3. An interface on it, but I dont want it OS specific, and I dont want a browser interface.
+4. Currently untested on pladform GoogleDrive.
 
 ### File Structure
 - Packaged files
