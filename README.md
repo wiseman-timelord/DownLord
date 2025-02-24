@@ -178,7 +178,7 @@ Press any key for Main Menu...
 
 ## Development
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
-2. It needs some kind of break during download loop, in order to be able to `Selection; Resume Download = R, Back to Main = B: `, while for the `Download Active` display to be printing `Downloading... (Press P to Pause)` instead of `Download in progress...`.
+2. Needs testing LLM to make sure it works correctly as regular downloads are at this point.
 
 ### File Structure
 - Packaged files
