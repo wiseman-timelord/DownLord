@@ -177,7 +177,6 @@ Press any key for Main Menu...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task, but if this becomes an issue, there is now a `Press P to Pause Download` feature.
 
 ## Development
-1. I downloaded the vulkansdk, and upon completion, the summary screen seemed all ok, but when I press enter, I return to the menu, and in slot 1 it says "Empty", while in, `.\incomplete` and `.\downloads\`, there is no file for the download. I have tried to fix this multiple times; this needs fixing on one-shot, and if it fails then only investigate a little further, and if no luck then revert, keep doing til its correctly fixed, try different AI systems.
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 2. Needs testing LLM to make sure it works correctly as regular downloads are at this point.
 3. An interface on it, but I dont want it OS specific, and I dont want a browser interface.
