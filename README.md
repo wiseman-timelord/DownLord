@@ -10,7 +10,7 @@
 -----------------------------------------------------------------------------------------------------------------------
 ```
 ## Status: Beta
-- Re-visited 2025/02. Currently needs fixing, see development.
+- Working, Re-visited 2025/02.
 
 ## Description
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
@@ -58,7 +58,6 @@ Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit
 
 Enter download URL (Q to cancel): https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGUF/resolve/main/Nxcode-CQ-7B-orpo.Q6_K.gguf?download=true
 Connection established in 0.9s                                                                                          
-Registering download: Nxcode-CQ-7B-orpo.Q6_K.gguf (https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...) size=6377588832
 Successfully registered new download: Nxcode-CQ-7B-orpo.Q6_K.gguf (https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...) with size 6377588832
 Initializing download for URL: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
 Resolved final download endpoint: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
