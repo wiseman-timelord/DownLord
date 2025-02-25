@@ -1,4 +1,4 @@
-# .\scripts\interface.py
+# Script: `.\scripts\interface.py`
 
 import json
 import os
@@ -16,6 +16,7 @@ from .temporary import (
     TEMP_DIR,
     DEFAULT_CHUNK_SIZES,
     SPEED_DISPLAY,
+    BASE_DIR,
     RETRY_OPTIONS
 )
 
@@ -117,49 +118,45 @@ def format_file_state(state: str, info: Dict = None) -> str:
 
 
 def delete_file(config: Dict, index: int) -> bool:
-    """
-    Delete a file from the downloads or temp folder based on the index.
-    """
     filename_key = f"filename_{index}"
     filename = config.get(filename_key, "Empty")
-
     if filename == "Empty":
         display_error("No file found at the specified index.")
         time.sleep(3)
         return False
-
-    # Check if the file exists in the downloads folder
-    downloads_path = Path(DOWNLOADS_DIR) / filename
+    
+    # Resolve downloads location
+    downloads_location_str = config.get("downloads_location", "downloads")
+    downloads_path = Path(downloads_location_str)
+    if not downloads_path.is_absolute():
+        downloads_path = BASE_DIR / downloads_path
+    downloads_path = downloads_path.resolve()
+    file_path = downloads_path / filename
     temp_path = Path(TEMP_DIR) / f"{filename}.part"
-
+    
     try:
-        if downloads_path.exists():
-            downloads_path.unlink()  # Delete the file
+        if file_path.exists():
+            file_path.unlink()
             display_success(f"Deleted file: {filename}")
         elif temp_path.exists():
-            temp_path.unlink()  # Delete the temporary file
+            temp_path.unlink()
             display_success(f"Deleted temporary file: {filename}")
         else:
             display_error(f"File not found in downloads or temp folder: {filename}")
             time.sleep(3)
             return False
-
-        # Shift entries to fill the gap
+        
         for i in range(index, 9):
             next_i = i + 1
             config[f"filename_{i}"] = config.get(f"filename_{next_i}", "Empty")
             config[f"url_{i}"] = config.get(f"url_{next_i}", "")
             config[f"total_size_{i}"] = config.get(f"total_size_{next_i}", 0)
-
-        # Clear the last entry
+        
         config["filename_9"] = "Empty"
         config["url_9"] = ""
         config["total_size_9"] = 0
-
-        # Save the updated configuration
         ConfigManager.save(config)
         return True
-
     except Exception as e:
         display_error(f"Error deleting file: {str(e)}")
         time.sleep(3)
@@ -172,37 +169,39 @@ def display_main_menu(config: Dict):
     """
     try:
         clear_screen_multi("Main Menu")
-
-        # Snapshot config at start to prevent race conditions
         config_snapshot = json.loads(json.dumps(config))
-
-        # Dynamic column width based on terminal size and content
         term_width = os.get_terminal_size().columns
         col_widths = {
             "number": 5,
-            "filename": min(50, term_width - 45),  # Adaptive width
+            "filename": min(50, term_width - 45),
             "progress": 12,
             "size": 20
         }
-
+        
+        # Resolve downloads location
+        downloads_location_str = config.get("downloads_location", "downloads")
+        downloads_path = Path(downloads_location_str)
+        if not downloads_path.is_absolute():
+            downloads_path = BASE_DIR / downloads_path
+        downloads_path = downloads_path.resolve()
+        
         print(f"    {'#.':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
         print(SEPARATOR_THICK)
-        print()  # Add blank line before entries
-
+        print()
+        
         config_changed = False
-
         for i in range(1, 10):
             filename = config_snapshot.get(f"filename_{i}", "Empty")
             url = config_snapshot.get(f"url_{i}", "")
             total_size = config_snapshot.get(f"total_size_{i}", 0)
-
+            
             # Add blank line before each entry
             print()
-
+            
             if filename != "Empty":
-                downloads_path = Path(DOWNLOADS_DIR) / filename
+                file_path = downloads_path / filename  # Use resolved path
                 temp_path = Path(TEMP_DIR) / f"{filename}.part"
-
+                
                 # Smart filename truncation preserving extension
                 if len(filename) > col_widths['filename']:
                     name, ext = os.path.splitext(filename)
@@ -210,44 +209,44 @@ def display_main_menu(config: Dict):
                     display_name = f"{name[:trunc_len]}...{ext}"
                 else:
                     display_name = filename
-
-                if downloads_path.exists():
-                    actual_size = downloads_path.stat().st_size
+                
+                if file_path.exists():  # Changed from downloads_path to file_path for consistency
+                    actual_size = file_path.stat().st_size
                     # Calculate progress based on actual size vs total size
                     if total_size > 0:
                         progress = round((actual_size / total_size) * 100, 1)
                     else:
                         progress = 100.0
-
+                    
                     size_str = format_file_size(actual_size)
                     print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
-
+                
                 elif temp_path.exists():
                     temp_size = temp_path.stat().st_size
                     current_size = format_file_size(temp_size)
-
+                    
                     # Handle total size display
                     if total_size > 0:
                         total_size_str = format_file_size(total_size)
                     else:
                         total_size_str = "Unknown"  # Show "Unknown" when total size is not available
-
+                    
                     # Calculate progress for partial download
                     progress = round((temp_size / total_size) * 100, 1) if total_size > 0 else 0.0
-
+                    
                     # Handle URL-less entries
                     if not url:
                         print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {'Unknown':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
                     else:
                         print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
-
+                
                 else:
                     # Clean up missing files
                     for j in range(i, 9):
                         config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
                         config[f"url_{j}"] = config.get(f"url_{j+1}", "")
                         config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
-
+                    
                     config["filename_9"] = "Empty"
                     config["url_9"] = ""
                     config["total_size_9"] = 0
@@ -255,14 +254,14 @@ def display_main_menu(config: Dict):
                     print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
             else:
                 print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
-
+        
         if config_changed:
             ConfigManager.save(config)
-
+        
         # Add blank line before footer
         print("\n")
         print(MAIN_MENU_FOOTER, end='')
-
+    
     except Exception as e:
         display_error(f"Menu display error: {str(e)}")
         time.sleep(3)
@@ -414,21 +413,23 @@ def setup_menu():
             ConfigManager.save(config)
 
         elif choice == '3':
-            # Set custom downloads location (original option 4 moved to 3)
-            new_location = input("Enter full path to custom location: ").strip()
-            if new_location:
-                try:
-                    new_path = Path(new_location)
-                    new_path.mkdir(parents=True, exist_ok=True)
-                    config["downloads_location"] = str(new_path)
-                    ConfigManager.save(config)
-                    print(f"Downloads location updated to: {new_path}")
-                except Exception as e:
-                    print(f"Error setting location: {e}")
-            else:
-                print("No path provided. Location unchanged.")
-            time.sleep(3)
-
+                new_location = input("Enter full path to custom location: ").strip()
+                if new_location:
+                    try:
+                        test_path = Path(new_location)
+                        if not test_path.is_absolute():
+                            test_path = BASE_DIR / test_path
+                        test_path = test_path.resolve()
+                        test_path.mkdir(parents=True, exist_ok=True)
+                        config["downloads_location"] = new_location  # Store as-is
+                        ConfigManager.save(config)
+                        print(f"Downloads location updated to: {new_location}")
+                    except Exception as e:
+                        print(f"Error setting location: {e}")
+                else:
+                    print("No path provided. Location unchanged.")
+                time.sleep(3)
+                
         elif choice == 'b':
             return
         else:
@@ -478,8 +479,6 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
 
         # Truncate the URL for display
         short_url = url if len(url) <= 60 else f"{url[:57]}..."
-
-        print(f"Registering download: {filename} ({short_url}) size={total_size}")
 
         # Check if entry exists
         for i in range(1, 10):

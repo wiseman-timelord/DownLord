@@ -789,35 +789,26 @@ def get_file_name_from_url(url: str) -> Optional[str]:
 
 
 def handle_orphaned_files(config: dict) -> None:
-    """
-    Unified orphan handling: registration + cleanup.
-    Ensures files are only deleted if they are unregistered and have no corresponding JSON entry.
-    """
+    from scripts.temporary import BASE_DIR  # Add this import
     registered_files = set()
-
-    # 1. Build a set of registered filenames (including .part files)
     for i in range(1, 10):
         filename = config.get(f"filename_{i}", "Empty")
         if filename != "Empty":
-            registered_files.add(filename)  # Add the main filename
-            registered_files.add(f"{filename}.part")  # Add the corresponding .part file
-
-    # 2. Cleanup unregistered files in both downloads and incomplete directories
-    for folder in [DOWNLOADS_DIR, TEMP_DIR]:
+            registered_files.add(filename)
+            registered_files.add(f"{filename}.part")
+    
+    downloads_location_str = config.get("downloads_location", "downloads")
+    downloads_path = Path(downloads_location_str)
+    if not downloads_path.is_absolute():
+        downloads_path = BASE_DIR / downloads_path
+    downloads_path = downloads_path.resolve()
+    
+    for folder in [downloads_path, TEMP_DIR]:  # Use resolved path
         for file in folder.glob("*"):
-            # Skip cleanup if the file is registered
-            if file.name in registered_files:
+            if file.name in registered_files or any(
+                config.get(f"filename_{i}") == file.stem for i in range(1, 10)
+            ):
                 continue
-
-            # Skip cleanup if the file has a corresponding JSON entry
-            has_json_entry = any(
-                config.get(f"filename_{i}") == file.stem  # Check without .part extension
-                for i in range(1, 10)
-            )
-            if has_json_entry:
-                continue
-
-            # Cleanup unregistered files
             try:
                 file.unlink()
                 print(f"Removed unregistered file: {file}")

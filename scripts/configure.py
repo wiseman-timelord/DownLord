@@ -1,4 +1,4 @@
-# Script: .\scripts\configure.py
+# Script: `.\scripts\configure.py`
 
 # Imports
 import json, time
@@ -69,15 +69,13 @@ class ConfigManager:
     @staticmethod
     def validate(config: Dict) -> Dict:
         """Validate and clean the configuration."""
-        # Start with default configuration
         validated = DEFAULT_CONFIG.copy()
-        validated["downloads_location"] = str(DOWNLOADS_DIR)  # Corrected from DLOADS_DIR to DOWNLOADS_DIR
         
-        # Remove obsolete keys that might exist in old configs
+        # Remove obsolete keys
         config.pop("refresh", None)
         config.pop("download", None)
         
-        # Merge valid keys from existing config
+        # Merge valid keys
         valid_keys = (
             ['chunk', 'retries', 'timeout_length', 'downloads_location'] +
             [f"filename_{i}" for i in range(1, 10)] +
@@ -93,13 +91,8 @@ class ConfigManager:
         if validated["chunk"] not in DEFAULT_CHUNK_SIZES.values():
             validated["chunk"] = DEFAULT_CHUNK_SIZES["cable"]
         
-        # Validate downloads location
-        try:
-            dl_path = Path(validated["downloads_location"]).expanduser().resolve()
-            dl_path.mkdir(parents=True, exist_ok=True)
-            validated["downloads_location"] = str(dl_path)
-        except Exception as e:
-            print(f"Invalid downloads location: {e}")
-            validated["downloads_location"] = str(DOWNLOADS_DIR)
+        # Ensure downloads_location is a string; default to "downloads" if invalid
+        if not isinstance(validated.get("downloads_location"), str):
+            validated["downloads_location"] = "downloads"
         
         return validated

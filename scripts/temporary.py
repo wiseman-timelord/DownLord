@@ -1,4 +1,4 @@
-# .\scripts\temporary.py
+# # Script: `.\scripts\temporary.py`
 
 # Imports
 import os
@@ -149,7 +149,7 @@ DEFAULT_CONFIG = {
     "chunk": DEFAULT_CHUNK_SIZES["cable"],
     "retries": 100,
     "timeout_length": 120,
-    "downloads_location": str(DOWNLOADS_DIR)
+    "downloads_location": "downloads"  # Relative path
 }
 
 # Runtime Configuration
