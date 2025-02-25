@@ -82,26 +82,26 @@ Setting up download...
 - Download display...
 ```
 ========================================================================================================================
-    DownLord: Download Active (resumed)
+    DownLord: Download Active
 ========================================================================================================================
 
 
 
 
     Filename:
-        Nxcode-CQ-7B-orpo.Q3_K_M.gguf
+        VulkanSDK-1.4.304.1-Installer.exe
 
     Progress:
-        35.9%
+        22.9%
 
     Speed:
-        719.94 KB/s
+        1.85 MB/s
 
     Received/Total:
-        1.27 GB/3.55 GB
+        42.97 MB/187.81 MB
 
     Elapsed/Remaining:
-        00:01:05<00:55:10
+        00:00:22<00:01:18
 
 
 
