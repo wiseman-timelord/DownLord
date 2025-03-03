@@ -98,8 +98,36 @@ def handle_download(url: str, config: dict) -> bool:
         if success:
             update_history(config, filename, url, out_path.stat().st_size)
             return True
+        elif error == "Download abandoned by user":
+            print("Download abandoned. Returning to main menu.")
+            time.sleep(2)
+            return False
         else:
             display_error(f"Download failed: {error}")
+            time.sleep(3)
+            return False
+
+    except Exception as e:
+        display_error(f"Unexpected error: {str(e)}")
+        time.sleep(3)
+        choice = input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
+        if choice == 'r':
+            return handle_download(url, config)  # Retry with the same URL
+        elif choice == '0':
+            new_url = display_download_prompt()
+            if new_url and new_url.lower() == 'b':
+                return False
+            if new_url and filename:
+                for i in range(1, 10):
+                    if config[f"filename_{i}"] == filename:
+                        config[f"url_{i}"] = new_url
+                        ConfigManager.save(config)
+                        break
+            return handle_download(new_url, config) if new_url else False
+        elif choice == 'b':
+            return False
+        else:
+            display_error("Invalid choice. Please try again.")
             time.sleep(3)
             return False
 
