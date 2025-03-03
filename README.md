@@ -107,7 +107,7 @@ Setting up download...
 
 
 ========================================================================================================================
-Downloading your file... (Press P to Pause)
+Selection; Abandon = A, Wait = >_>:
 
 ```
 - Download Summary...
