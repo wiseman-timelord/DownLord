@@ -326,7 +326,7 @@ def display_download_state(
 
     
     
-{SEPARATOR_THICK}Downloading your file... (Press P to Pause)""")
+{SEPARATOR_THICK}Selection; Abandon = A, Wait = >_>: """)
 
 
 def display_download_summary(

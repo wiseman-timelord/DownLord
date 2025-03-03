@@ -511,11 +511,10 @@ class DownloadManager:
             print(f"Initializing download for: {short_remote_url}")
             print("Processing download URL...")
 
-            print(f"Retrieving file metadata: ", end='', flush=True)  # Removed [2/2]
+            print(f"Retrieving file metadata: ", end='', flush=True)
             download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
-            print("Done")  # Replace JSON dump
+            print("Done")
 
-            # Truncate the resolved download URL for display
             short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
             print(f"Resolved download URL: {short_download_url}")
 
@@ -541,7 +540,6 @@ class DownloadManager:
             if existing_size > 0:
                 print(f"Found incomplete file, resuming from: {format_file_size(existing_size)}")
 
-            # Create session with custom retry and connection settings
             session = requests.Session()
             adapter = requests.adapters.HTTPAdapter(
                 max_retries=5,
@@ -574,12 +572,10 @@ class DownloadManager:
                         response.raise_for_status()
                         total_size = int(response.headers.get('content-length', 0)) + existing_size
 
-                        # Register metadata immediately after getting total size
                         if not early_registration_done:
                             self._register_early_metadata(filename, remote_url, total_size)
                             early_registration_done = True
 
-                        # Setup progress tracking
                         start_time = time.time()
                         bytes_since_last_update = 0
                         written_size = existing_size
@@ -591,13 +587,11 @@ class DownloadManager:
                                     bytes_since_last_update += len(chunk)
                                     current_time = time.time()
 
-                                    # File system updates (every 5 seconds)
                                     if current_time - last_fs_update >= 5:
                                         current_size = temp_path.stat().st_size
                                         total_size = metadata.get('size', current_size)
                                         last_fs_update = current_time
 
-                                    # Visual updates (every 1 second)
                                     if current_time - last_display_update >= 1:
                                         speed = bytes_since_last_update / (current_time - last_display_update)
                                         elapsed = current_time - start_time
@@ -612,92 +606,81 @@ class DownloadManager:
                                             remaining=remaining
                                         )
                                         
-                                        # --- Pause Check ---
+                                        # --- Updated Abandon Check ---
                                         if msvcrt.kbhit():
                                             key = msvcrt.getch().decode().lower()
-                                            if key == 'p':
-                                                while True:
-                                                    choice = input("Selection; Resume Download = R, Back to Main = B: ").strip().lower()
-                                                    if choice == 'r':
-                                                        last_display_update = time.time()  # Reset timer
-                                                        break
-                                                    elif choice == 'b':
-                                                        return False, "Download cancelled by user"
-                                                    else:
-                                                        print("Invalid choice. Please enter R to resume or B for Main Menu.")
-                                                        time.sleep(2)
-                                        # --- End Pause Check ---
+                                            if key == 'a':
+                                                return False, "Download abandoned by user"
+                                        # --- End Abandon Check ---
                                         
                                         bytes_since_last_update = 0
                                         last_display_update = current_time
 
                                     out_file.write(chunk)
 
-                            # Ensure file is closed before moving
-                            out_file.flush()
-                            os.fsync(out_file.fileno())
+                                # Ensure file is closed before moving
+                                out_file.flush()
+                                os.fsync(out_file.fileno())
 
-                        # Force garbage collection before move
-                        import gc
-                        gc.collect()
+                            # Force garbage collection before move
+                            import gc
+                            gc.collect()
 
-                        # Attempt move with retries
-                        move_success = False
-                        move_retries = 5
-                        move_delay = 1.0
+                            move_success = False
+                            move_retries = 5
+                            move_delay = 1.0
 
-                        for move_attempt in range(move_retries):
-                            try:
-                                if not temp_path.exists():
-                                    display_error(f"Source file missing: {temp_path}")
+                            for move_attempt in range(move_retries):
+                                try:
+                                    if not temp_path.exists():
+                                        display_error(f"Source file missing: {temp_path}")
+                                        time.sleep(3)
+                                        return False, "Source file missing after download"
+
+                                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                                    if not move_with_retry(temp_path, out_path):
+                                        raise DownloadError("File move failed")
+                                    move_success = True
+                                    break
+
+                                except PermissionError as e:
+                                    if move_attempt < move_retries - 1:
+                                        print(f"Move attempt {move_attempt + 1} failed, retrying in {move_delay}s: {e}")
+                                        time.sleep(move_delay)
+                                    else:
+                                        display_error(f"Failed to move file after {move_retries} attempts: {e}")
+                                        time.sleep(3)
+                                        return False, f"Failed to move file: {str(e)}"
+
+                                except Exception as e:
+                                    display_error(f"Unexpected error moving file: {e}")
                                     time.sleep(3)
-                                    return False, "Source file missing after download"
+                                    return False, f"Error moving file: {str(e)}"
 
-                                out_path.parent.mkdir(parents=True, exist_ok=True)
-                                if not move_with_retry(temp_path, out_path):
-                                    raise DownloadError("File move failed")
-                                move_success = True
-                                break
+                            if not move_success:
+                                return False, "Failed to move downloaded file to destination"
 
-                            except PermissionError as e:
-                                if move_attempt < move_retries - 1:
-                                    print(f"Move attempt {move_attempt + 1} failed, retrying in {move_delay}s: {e}")
-                                    time.sleep(move_delay)
-                                else:
-                                    display_error(f"Failed to move file after {move_retries} attempts: {e}")
-                                    time.sleep(3)
-                                    return False, f"Failed to move file: {str(e)}"
+                            elapsed = time.time() - start_time
+                            average_speed = written_size / elapsed if elapsed > 0 else 0
+                            display_download_summary(
+                                filename=filename,
+                                total_size=written_size,
+                                average_speed=average_speed,
+                                elapsed=elapsed,
+                                timestamp=datetime.now(),
+                                destination=str(out_path)
+                            )
 
-                            except Exception as e:
-                                display_error(f"Unexpected error moving file: {e}")
-                                time.sleep(3)
-                                return False, f"Error moving file: {str(e)}"
+                            final_size = out_path.stat().st_size
+                            for i in range(1, 10):
+                                if self.config[f"filename_{i}"] == filename:
+                                    if self.config[f"total_size_{i}"] != final_size:
+                                        print(f"Updating final size for {filename} from {self.config[f'total_size_{i}']} to {final_size}")
+                                        self.config[f"total_size_{i}"] = final_size
+                                        ConfigManager.save(self.config)
+                                    break
 
-                        if not move_success:
-                            return False, "Failed to move downloaded file to destination"
-
-                        elapsed = time.time() - start_time
-                        average_speed = written_size / elapsed if elapsed > 0 else 0
-                        display_download_summary(
-                            filename=filename,
-                            total_size=written_size,
-                            average_speed=average_speed,
-                            elapsed=elapsed,
-                            timestamp=datetime.now(),
-                            destination=str(out_path)
-                        )
-
-                        # Update final size in the configuration
-                        final_size = out_path.stat().st_size
-                        for i in range(1, 10):
-                            if self.config[f"filename_{i}"] == filename:
-                                if self.config[f"total_size_{i}"] != final_size:
-                                    print(f"Updating final size for {filename} from {self.config[f'total_size_{i}']} to {final_size}")
-                                    self.config[f"total_size_{i}"] = final_size
-                                    ConfigManager.save(self.config)
-                                break
-
-                        return True, None
+                            return True, None
 
                 except OSError as e:
                     if e.errno == 28:  # No space left on device
@@ -707,17 +690,16 @@ class DownloadManager:
                         if choice == 'b':
                             return False, "Returning to menu"
                         elif choice == 'r':
-                            continue  # Continue the download loop
+                            continue
                         else:
                             return False, "Invalid choice"
                     else:
-                        raise  # Re-raise other OSError exceptions
+                        raise
 
                 except (Timeout, ConnectionError, RequestException, IncompleteRead) as e:
                     retries += 1
                     if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
                         display_error("Connection interrupted. Retrying from last received byte...")
-                        # Reset retries counter to force resume
                         retries = RUNTIME_CONFIG["download"]["max_retries"] - 1
                         time.sleep(calculate_retry_delay(retries))
                         continue
@@ -726,7 +708,7 @@ class DownloadManager:
                     time.sleep(3)
                     choice = input("\nSelection; Resume Download = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
                     if choice == 'r':
-                        return self.download_file(remote_url, out_path, chunk_size)  # Retry same URL
+                        return self.download_file(remote_url, out_path, chunk_size)
                     elif choice == '0':
                         new_url = display_download_prompt()
                         return self.download_file(new_url, out_path, chunk_size)
@@ -750,9 +732,7 @@ class DownloadManager:
             else:
                 return False, "Invalid choice"
         finally:
-            # Only cleanup if ALL retries failed AND file is unregistered
             if temp_path and temp_path.exists():
-                # Check if file is registered
                 is_registered = any(
                     self.config[f"filename_{i}"] == out_path.name 
                     for i in range(1, 10)
