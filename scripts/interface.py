@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Dict, Optional, Union
 from datetime import datetime
-from .configure import ConfigManager
+from .configure import ConfigManager, get_downloads_path
 from .temporary import (
     ERROR_HANDLING,
     SUCCESS_MESSAGES,
@@ -85,6 +85,55 @@ def display_separator():
     """
     print(MENU_SEPARATOR)
 
+def calculate_column_widths(term_width: int) -> Dict[str, int]:
+    return {
+        "number": 5,
+        "filename": min(50, term_width - 45),
+        "progress": 12,
+        "size": 20
+    }
+
+def truncate_filename(filename: str, max_length: int) -> str:
+    if len(filename) <= max_length:
+        return filename
+    name, ext = os.path.splitext(filename)
+    trunc_len = max_length - len(ext) - 3
+    if trunc_len > 0:
+        return f"{name[:trunc_len]}...{ext}"
+    else:
+        return f"...{ext}"
+
+def get_file_status(config: Dict, index: int, downloads_path: Path) -> tuple[str, Optional[float], Optional[str]]:
+    filename = config.get(f"filename_{index}", "Empty")
+    if filename == "Empty":
+        return "empty", None, None
+    
+    file_path = downloads_path / filename
+    temp_path = Path(TEMP_DIR) / f"{filename}.part"
+    
+    if file_path.exists():
+        total_size = config.get(f"total_size_{index}", 0)
+        actual_size = file_path.stat().st_size
+        if total_size > 0:
+            progress = (actual_size / total_size) * 100
+        else:
+            progress = 100.0
+        size_str = format_file_size(actual_size)
+        return "complete", progress, size_str
+    
+    elif temp_path.exists():
+        temp_size = temp_path.stat().st_size
+        total_size = config.get(f"total_size_{index}", 0)
+        if total_size > 0:
+            progress = (temp_size / total_size) * 100
+            size_str = f"{format_file_size(temp_size)}/{format_file_size(total_size)}"
+        else:
+            progress = 0.0
+            size_str = f"{format_file_size(temp_size)}/Unknown"
+        return "partial", progress, size_str
+    
+    else:
+        return "missing", None, None
 
 def format_file_size(size: int) -> str:
     """
@@ -162,109 +211,81 @@ def delete_file(config: Dict, index: int) -> bool:
         time.sleep(3)
         return False
 
+def handle_error(message: str, sleep_time: int = 3):
+    display_error(message)
+    time.sleep(sleep_time)
+
+def get_user_choice_after_error() -> str:
+    return input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
+
+def exit_sequence():
+    """
+    Display the exit sequence with timed messages and an overwriting countdown with 's'.
+    """
+    clear_screen("Exit Sequence")  # Displays the header
+    print()  # Adds a blank line after the header
+    print("Shutting down DownLord...")
+    time.sleep(1)  # Wait 1 second
+    print("Promotion: A glorious program by Wiseman-Timelord!")
+    time.sleep(1)  # Wait 2 seconds
+    print("Terminating program in 5 seconds", end='')  # Initial message without dots
+    for i in range(5, 0, -1):
+        print(f"\rTerminating program in 5 seconds...{i}s", end='', flush=True)  # Overwrite with countdown
+        time.sleep(1)  # Wait 1 second between updates
+    print("\n")  # Add a newline after the countdown # No newline, flush to show immediately
 
 def display_main_menu(config: Dict):
     """
-    Display the main menu with download options.
+    Display the main menu with download options, matching the exact spacing from the example.
     """
     try:
         clear_screen_multi("Main Menu")
         config_snapshot = json.loads(json.dumps(config))
         term_width = os.get_terminal_size().columns
-        col_widths = {
-            "number": 5,
-            "filename": min(50, term_width - 45),
-            "progress": 12,
-            "size": 20
-        }
+        col_widths = calculate_column_widths(term_width)
         
-        # Resolve downloads location
-        downloads_location_str = config.get("downloads_location", "downloads")
-        downloads_path = Path(downloads_location_str)
-        if not downloads_path.is_absolute():
-            downloads_path = BASE_DIR / downloads_path
-        downloads_path = downloads_path.resolve()
+        downloads_path = get_downloads_path(config)
         
+        # Header with blank line after
         print(f"    {'#.':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
         print(SEPARATOR_THICK)
-        print()
+        print()  # Blank line after header
         
         config_changed = False
         for i in range(1, 10):
-            filename = config_snapshot.get(f"filename_{i}", "Empty")
-            url = config_snapshot.get(f"url_{i}", "")
-            total_size = config_snapshot.get(f"total_size_{i}", 0)
-            
-            # Add blank line before each entry
-            print()
-            
-            if filename != "Empty":
-                file_path = downloads_path / filename  # Use resolved path
-                temp_path = Path(TEMP_DIR) / f"{filename}.part"
-                
-                # Smart filename truncation preserving extension
-                if len(filename) > col_widths['filename']:
-                    name, ext = os.path.splitext(filename)
-                    trunc_len = col_widths['filename'] - len(ext) - 3
-                    display_name = f"{name[:trunc_len]}...{ext}"
-                else:
-                    display_name = filename
-                
-                if file_path.exists():  # Changed from downloads_path to file_path for consistency
-                    actual_size = file_path.stat().st_size
-                    # Calculate progress based on actual size vs total size
-                    if total_size > 0:
-                        progress = round((actual_size / total_size) * 100, 1)
-                    else:
-                        progress = 100.0
-                    
-                    size_str = format_file_size(actual_size)
-                    print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
-                
-                elif temp_path.exists():
-                    temp_size = temp_path.stat().st_size
-                    current_size = format_file_size(temp_size)
-                    
-                    # Handle total size display
-                    if total_size > 0:
-                        total_size_str = format_file_size(total_size)
-                    else:
-                        total_size_str = "Unknown"  # Show "Unknown" when total size is not available
-                    
-                    # Calculate progress for partial download
-                    progress = round((temp_size / total_size) * 100, 1) if total_size > 0 else 0.0
-                    
-                    # Handle URL-less entries
-                    if not url:
-                        print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {'Unknown':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
-                    else:
-                        print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {f'{current_size}/{total_size_str}':<{col_widths['size']}}")
-                
-                else:
-                    # Clean up missing files
-                    for j in range(i, 9):
-                        config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
-                        config[f"url_{j}"] = config.get(f"url_{j+1}", "")
-                        config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
-                    
-                    config["filename_9"] = "Empty"
-                    config["url_9"] = ""
-                    config["total_size_9"] = 0
-                    config_changed = True
-                    print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
-            else:
+            status, progress, size_str = get_file_status(config_snapshot, i, downloads_path)
+            print()  # Blank line before each entry
+            if status == "empty":
+                print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
+            elif status == "complete":
+                filename = config_snapshot[f"filename_{i}"]
+                display_name = truncate_filename(filename, col_widths['filename'])
+                print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
+            elif status == "partial":
+                filename = config_snapshot[f"filename_{i}"]
+                display_name = truncate_filename(filename, col_widths['filename'])
+                print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
+            elif status == "missing":
+                for j in range(i, 9):
+                    config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
+                    config[f"url_{j}"] = config.get(f"url_{j+1}", "")
+                    config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
+                config["filename_9"] = "Empty"
+                config["url_9"] = ""
+                config["total_size_9"] = 0
+                config_changed = True
                 print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
         
         if config_changed:
             ConfigManager.save(config)
         
-        # Add blank line before footer
-        print("\n")
+        # Footer with two blank lines before and after
+        print()  # First blank line before footer
+        print()  # Second blank line before footer
         print(MAIN_MENU_FOOTER, end='')
-    
+        
     except Exception as e:
-        display_error(f"Menu display error: {str(e)}")
-        time.sleep(3)
+        handle_error(f"Menu display error: {str(e)}")
         print(MAIN_MENU_FOOTER, end='')
 
 

@@ -11,7 +11,8 @@ from .temporary import (
     RETRY_OPTIONS,
     REFRESH_OPTIONS,
     DEFAULT_CHUNK_SIZES,
-    ERROR_HANDLING
+    ERROR_HANDLING,
+    BASE_DIR
 )
 
 
@@ -96,3 +97,10 @@ class ConfigManager:
             validated["downloads_location"] = "downloads"
         
         return validated
+        
+def get_downloads_path(config: Dict) -> Path:
+    downloads_location_str = config.get("downloads_location", "downloads")
+    downloads_path = Path(downloads_location_str)
+    if not downloads_path.is_absolute():
+        downloads_path = BASE_DIR / downloads_path
+    return downloads_path.resolve()        
