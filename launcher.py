@@ -13,12 +13,14 @@ from scripts.interface import (
     setup_menu,
     PERSISTENT_FILE,
     display_error,
+    handle_error,
     display_success,
     display_download_prompt,
     clear_screen,
     update_history,
     delete_file,
-    exit_sequence
+    exit_sequence,
+    get_user_choice_after_error  # Added this line
 )
 from scripts.temporary import (
     DOWNLOADS_DIR,
@@ -91,7 +93,6 @@ def handle_download(url: str, config: dict) -> bool:
         success, error = dm.download_file(download_url, out_path, chunk_size)
 
         if success:
-            update_history(config, filename, url, out_path.stat().st_size)
             return True
         elif error == "Download abandoned by user":
             print("Download abandoned. Returning to main menu.")
