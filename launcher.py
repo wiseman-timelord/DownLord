@@ -179,22 +179,27 @@ def prompt_for_download():
             break  # Exit the loop, ending the script
 
         if choice == '0':
-            clear_screen("Initialize Download")
-            url = input("\nEnter download URL (Q to cancel): ").strip()
-            if url.lower() == 'q':
-                continue
-
-            # Resolve downloads location
-            downloads_location_str = config.get("downloads_location", "downloads")
-            downloads_path = Path(downloads_location_str)
-            if not downloads_path.is_absolute():
-                downloads_path = BASE_DIR / downloads_path
-            downloads_path = downloads_path.resolve()
-            
-            success = handle_download(url, config)
-            if success:
-                config = ConfigManager.load()  # Reload config after successful download
-            time.sleep(2)
+            while True:
+                clear_screen("Initialize Download")
+                url = input("\nEnter download URL (Q to cancel): ").strip()
+                if url.lower() == 'q':
+                    break  # Exit the loop and return to the main menu
+                elif len(url) < 5:
+                    display_error("URL must be at least 5 characters long. Please try again.")
+                    time.sleep(3)  # Give the user time to read the error message
+                else:
+                    # Resolve downloads location
+                    downloads_location_str = config.get("downloads_location", "downloads")
+                    downloads_path = Path(downloads_location_str)
+                    if not downloads_path.is_absolute():
+                        downloads_path = BASE_DIR / downloads_path
+                    downloads_path = downloads_path.resolve()
+                    
+                    success = handle_download(url, config)
+                    if success:
+                        config = ConfigManager.load()  # Reload config after successful download
+                    time.sleep(2)
+                    break  # Exit the loop after attempting the download
 
         elif choice.isdigit() and 1 <= int(choice) <= 9:
             index = int(choice)
