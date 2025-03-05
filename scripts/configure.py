@@ -1,7 +1,8 @@
 # Script: `.\scripts\configure.py`
 
 # Imports
-import json, time
+import json
+import time
 from pathlib import Path
 from typing import Dict
 from .temporary import (
@@ -14,8 +15,10 @@ from .temporary import (
     ERROR_HANDLING,
     BASE_DIR
 )
+from . import interface
+import sys
 
-
+# Classes
 class ConfigManager:
     """
     Manages loading, saving, and validating the application configuration.
@@ -97,10 +100,37 @@ class ConfigManager:
             validated["downloads_location"] = "downloads"
         
         return validated
-        
+
+# Functions
 def get_downloads_path(config: Dict) -> Path:
     downloads_location_str = config.get("downloads_location", "downloads")
     downloads_path = Path(downloads_location_str)
     if not downloads_path.is_absolute():
         downloads_path = BASE_DIR / downloads_path
     return downloads_path.resolve()        
+
+def check_environment() -> bool:
+    try:
+        if not PERSISTENT_FILE.exists():
+            raise FileNotFoundError(f"Missing configuration file: {PERSISTENT_FILE.name}")
+        config = ConfigManager.load()
+        downloads_path = get_downloads_path(config)
+        if not downloads_path.exists():
+            downloads_path.mkdir(parents=True, exist_ok=True)
+        elif not downloads_path.is_dir():
+            interface.display_error(f"Path is not a directory: {downloads_path}")
+            return False
+        
+        test_file = downloads_path / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+        return True
+    except FileNotFoundError as e:
+        interface.clear_screen()
+        interface.display_error(f"Critical Error: {str(e)}")
+        print("Please run the installer first!")
+        time.sleep(3)
+        sys.exit(1)
+    except Exception as e:
+        interface.display_error(f"Environment check failed: {str(e)}")
+        return False

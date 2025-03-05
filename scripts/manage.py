@@ -9,7 +9,6 @@ from urllib.parse import urlparse, parse_qs, unquote
 from requests.exceptions import RequestException, Timeout, ConnectionError
 from tqdm import tqdm
 from urllib3.exceptions import IncompleteRead
-from .configure import ConfigManager
 from .temporary import (
     URL_PATTERNS,
     CONTENT_TYPES,
@@ -31,20 +30,8 @@ from .temporary import (
     DISPLAY_FORMATS,
     HISTORY_ENTRY,
     PERSISTENT_FILE,
-    DEFAULT_CONFIG
-)
-from .interface import (
-    display_error,
-    display_success,
-    display_download_state,
-    display_download_complete,
-    clear_screen,
-    format_file_size,
-    display_download_prompt,
-    display_download_summary,
-    update_history,
-    SEPARATOR_THICK,
-    delete_file
+    DEFAULT_CONFIG,
+    BASE_DIR
 )
 
 _pending_handlers = []
@@ -247,12 +234,79 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
         time.sleep(3)
         return None
 
+def handle_download(url: str, config: dict) -> bool:
+    from .configure import ConfigManager, get_downloads_path # Already deferred or kept as needed
+    from .interface import (
+    handle_error,
+    update_history,
+    display_download_prompt,
+    get_user_choice_after_error,
+    display_success,
+    display_error
+    )
+    try:
+        processor = URLProcessor()
+        try:
+            download_url, metadata = processor.process_url(url, config)
+        except DownloadError as e:
+            handle_error(str(e))
+            return False
+
+        filename = metadata.get("filename") or get_file_name_from_url(download_url)
+        if not filename:
+            handle_error("Unable to extract filename from the URL. Please try again.")
+            return False
+
+        update_history(config, filename, url, metadata.get('size', 0))
+        ConfigManager.save(config)  # Now accessible
+
+        downloads_path = get_downloads_path(config)  # Now accessible
+        dm = DownloadManager(downloads_path)
+        chunk_size = config.get("chunk", 4096000)
+
+        short_url = url if len(url) <= 60 else f"{url[:57]}..."
+        short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
+        print(f"Initializing download for URL: {short_url}")
+        print(f"Resolved final download endpoint: {short_download_url}")
+
+        out_path = downloads_path / filename
+        success, error = dm.download_file(download_url, out_path, chunk_size)
+
+        if success:
+            return True
+        elif error == "Download abandoned by user":
+            print("Download abandoned. Returning to main menu.")
+            time.sleep(2)
+            return False
+        else:
+            handle_error(f"Download failed: {error}")
+            return False
+
+    except Exception as e:
+        handle_error(f"Unexpected error: {str(e)}")
+        choice = get_user_choice_after_error()
+        if choice == 'r':
+            return handle_download(url, config)
+        elif choice == '0':
+            new_url = display_download_prompt()
+            if new_url and new_url.lower() == 'b':
+                return False
+            if new_url and filename:
+                for i in range(1, 10):
+                    if config[f"filename_{i}"] == filename:
+                        config[f"url_{i}"] = new_url
+                        ConfigManager.save(config)
+                        break
+            return handle_download(new_url, config) if new_url else False
+        elif choice == 'b':
+            return False
+        else:
+            handle_error("Invalid choice. Please try again.")
+            return False
 
 @staticmethod
 def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
-    """
-    Get metadata about a remote file with timeout countdown.
-    """
+    from .interface import display_error # Deferred import
     timeout_length = config.get("timeout_length", 120)
     start_time = time.time()
     attempt = 0
@@ -337,14 +391,11 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
 
 
 class DownloadManager:
-    """Manage file downloads with retries and resume support."""
-
     def __init__(self, downloads_location: Path):
-        self.config = ConfigManager.load()
+        from .configure import ConfigManager  # Deferred import
+        self.config = ConfigManager.load()  # Now accessible
         self.downloads_location = downloads_location
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-        # Register existing temp files
         self._register_existing_temp_files()
 
     def _check_existing_download(self, url: str, filename: str) -> Tuple[bool, Optional[Path], Dict]:
@@ -381,6 +432,7 @@ class DownloadManager:
 
     def _remove_from_persistent(self, index: int) -> None:
         """Remove an entry from the persistent configuration."""
+        from .configure import ConfigManager  # Deferred import
         for i in range(index, 9):
             self.config[f"filename_{i}"] = self.config[f"filename_{i+1}"]
             self.config[f"url_{i}"] = self.config[f"url_{i+1}"]
@@ -389,33 +441,33 @@ class DownloadManager:
         self.config["filename_9"] = "Empty"
         self.config["url_9"] = ""
         self.config["total_size_9"] = 0
-        ConfigManager.save(self.config)
+        ConfigManager.save(self.config)  
 
     def _register_file_entry(self, filename: str, url: str, total_size: int) -> None:
         """Register a file entry in the first available slot."""
+        from .configure import ConfigManager  # Deferred import
         for i in range(1, 10):
             if self.config[f"filename_{i}"] in ["Empty", filename]:
                 self.config[f"filename_{i}"] = filename
                 self.config[f"url_{i}"] = url
                 self.config[f"total_size_{i}"] = total_size
-                ConfigManager.save(self.config)
+                ConfigManager.save(self.config)  # Now accessible
                 break
 
     def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
         """
         Register download metadata immediately after verifying total size.
-        Ensures the entry is added to the JSON configuration file early in the download process.
         """
+        from .configure import ConfigManager  # Deferred import
         try:
-            # Register even if total_size is unknown
             for i in range(1, 10):
                 if self.config[f"filename_{i}"] in ["Empty", filename]:
                     self.config[f"filename_{i}"] = filename
                     self.config[f"url_{i}"] = url
                     self.config[f"total_size_{i}"] = total_size if total_size > 0 else "Unknown"
-                    ConfigManager.save(self.config)
+                    ConfigManager.save(self.config)  # Now accessible
                     print(f"Registered early metadata for: {filename} (Size: {total_size if total_size > 0 else 'Unknown'})")
-                    print("Setting up download...")  # Long wait, after here and before `Download Active` display, leave in.
+                    print("Setting up download...")
                     break
 
             # If total_size is unknown, retry registration after a delay
@@ -503,7 +555,14 @@ class DownloadManager:
         return "\nSelection; Retry Now = R, Alternate URL = 0, Menu = B: "
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-        """Download a file from a remote URL with retries and resume support."""
+        from .interface import (
+        display_error,
+        display_success,
+        display_download_state,
+        display_download_summary,
+        update_history,
+        clear_screen
+        )
         temp_path = TEMP_DIR / f"{out_path.name}.part"  # Initialize temp_path early
         pre_registration_attempts = 0
         retries = 0

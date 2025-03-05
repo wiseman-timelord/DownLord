@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Dict, Optional, Union
 from datetime import datetime
-from .configure import ConfigManager, get_downloads_path
+from . import configure
 from .temporary import (
     ERROR_HANDLING,
     SUCCESS_MESSAGES,
@@ -16,11 +16,9 @@ from .temporary import (
     TEMP_DIR,
     DEFAULT_CHUNK_SIZES,
     SPEED_DISPLAY,
-    BASE_DIR,
-    RETRY_OPTIONS
+    BASE_DIR
 )
 
-# ASCII Art
 # Menu Templates
 SEPARATOR_THIN = "-" * 120
 SEPARATOR_THICK = "=" * 120
@@ -199,12 +197,12 @@ def delete_file(config: Dict, index: int) -> bool:
             next_i = i + 1
             config[f"filename_{i}"] = config.get(f"filename_{next_i}", "Empty")
             config[f"url_{i}"] = config.get(f"url_{next_i}", "")
-            config[f"total_size_{i}"] = config.get(f"total_size_{next_i}", 0)
+            config[f"total_size_{i}"] = config.get(f"total_size_{i+1}", 0)
         
         config["filename_9"] = "Empty"
         config["url_9"] = ""
         config["total_size_9"] = 0
-        ConfigManager.save(config)
+        configure.ConfigManager.save(config)
         return True
     except Exception as e:
         display_error(f"Error deleting file: {str(e)}")
@@ -217,6 +215,120 @@ def handle_error(message: str, sleep_time: int = 3):
 
 def get_user_choice_after_error() -> str:
     return input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
+
+def prompt_for_download():
+    from .manage import handle_download, handle_orphaned_files, URLProcessor # Deferred import
+    # Ensure clean state before showing menu
+    config = configure.ConfigManager.load()
+    downloads_path = configure.get_downloads_path(config)
+
+    while True:
+        display_main_menu(config)
+        choice = input().strip().lower()
+
+        if choice == 's':
+            setup_menu()
+            config = configure.ConfigManager.load()  # Reload config after setup
+            continue
+
+        if choice == 'r':
+            handle_orphaned_files(config)
+            config = configure.ConfigManager.load()  # Reload config after refresh
+            clear_screen()
+            continue
+
+        if choice == 'q':
+            exit_sequence()  # Display the exit sequence
+            break  # Exit the loop, ending the script
+
+        if choice == '0':
+            while True:
+                clear_screen("Initialize Download")
+                url = input("\nEnter download URL (Q to cancel): ").strip()
+                if url.lower() == 'q':
+                    break  # Exit the loop and return to the main menu
+                elif len(url) < 5:
+                    display_error("URL must be at least 5 characters long. Please try again.")
+                    time.sleep(3)  # Give the user time to read the error message
+                else:
+                    # Resolve downloads location
+                    downloads_location_str = config.get("downloads_location", "downloads")
+                    downloads_path = Path(downloads_location_str)
+                    if not downloads_path.is_absolute():
+                        downloads_path = BASE_DIR / downloads_path
+                    downloads_path = downloads_path.resolve()
+                    
+                    success = handle_download(url, config)
+                    if success:
+                        config = configure.ConfigManager.load()  # Reload config after successful download
+                    time.sleep(2)
+                    break  # Exit the loop after attempting the download
+
+        elif choice.isdigit() and 1 <= int(choice) <= 9:
+            index = int(choice)
+            url = config.get(f"url_{index}", "")
+            filename = config.get(f"filename_{index}", "Empty")
+
+            if filename == "Empty":
+                display_error("Invalid choice. Please try again.")
+                time.sleep(3)
+                continue
+
+            # Clear screen for Initialize Download
+            clear_screen("Initialize Download")
+
+            # Resolve downloads location
+            downloads_location_str = config.get("downloads_location", "downloads")
+            downloads_path = Path(downloads_location_str)
+            if not downloads_path.is_absolute():
+                downloads_path = BASE_DIR / downloads_path
+            downloads_path = downloads_path.resolve()
+            
+            existing_file = downloads_path / filename
+            if existing_file.exists():
+                display_success(f"'{filename}' is already downloaded!")
+                time.sleep(2)
+                config = configure.ConfigManager.load()  # Reload to refresh any changes
+                continue
+            
+            # Handle orphaned files (no URL)
+            if not url:
+                new_url = display_download_prompt()
+                if new_url is None:  # User chose to go back to the menu
+                    continue
+
+                # Validate the new URL
+                if not URLProcessor.validate_url(new_url):
+                    display_error("Invalid URL. Please enter a valid URL starting with http:// or https://")
+                    time.sleep(3)
+                    continue
+
+                # Update the config with the new URL
+                config[f"url_{index}"] = new_url
+                configure.ConfigManager.save(config)
+
+                # Start the download with the new URL and existing .part file
+                success = handle_download(new_url, config)
+                if success:
+                    config = configure.ConfigManager.load()  # Reload config after successful download
+                time.sleep(2)
+            else:
+                # Handle normal download
+                success = handle_download(url, config)
+                if success:
+                    config = configure.ConfigManager.load()  # Reload config after successful download
+                time.sleep(2)
+        elif choice == 'd':  # Handle delete option
+            delete_index = input("Enter the number of the file to delete (1-9): ").strip()
+            if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
+                delete_file(config, int(delete_index))
+            else:
+                display_error("Invalid input. Please enter a number between 1 and 9.")
+                time.sleep(3)
+            continue
+        else:
+            display_error("Invalid choice. Please try again.")
+            time.sleep(3)
 
 def exit_sequence():
     """
@@ -244,7 +356,7 @@ def display_main_menu(config: Dict):
         term_width = os.get_terminal_size().columns
         col_widths = calculate_column_widths(term_width)
         
-        downloads_path = get_downloads_path(config)
+        downloads_path = configure.get_downloads_path(config)  # Add configure. prefix
         
         # Header with blank line after
         print(f"    {'#.':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
@@ -277,7 +389,7 @@ def display_main_menu(config: Dict):
                 print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
         
         if config_changed:
-            ConfigManager.save(config)
+            configure.ConfigManager.save(config)  # Add configure. prefix
         
         # Footer with two blank lines before and after
         print()  # First blank line before footer
@@ -403,7 +515,7 @@ def display_download_complete(filename: str, timestamp: datetime) -> None:
 
 def setup_menu():
     while True:
-        config = ConfigManager.load()
+        config = configure.ConfigManager.load()
         clear_screen("Setup Menu", use_logo=False)
         print(SETUP_MENU.format(
             chunk=format_connection_speed(config["chunk"]),
@@ -421,7 +533,7 @@ def setup_menu():
                 config["chunk"] = sizes[(idx + 1) % len(sizes)]
             except ValueError:
                 config["chunk"] = sizes[0]
-            ConfigManager.save(config)
+            configure.ConfigManager.save(config)
 
         elif choice == '2':
             # Cycle through retry options
@@ -431,25 +543,25 @@ def setup_menu():
                 config["retries"] = RETRY_OPTIONS[(idx + 1) % len(RETRY_OPTIONS)]
             except ValueError:
                 config["retries"] = RETRY_OPTIONS[0]
-            ConfigManager.save(config)
+            configure.ConfigManager.save(config)
 
         elif choice == '3':
-                new_location = input("Enter full path to custom location: ").strip()
-                if new_location:
-                    try:
-                        test_path = Path(new_location)
-                        if not test_path.is_absolute():
-                            test_path = BASE_DIR / test_path
-                        test_path = test_path.resolve()
-                        test_path.mkdir(parents=True, exist_ok=True)
-                        config["downloads_location"] = new_location  # Store as-is
-                        ConfigManager.save(config)
-                        print(f"Downloads location updated to: {new_location}")
-                    except Exception as e:
-                        print(f"Error setting location: {e}")
-                else:
-                    print("No path provided. Location unchanged.")
-                time.sleep(3)
+            new_location = input("Enter full path to custom location: ").strip()
+            if new_location:
+                try:
+                    test_path = Path(new_location)
+                    if not test_path.is_absolute():
+                        test_path = BASE_DIR / test_path
+                    test_path = test_path.resolve()
+                    test_path.mkdir(parents=True, exist_ok=True)
+                    config["downloads_location"] = new_location  # Store as-is
+                    configure.ConfigManager.save(config)
+                    print(f"Downloads location updated to: {new_location}")
+                except Exception as e:
+                    print(f"Error setting location: {e}")
+            else:
+                print("No path provided. Location unchanged.")
+            time.sleep(3)
                 
         elif choice == 'b':
             return
@@ -506,7 +618,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
             if config.get(f"filename_{i}") == filename and config.get(f"url_{i}") == url:
                 if total_size > 0:
                     config[f"total_size_{i}"] = total_size
-                    ConfigManager.save(config)
+                    configure.ConfigManager.save(config)  # Fixed
                 return
 
         # Check for existing temp files without a menu entry
@@ -522,7 +634,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
             config["filename_1"] = filename
             config["url_1"] = url
             config["total_size_1"] = temp_path.stat().st_size
-            ConfigManager.save(config)
+            configure.ConfigManager.save(config)  # Fixed
             print(f"Registered partial download: {filename} ({short_url}) with size {temp_path.stat().st_size}")
             return
 
@@ -538,7 +650,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
         config["total_size_1"] = total_size
 
         # Save changes
-        ConfigManager.save(config)
+        configure.ConfigManager.save(config)  # Fixed
         print(f"Successfully registered new download: {filename} ({short_url}) with size {total_size}")
 
     except Exception as e:
