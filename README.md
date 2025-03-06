@@ -150,7 +150,7 @@ Press any key for Main Menu...
 - Configuration Persistence - Recent, URLs and settings, are saved in a Json configuration file.
 - Platform support - HuggingFace, HTTP/HTTPS.
 - Download Resume - If for some reason the computer or program crach, then downloads may resume.
-- Anti-Server-Spam - Requests are not sent more than once per second to the server.
+- Anti-Server-Spam - Requests are not sent to the server too often, nor at the same intervals.
 - Orphan Removal - Orphan files are, detected and indexed (not tested since revisit/refracture).
 - Multi-Platform - Programming towards download from, Normal http/https, HuggingHace, GoogleDrive (untested).
 - Download Initialization - Tested and Improved, connection processes, handling direct links from HuggingFace.   
