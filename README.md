@@ -178,9 +178,8 @@ Press any key for Main Menu...
 
 ## Development
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
-2. Needs testing LLM to make sure it works correctly as regular downloads are at this point.
-3. An interface on it, but I dont want it OS specific, and I dont want a browser interface.
-4. Currently untested on pladform GoogleDrive.
+2. An interface on it, but I dont want it OS specific, and I dont want a browser interface.
+3. Currently untested on pladform GoogleDrive.
 
 ### File Structure
 - Packaged files
