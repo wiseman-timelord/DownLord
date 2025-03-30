@@ -347,16 +347,13 @@ def exit_sequence():
     print("\n")  # Add a newline after the countdown # No newline, flush to show immediately
 
 def display_main_menu(config: Dict):
-    """
-    Display the main menu with download options, matching the exact spacing from the example.
-    """
     try:
         clear_screen_multi("Main Menu")
         config_snapshot = json.loads(json.dumps(config))
         term_width = os.get_terminal_size().columns
         col_widths = calculate_column_widths(term_width)
         
-        downloads_path = configure.get_downloads_path(config)  # Add configure. prefix
+        downloads_path = configure.get_downloads_path(config)
         
         # Header with blank line after
         print(f"    {'#.':<{col_widths['number']}} {'Filename':<{col_widths['filename']}} {'Progress':<{col_widths['progress']}} {'Size':<{col_widths['size']}}")
@@ -378,18 +375,8 @@ def display_main_menu(config: Dict):
                 display_name = truncate_filename(filename, col_widths['filename'])
                 print(f"    {i:<{col_widths['number']}} {display_name:<{col_widths['filename']}} {f'{progress:.1f}%':<{col_widths['progress']}} {size_str:<{col_widths['size']}}")
             elif status == "missing":
-                for j in range(i, 9):
-                    config[f"filename_{j}"] = config.get(f"filename_{j+1}", "Empty")
-                    config[f"url_{j}"] = config.get(f"url_{j+1}", "")
-                    config[f"total_size_{j}"] = config.get(f"total_size_{j+1}", 0)
-                config["filename_9"] = "Empty"
-                config["url_9"] = ""
-                config["total_size_9"] = 0
-                config_changed = True
+                # --- REMOVED MANUAL SHIFTING CODE ---
                 print(f"    {i:<{col_widths['number']}} {'Empty':<{col_widths['filename']}} {'-':<{col_widths['progress']}} {'-':<{col_widths['size']}}")
-        
-        if config_changed:
-            configure.ConfigManager.save(config)  # Add configure. prefix
         
         # Footer with two blank lines before and after
         print()  # First blank line before footer

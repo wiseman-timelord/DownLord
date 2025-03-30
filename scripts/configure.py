@@ -72,7 +72,6 @@ class ConfigManager:
 
     @staticmethod
     def validate(config: Dict) -> Dict:
-        """Validate and clean the configuration."""
         validated = DEFAULT_CONFIG.copy()
         
         # Remove obsolete keys
@@ -95,9 +94,35 @@ class ConfigManager:
         if validated["chunk"] not in DEFAULT_CHUNK_SIZES.values():
             validated["chunk"] = DEFAULT_CHUNK_SIZES["cable"]
         
-        # Ensure downloads_location is a string; default to "downloads" if invalid
+        # Ensure downloads_location is a string
         if not isinstance(validated.get("downloads_location"), str):
             validated["downloads_location"] = "downloads"
+        
+        # --- NEW: Compact download entries to remove gaps ---
+        entries = []
+        for i in range(1, 10):
+            filename = validated.get(f"filename_{i}", "Empty")
+            if filename != "Empty":
+                entries.append({
+                    "filename": filename,
+                    "url": validated.get(f"url_{i}", ""),
+                    "total_size": validated.get(f"total_size_{i}", 0)
+                })
+        
+        # Clear all slots
+        for i in range(1, 10):
+            validated[f"filename_{i}"] = "Empty"
+            validated[f"url_{i}"] = ""
+            validated[f"total_size_{i}"] = 0
+        
+        # Repopulate in order
+        for idx, entry in enumerate(entries, start=1):
+            if idx > 9:
+                break
+            validated[f"filename_{idx}"] = entry["filename"]
+            validated[f"url_{idx}"] = entry["url"]
+            validated[f"total_size_{idx}"] = entry["total_size"]
+        # --- END OF NEW CODE ---
         
         return validated
 

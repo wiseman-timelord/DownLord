@@ -237,12 +237,13 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
 def handle_download(url: str, config: dict) -> bool:
     from .configure import ConfigManager, get_downloads_path # Already deferred or kept as needed
     from .interface import (
-    handle_error,
-    update_history,
-    display_download_prompt,
-    get_user_choice_after_error,
-    display_success,
-    display_error
+        display_error,
+        display_success,
+        display_download_state,
+        display_download_summary,
+        update_history,
+        clear_screen,
+        format_file_size  # Added this
     )
     try:
         processor = URLProcessor()
@@ -556,12 +557,13 @@ class DownloadManager:
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
         from .interface import (
-        display_error,
-        display_success,
-        display_download_state,
-        display_download_summary,
-        update_history,
-        clear_screen
+            display_error,
+            display_success,
+            display_download_state,
+            display_download_summary,
+            update_history,
+            clear_screen,
+            format_file_size  # Added this
         )
         temp_path = TEMP_DIR / f"{out_path.name}.part"  # Initialize temp_path early
         pre_registration_attempts = 0
@@ -731,7 +733,6 @@ class DownloadManager:
                 self._cleanup_temp_files(out_path.name)
 
         return False, "Download failed"
-
 
 
 
