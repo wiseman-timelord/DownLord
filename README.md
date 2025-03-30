@@ -177,6 +177,7 @@ Press any key for Main Menu...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task, but if this becomes an issue, there is now a `Press P to Pause Download` feature.
 
 ## Development
+1. Make all, two_word globals to safer three_word_globals.
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 2. Currently untested on pladform GoogleDrive.
 
