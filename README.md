@@ -177,6 +177,7 @@ Press any key for Main Menu...
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task, but if this becomes an issue, there is now a `Press P to Pause Download` feature.
 
 ## Development
+1. it is creting a backup of the json when it replaces it, it should not do this, and just create the json.
 1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 2. An interface on it, but I dont want it OS specific, and I dont want a browser interface.
 3. Currently untested on pladform GoogleDrive.
