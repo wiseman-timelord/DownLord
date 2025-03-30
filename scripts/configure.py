@@ -26,19 +26,40 @@ class ConfigManager:
 
     @staticmethod
     def load() -> Dict:
-        """
-        Load the configuration file with validation.
-        """
         try:
             if not PERSISTENT_FILE.exists():
                 raise FileNotFoundError("Missing configuration file")
 
-            with open(PERSISTENT_FILE, "r") as f:
-                config = json.load(f)
-                return ConfigManager.validate(config)
+            # Attempt to load primary config
+            try:
+                with open(PERSISTENT_FILE, "r") as f:
+                    config = json.load(f)
+            except json.JSONDecodeError:  # Detect corruption
+                backup_path = PERSISTENT_FILE.with_suffix('.bak')
+                if backup_path.exists():
+                    # Replace corrupted file with backup
+                    try:
+                        PERSISTENT_FILE.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    backup_path.rename(PERSISTENT_FILE)
+                    from .interface import display_error
+                    display_error("Config corrupted. Restored from backup.")
+                    
+                    # Verify backup integrity
+                    try:
+                        with open(PERSISTENT_FILE, "r") as f:
+                            config = json.load(f)
+                    except json.JSONDecodeError:
+                        raise RuntimeError("Backup also corrupted. Please reinstall.")
+                else:
+                    raise RuntimeError("Config corrupted and no backup available.")
+
+            # Validate and return
+            return ConfigManager.validate(config)
 
         except Exception as e:
-            raise RuntimeError(f"Config load failed: {e}")
+            raise RuntimeError(f"Config load failed: {str(e)}")
 
     @staticmethod
     def save(config: Dict) -> bool:
@@ -138,24 +159,36 @@ def check_environment() -> bool:
     try:
         if not PERSISTENT_FILE.exists():
             raise FileNotFoundError(f"Missing configuration file: {PERSISTENT_FILE.name}")
-        config = ConfigManager.load()
+        
+        config = ConfigManager.load()  # This now handles corruption automatically
         downloads_path = get_downloads_path(config)
+        
         if not downloads_path.exists():
             downloads_path.mkdir(parents=True, exist_ok=True)
         elif not downloads_path.is_dir():
             interface.display_error(f"Path is not a directory: {downloads_path}")
             return False
         
+        # Test write access
         test_file = downloads_path / ".write_test"
         test_file.touch()
         test_file.unlink()
         return True
+
     except FileNotFoundError as e:
         interface.clear_screen()
         interface.display_error(f"Critical Error: {str(e)}")
         print("Please run the installer first!")
         time.sleep(3)
         sys.exit(1)
+        
     except Exception as e:
-        interface.display_error(f"Environment check failed: {str(e)}")
+        error_msg = str(e)
+        interface.display_error(f"Environment check failed: {error_msg}")
+        
+        if "reinstall" in error_msg.lower():
+            print("\nPlease reinstall using option 2 in the batch menu.")
+            time.sleep(5)
+            sys.exit(1)
+            
         return False
