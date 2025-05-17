@@ -184,12 +184,10 @@ def delete_file(config: Dict, index: int) -> bool:
     try:
         if file_path.exists():
             file_path.unlink()
-            display_success(f"Deleted file: {filename}")
         elif temp_path.exists():
             temp_path.unlink()
-            display_success(f"Deleted temporary file: {filename}")
         else:
-            display_error(f"File not found in downloads or temp folder: {filename}")
+            display_error(f"File not found: {filename}")
             time.sleep(3)
             return False
         
@@ -437,7 +435,7 @@ def display_download_state(multiple: list = None) -> None:
     print("\n\n\n")
     print(SEPARATOR_THIN)
     # Adjust prompt based on number of downloads
-    prompt = "Selection; Abandon = A, Wait = >_>: " if len(multiple) == 1 else "Selection; Abandon All = A, Wait = >_>: "
+    prompt = "Selection; Abandon Downlaod = A, Wait for Completion = >_>: " if len(multiple) == 1 else "Selection; Abandon All Downloads = A, Wait for Completion = >_>: "
     print(prompt, end="", flush=True)
 
 # Possibly to stop circular import

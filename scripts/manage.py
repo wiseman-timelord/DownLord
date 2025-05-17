@@ -276,12 +276,26 @@ def handle_download(url: str, config: dict) -> Tuple[bool, str]:
 
         if success:
             return True, ""
-        elif error == "Download abandoned by user":
-            return False, "Download abandoned by user"
+        elif error == "Download abandoned by user":  # Direct return without modification
+            return False, error
         else:
             display_error(f"Download failed: {error}")
             time.sleep(3)
             return False, f"Download failed: {error}"
+
+    except Exception as e:
+        display_error(f"Unexpected error: {str(e)}")
+        time.sleep(3)
+        choice = get_user_choice_after_error()
+        if choice == 'r':
+            return handle_download(url, config)
+        elif choice == '0':
+            new_url = display_download_prompt()
+            if new_url and new_url.lower() == 'b':
+                return False, "User cancelled"
+            return handle_download(new_url, config) if new_url else (False, "No URL provided")
+        else:
+            return False, "Invalid choice"
 
     except Exception as e:
         display_error(f"Unexpected error: {str(e)}")
@@ -594,6 +608,7 @@ class DownloadManager:
         temp_path = None
         filename = None
         tracking_data = None
+        total_size = 0  # Initialize total_size at function level
         try:
             pre_registration_attempts = 0
             retries = 0
@@ -602,6 +617,7 @@ class DownloadManager:
                 try:
                     print(f"Retrieving file metadata (attempt {pre_registration_attempts + retries + 1}): ", end='', flush=True)
                     download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
+                    total_size = metadata.get('size', 0)  # Store total_size from metadata
                     print("Done")
                     short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
                     print(f"Resolved download URL: {short_download_url}")
@@ -612,15 +628,14 @@ class DownloadManager:
 
                     temp_path = TEMP_DIR / f"{filename}.part"
                     existing_size = temp_path.stat().st_size if temp_path.exists() else 0
-                    total_size = metadata.get('size', 0)
 
-                    # Initialize tracking_data
+                    # Initialize tracking_data with preserved total_size
                     tracking_data = {
                         'filename': out_path.name,
                         'url': remote_url,
                         'status': 'connecting',
                         'current': existing_size,
-                        'total': total_size,
+                        'total': total_size,  # Using the preserved total_size
                         'speed': 0.0,
                         'elapsed': time.time() - start_time,
                         'remaining': 0.0,
@@ -713,16 +728,15 @@ class DownloadManager:
                                         key = msvcrt.getch().decode().lower()
                                         if key == 'a':
                                             tracking_data['status'] = 'cancelled'
-                                            # Update config with current progress for resumption
-                                            self._register_file_entry(filename, remote_url, written_size)
+                                            # Update config with correct total_size (not written_size)
+                                            self._register_file_entry(filename, remote_url, total_size)
                                             # Preserve temp file for resumption
                                             out_file.flush()
                                             os.fsync(out_file.fileno())
                                             # Remove from active downloads
                                             if tracking_data in ACTIVE_DOWNLOADS:
                                                 ACTIVE_DOWNLOADS.remove(tracking_data)
-                                            from .interface import clear_screen
-                                            return False, "\nDownload abandoned by user"
+                                            return False, "Download saved for later"
 
                                     out_file.write(chunk)
                                     out_file.flush()

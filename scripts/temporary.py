@@ -1,4 +1,4 @@
-# # Script: `.\scripts\temporary.py`
+# Script: `.\scripts\temporary.py`
 
 # Imports
 import os
