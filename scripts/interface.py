@@ -435,7 +435,7 @@ def display_download_state(multiple: list = None) -> None:
     print("\n\n\n")
     print(SEPARATOR_THIN)
     # Adjust prompt based on number of downloads
-    prompt = "Selection; Abandon Downlaod = A, Wait for Completion = >_>: " if len(multiple) == 1 else "Selection; Abandon All Downloads = A, Wait for Completion = >_>: "
+    prompt = "Selection; Abandon Download = A, Wait for Completion = >_>: " if len(multiple) == 1 else "Selection; Abandon All Downloads = A, Wait for Completion = >_>: "
     print(prompt, end="", flush=True)
 
 # Possibly to stop circular import
@@ -449,50 +449,46 @@ def display_download_summary(
     timestamp: datetime,
     destination: str
 ) -> None:
-    """Display dynamic download summary based on number of files."""
+    """
+    Display a comprehensive download summary with proper formatting and user control.
+    """
     clear_screen("Download Summary")
-    total_files = DOWNLOAD_TRACKING["total_files"]
-    completed_files = DOWNLOAD_TRACKING["completed"]
+    
+    # Format all values for display
     elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
     size_str = format_file_size(total_size)
     speed_str = f"{format_file_size(average_speed)}/s"
     destination_dir = str(Path(destination).parent)
 
-    summary_content = ["", ""]
-    if total_files == 1:
-        summary_content.extend([
-            f"    Filename:",
-            f"        {filename}"
-        ])
-    else:
-        summary_content.extend([
-            f"    Downloaded:",
-            f"        {completed_files} Files"
-        ])
-
-    summary_content.extend([
-        "",
-        f"    Completed At:",
-        f"        {timestamp.strftime('%Y/%m/%d %H:%M:%S')}",
-        "",
-        f"    Total Size:",
-        f"        {size_str}",
-        "",
-        f"    Average Speed:",
-        f"        {speed_str}",
-        "",
-        f"    Total Time:",
-        f"        {elapsed_str}",
-        "",
-        f"    Location:",
+    # Build the summary content
+    summary_content = [
+        "\n\n",
+        f"Filename:",
+        f"    {filename}\n",
+        f"Completed At:",
+        f"    {timestamp.strftime('%Y/%m/%d %H:%M:%S')}\n",
+        f"Size:",
+        f"    {size_str}\n",
+        f"Average Speed:",
+        f"    {speed_str}\n",
+        f"Download Time:",
+        f"    {elapsed_str}\n",
+        f"    Saved To:",
         f"        {destination_dir}",
-        "",
-        ""
-    ])
+        "\n\n",
+        SEPARATOR_THIN
+    ]
 
-    content_string = "\n".join(summary_content)
-    print(f"{content_string}\n{SEPARATOR_THICK}\nPress any key for Main Menu...")
-    input()
+    # Display the summary
+    print("\n".join(summary_content))
+    
+    # Handle input
+    try:
+        input("Press any key to return to main menu...")
+    except KeyboardInterrupt:
+        pass
+    
+    clear_screen()
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """

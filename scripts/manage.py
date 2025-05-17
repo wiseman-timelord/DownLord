@@ -437,21 +437,37 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
 
 class DownloadManager:
     def __init__(self, downloads_location: Path):
-        from .configure import Config_Manager  # Deferred import
-        self.config = Config_Manager.load()  # Now accessible
+        from .configure import Config_Manager
+        self.config = Config_Manager.load()
         self.downloads_location = downloads_location
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self._register_existing_temp_files()
         self.display_thread = None
+        self.display_refresh_active = False  # Added control flag
 
     def _start_display_updater(self):
-        """Start dedicated display refresh thread"""
+        """Start display refresh thread with control flag"""
+        self.display_refresh_active = True
         self.display_thread = threading.Thread(
-            target=update_display,
+            target=self._update_display_loop,
             args=(DISPLAY_REFRESH,),
             daemon=True
         )
         self.display_thread.start()
+
+    def _update_display_loop(self, refresh_rate=1):
+        """Controlled display updater"""
+        while self.display_refresh_active:
+            active = get_active_downloads()
+            if active:
+                display_download_state(active)
+            time.sleep(refresh_rate)
+
+    def _stop_display_updater(self):
+        """Gracefully stop display updates"""
+        self.display_refresh_active = False
+        if self.display_thread and self.display_thread.is_alive():
+            self.display_thread.join(timeout=1)
 
     def _check_existing_download(self, url: str, filename: str) -> Tuple[bool, Optional[Path], Dict]:
         """Check if a download already exists, either complete or partial."""
@@ -476,9 +492,7 @@ class DownloadManager:
         return False, None, {}
 
     def _register_existing_temp_files(self):
-        """
-        Register any .part files in temp directory.
-        """
+        """Register any .part files in temp directory."""
         for temp_file in TEMP_DIR.glob("*.part"):
             filename = temp_file.stem
             if not any(self.config[f"filename_{i}"] == filename for i in range(1, 10)):
@@ -487,7 +501,7 @@ class DownloadManager:
 
     def _remove_from_persistent(self, index: int) -> None:
         """Remove an entry from the persistent configuration."""
-        from .configure import Config_Manager  # Deferred import
+        from .configure import Config_Manager
         for i in range(index, 9):
             self.config[f"filename_{i}"] = self.config[f"filename_{i+1}"]
             self.config[f"url_{i}"] = self.config[f"url_{i+1}"]
@@ -496,11 +510,11 @@ class DownloadManager:
         self.config["filename_9"] = "Empty"
         self.config["url_9"] = ""
         self.config["total_size_9"] = 0
-        Config_Manager.save(self.config)  
+        Config_Manager.save(self.config)
 
     def _register_file_entry(self, filename: str, url: str, total_size: int) -> None:
         """Register a file entry in the first available slot."""
-        from .configure import Config_Manager  # Deferred import
+        from .configure import Config_Manager
         for i in range(1, 10):
             if self.config[f"filename_{i}"] in ["Empty", filename]:
                 self.config[f"filename_{i}"] = filename
@@ -510,10 +524,8 @@ class DownloadManager:
                 break
 
     def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
-        """
-        Register download metadata immediately after verifying total size.
-        """
-        from .configure import Config_Manager  # Deferred import
+        """Register download metadata immediately after verifying total size."""
+        from .configure import Config_Manager
         try:
             for i in range(1, 10):
                 if self.config[f"filename_{i}"] in ["Empty", filename]:
@@ -528,47 +540,6 @@ class DownloadManager:
                 display_error("Could not determine file size from server. Proceeding with unknown size.")
         except Exception as e:
             display_error(f"Error registering early metadata: {str(e)}")
-            time.sleep(3)
-
-    def cleanup_unregistered_files(self) -> None:
-        """Remove files not registered in persistent.json."""
-        try:
-            registered_files = set()
-            for i in range(1, 10):
-                filename = self.config[f"filename_{i}"]
-                if filename != "Empty":
-                    registered_files.add(filename)
-                    registered_files.add(f"{filename}.part")
-
-            for folder in [DOWNLOADS_DIR, TEMP_DIR]:
-                for file_path in folder.glob("*"):
-                    if file_path.name not in registered_files and not any(
-                        self.config.get(f"filename_{i}") == file_path.name for i in range(1, 10)
-                    ):
-                        try:
-                            file_path.unlink()
-                            print(f"Removed unregistered file: {file_path}")
-                        except Exception as e:
-                            display_error(f"Error removing file {file_path}: {str(e)}")
-                            time.sleep(3)
-        except Exception as e:
-            display_error(f"Error in cleanup_unregistered_files: {str(e)}")
-
-    def _cleanup_temp_files(self, filename: str) -> None:
-        """
-        Clean up temporary download files.
-        """
-        try:
-            temp_pattern = f"{filename}*.part"
-            for temp_file in TEMP_DIR.glob(temp_pattern):
-                try:
-                    temp_file.unlink()
-                    print(f"Cleaned up temporary file: {temp_file}")
-                except Exception as e:
-                    display_error(f"Error removing temp file {temp_file}: {e}")
-                    time.sleep(3)
-        except Exception as e:
-            display_error(f"Error during temp cleanup: {e}")
             time.sleep(3)
 
     def _handle_rate_limit(self, response: requests.Response) -> bool:
@@ -593,199 +564,124 @@ class DownloadManager:
         time.sleep(max(1, delay))
         return True
 
-    def verify_download(self, filepath: Path, remote_info: Dict) -> bool:
-        """Verify if download is complete and matches expected size."""
-        if not filepath.exists():
-            return False
-        return filepath.stat().st_size == remote_info.get('size', 0)
-
-    def _get_retry_prompt(self) -> str:
-        return "\nSelection; Retry Now = R, Alternate URL = 0, Menu = B: "
-
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False) -> Tuple[bool, Optional[str]]:
-        from .interface import display_error, display_success, update_history, format_file_size
+        from .interface import display_error, display_success, update_history, format_file_size, display_download_summary
         start_time = time.time()
         temp_path = None
         filename = None
         tracking_data = None
-        total_size = 0  # Initialize total_size at function level
+        total_size = 0
+        
         try:
             pre_registration_attempts = 0
             retries = 0
             max_pre_attempts = 3
+            
             while pre_registration_attempts < max_pre_attempts or retries < RUNTIME_CONFIG["download"]["max_retries"]:
                 try:
+                    # Get file metadata
                     print(f"Retrieving file metadata (attempt {pre_registration_attempts + retries + 1}): ", end='', flush=True)
                     download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
-                    total_size = metadata.get('size', 0)  # Store total_size from metadata
+                    total_size = metadata.get('size', 0)
                     print("Done")
-                    short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
-                    print(f"Resolved download URL: {short_download_url}")
+                    
                     filename = metadata.get("filename") or get_file_name_from_url(download_url)
                     if not filename:
                         return False, ERROR_HANDLING["messages"]["filename_error"]
-                    print(f"Found filename: {filename}")
-
+                    
                     temp_path = TEMP_DIR / f"{filename}.part"
                     existing_size = temp_path.stat().st_size if temp_path.exists() else 0
 
-                    # Initialize tracking_data with preserved total_size
+                    # Setup tracking
                     tracking_data = {
                         'filename': out_path.name,
                         'url': remote_url,
                         'status': 'connecting',
                         'current': existing_size,
-                        'total': total_size,  # Using the preserved total_size
+                        'total': total_size,
                         'speed': 0.0,
                         'elapsed': time.time() - start_time,
                         'remaining': 0.0,
                         'start_time': start_time
                     }
-                    if tracking_data not in ACTIVE_DOWNLOADS:
-                        ACTIVE_DOWNLOADS.append(tracking_data)
+                    ACTIVE_DOWNLOADS.append(tracking_data)
 
-                    exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
-                    if exists and existing_path:
-                        if self.verify_download(existing_path, metadata):
-                            if existing_path.suffix == '.part':
-                                try:
-                                    existing_path.rename(out_path)
-                                    display_success(f"Moved completed download to: {out_path}")
-                                    update_history(self.config, out_path.name, remote_url, out_path.stat().st_size)
-                                except Exception as e:
-                                    display_error(f"Failed to move completed download: {e}")
-                                    return False, f"Failed to move completed download: {e}"
-                            else:
-                                display_success(f"File already exists and is complete: {out_path.name}")
-                            return True, None
-                        elif existing_path.suffix == '.part':
-                            temp_path = existing_path
-
-                    early_registration_done = any(self.config[f"filename_{i}"] == filename for i in range(1, 10))
-                    if not early_registration_done:
-                        self._register_early_metadata(filename, remote_url, total_size)
-                        early_registration_done = True
-
-                    if existing_size > 0:
-                        print(f"Found incomplete file, resuming from: {format_file_size(existing_size)}")
-
+                    # Start display thread if needed
                     if not self.display_thread or not self.display_thread.is_alive():
                         self._start_display_updater()
 
-                    session = requests.Session()
-                    adapter = requests.adapters.HTTPAdapter(max_retries=5, pool_connections=50, pool_maxsize=50)
-                    session.mount('https://', adapter)
-                    session.mount('http://', adapter)
-                    headers = get_download_headers(existing_size)
+                    # Begin download
+                    with requests.Session() as session:
+                        adapter = requests.adapters.HTTPAdapter(max_retries=5)
+                        session.mount('https://', adapter)
+                        session.mount('http://', adapter)
+                        
+                        with session.get(
+                            download_url,
+                            stream=True,
+                            headers=get_download_headers(existing_size),
+                            timeout=RUNTIME_CONFIG["download"]["timeout"],
+                            verify=False
+                        ) as response:
+                            response.raise_for_status()
+                            
+                            # Download loop
+                            with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
+                                for chunk in response.iter_content(chunk_size=chunk_size):
+                                    if chunk:
+                                        written_size = out_file.tell()
+                                        tracking_data.update({
+                                            'current': written_size,
+                                            'total': total_size,
+                                            'status': 'downloading',
+                                            'speed': len(chunk) / (time.time() - tracking_data.get('last_chunk_time', time.time())) 
+                                                     if 'last_chunk_time' in tracking_data else 0,
+                                            'last_chunk_time': time.time()
+                                        })
+                                        out_file.write(chunk)
+                                        out_file.flush()
+                                        os.fsync(out_file.fileno())
 
-                    print("Connecting to server...")
-                    with session.get(
-                        download_url,
-                        stream=True,
-                        headers=headers,
-                        timeout=RUNTIME_CONFIG["download"]["timeout"],
-                        verify=False
-                    ) as response:
-                        if response.status_code == 429 and self._handle_rate_limit(response):
-                            continue
-
-                        response.raise_for_status()
-
-                        content_length = response.headers.get('content-length')
-                        total_size = int(content_length) + existing_size if content_length else total_size
-                        tracking_data['status'] = 'downloading'
-                        tracking_data['total'] = total_size
-
-                        start_time = time.time()
-                        bytes_since_last_update = 0
-                        written_size = existing_size
-                        last_display_update = start_time
-
-                        with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
-                            for chunk in response.iter_content(chunk_size=chunk_size):
-                                if chunk:
-                                    written_size += len(chunk)
-                                    bytes_since_last_update += len(chunk)
-                                    current_time = time.time()
-
-                                    tracking_data.update({
-                                        'current': written_size,
-                                        'total': total_size,
-                                        'speed': bytes_since_last_update / (current_time - last_display_update) if (current_time - last_display_update) > 0 else 0,
-                                        'elapsed': current_time - start_time,
-                                        'remaining': (total_size - written_size) / tracking_data['speed'] if tracking_data['speed'] > 0 else 0,
-                                        'start_time': start_time
-                                    })
-
-                                    if current_time - last_display_update >= DISPLAY_REFRESH:
-                                        bytes_since_last_update = 0
-                                        last_display_update = current_time
-
-                                    if msvcrt.kbhit():
-                                        key = msvcrt.getch().decode().lower()
-                                        if key == 'a':
-                                            tracking_data['status'] = 'cancelled'
-                                            # Update config with correct total_size (not written_size)
+                                        # Check for user cancel
+                                        if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
                                             self._register_file_entry(filename, remote_url, total_size)
-                                            # Preserve temp file for resumption
-                                            out_file.flush()
-                                            os.fsync(out_file.fileno())
-                                            # Remove from active downloads
-                                            if tracking_data in ACTIVE_DOWNLOADS:
-                                                ACTIVE_DOWNLOADS.remove(tracking_data)
                                             return False, "Download saved for later"
 
-                                    out_file.write(chunk)
-                                    out_file.flush()
-                                    os.fsync(out_file.fileno())
+                            # Verify and move completed file
+                            if not move_with_retry(temp_path, out_path):
+                                return False, "Failed to move downloaded file"
 
-                        tracking_data['status'] = 'verifying'
-                        if not move_with_retry(temp_path, out_path):
-                            tracking_data['status'] = 'failed'
-                            return False, "Failed to move downloaded file to destination"
-
-                        elapsed = time.time() - start_time
-                        average_speed = written_size / elapsed if elapsed > 0 else 0
-
-                        if not batch_mode:
-                            from .interface import display_download_summary
-                            display_download_summary(
-                                filename=filename,
-                                total_size=written_size,
-                                average_speed=average_speed,
-                                elapsed=elapsed,
-                                timestamp=datetime.now(),
-                                destination=str(out_path)
-                            )
-
-                        final_size = out_path.stat().st_size
-                        update_history(self.config, filename, remote_url, final_size)
-                        tracking_data['status'] = 'complete'
-                        return True, None
+                            # Stop display updates before showing summary
+                            self._stop_display_updater()
+                            
+                            if not batch_mode:
+                                display_download_summary(
+                                    filename=filename,
+                                    total_size=out_path.stat().st_size,
+                                    average_speed=(out_path.stat().st_size - existing_size) / 
+                                              (time.time() - start_time),
+                                    elapsed=time.time() - start_time,
+                                    timestamp=datetime.now(),
+                                    destination=str(out_path)
+                                )
+                            
+                            update_history(self.config, filename, remote_url, out_path.stat().st_size)
+                            return True, None
 
                 except Exception as e:
-                    if not early_registration_done:
-                        pre_registration_attempts += 1
-                        if pre_registration_attempts >= max_pre_attempts:
-                            tracking_data['status'] = 'failed'
-                            return False, f"Failed to initialize download after {max_pre_attempts} attempts"
-                    else:
-                        retries += 1
-                        if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
-                            tracking_data['status'] = 'failed'
-                            return False, "Maximum retries exceeded"
-                    tracking_data['status'] = f'retrying ({retries + 1}/{RUNTIME_CONFIG["download"]["max_retries"]})'
-                    delay_seconds = min(2 ** (retries + pre_registration_attempts - 1), 71)
-                    time.sleep(delay_seconds)
-
+                    retries += 1
+                    if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
+                        raise
+                    time.sleep(min(2 ** retries, 10))
+                    
         except Exception as e:
-            display_error(f"Fatal error: {str(e)}")
+            display_error(f"Download failed: {str(e)}")
             return False, str(e)
-
+            
         finally:
+            self._stop_display_updater()
             if tracking_data and tracking_data in ACTIVE_DOWNLOADS:
                 ACTIVE_DOWNLOADS.remove(tracking_data)
-            import gc
             gc.collect()
 
 
