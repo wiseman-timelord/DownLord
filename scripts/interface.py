@@ -16,6 +16,7 @@ from .temporary import (
     TEMP_DIR,
     DEFAULT_CHUNK_SIZES,
     SPEED_DISPLAY,
+    DOWNLOAD_TRACKING,
     BASE_DIR
 )
 
@@ -59,7 +60,6 @@ SETUP_MENU = f"""
 
 
 """
-
 
 def clear_screen(title="Main Menu", use_logo=True):
     """
@@ -202,7 +202,7 @@ def delete_file(config: Dict, index: int) -> bool:
         config["filename_9"] = "Empty"
         config["url_9"] = ""
         config["total_size_9"] = 0
-        configure.ConfigManager.save(config)
+        configure.Config_Manager.save(config)
         return True
     except Exception as e:
         display_error(f"Error deleting file: {str(e)}")
@@ -217,108 +217,94 @@ def get_user_choice_after_error() -> str:
     return input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
 
 def prompt_for_download():
-    from .manage import handle_download, handle_orphaned_files, URLProcessor # Deferred import
-    # Ensure clean state before showing menu
-    config = configure.ConfigManager.load()
+    from .manage import handle_download, handle_orphaned_files, URLProcessor
+    config = configure.Config_Manager.load()
     downloads_path = configure.get_downloads_path(config)
-
     while True:
         display_main_menu(config)
         choice = input().strip().lower()
-
         if choice == 's':
             setup_menu()
-            config = configure.ConfigManager.load()  # Reload config after setup
+            config = configure.Config_Manager.load()
             continue
-
         if choice == 'r':
             handle_orphaned_files(config)
-            config = configure.ConfigManager.load()  # Reload config after refresh
+            config = configure.Config_Manager.load()
             clear_screen()
             continue
-
         if choice == 'q':
-            exit_sequence()  # Display the exit sequence
-            break  # Exit the loop, ending the script
-
+            exit_sequence()
+            break
         if choice == '0':
+            clear_screen("Initialize Download")
             while True:
-                clear_screen("Initialize Download")
-                url = input("\nEnter download URL (Q to cancel): ").strip()
-                if url.lower() == 'q':
-                    break  # Exit the loop and return to the main menu
-                elif len(url) < 5:
-                    display_error("URL must be at least 5 characters long. Please try again.")
-                    time.sleep(3)  # Give the user time to read the error message
-                else:
-                    # Resolve downloads location
-                    downloads_location_str = config.get("downloads_location", "downloads")
-                    downloads_path = Path(downloads_location_str)
-                    if not downloads_path.is_absolute():
-                        downloads_path = BASE_DIR / downloads_path
-                    downloads_path = downloads_path.resolve()
-                    
-                    success = handle_download(url, config)
-                    if success:
-                        config = configure.ConfigManager.load()  # Reload config after successful download
+                url_input = input("\nEnter download URL(s) separated by commas (Q to cancel): ").strip()
+                if url_input.lower() == 'q':
+                    break
+                urls = [u.strip() for u in url_input.split(',') if u.strip()]
+                valid_urls = []
+                for url in urls:
+                    if not URLProcessor.validate_url(url):
+                        display_error(f"Invalid URL skipped: {url}")
+                        time.sleep(1)
+                        continue
+                    valid_urls.append(url)
+                if not valid_urls:
+                    display_error("No valid URLs provided")
                     time.sleep(2)
-                    break  # Exit the loop after attempting the download
-
+                    continue
+                free_slots = configure.Config_Manager.get_available_slots()
+                if len(valid_urls) > free_slots:
+                    display_error(f"Need {len(valid_urls)} slots, only {free_slots} available")
+                    time.sleep(3)
+                    continue
+                from .manage import handle_multiple_downloads
+                success_count = handle_multiple_downloads(valid_urls, config)
+                display_success(f"Started {success_count}/{len(valid_urls)} downloads")
+                time.sleep(2)
+                config = configure.Config_Manager.load()
+                break
         elif choice.isdigit() and 1 <= int(choice) <= 9:
             index = int(choice)
             url = config.get(f"url_{index}", "")
             filename = config.get(f"filename_{index}", "Empty")
-
             if filename == "Empty":
                 display_error("Invalid choice. Please try again.")
                 time.sleep(3)
                 continue
-
-            # Clear screen for Initialize Download
-            clear_screen("Initialize Download")
-
-            # Resolve downloads location
-            downloads_location_str = config.get("downloads_location", "downloads")
-            downloads_path = Path(downloads_location_str)
-            if not downloads_path.is_absolute():
-                downloads_path = BASE_DIR / downloads_path
-            downloads_path = downloads_path.resolve()
-            
+            clear_screen("Initialize Download")  # Transition immediately
             existing_file = downloads_path / filename
             if existing_file.exists():
                 display_success(f"'{filename}' is already downloaded!")
                 time.sleep(2)
-                config = configure.ConfigManager.load()  # Reload to refresh any changes
+                config = configure.Config_Manager.load()
                 continue
-            
-            # Handle orphaned files (no URL)
             if not url:
                 new_url = display_download_prompt()
-                if new_url is None:  # User chose to go back to the menu
+                if new_url is None:
                     continue
-
-                # Validate the new URL
                 if not URLProcessor.validate_url(new_url):
                     display_error("Invalid URL. Please enter a valid URL starting with http:// or https://")
                     time.sleep(3)
                     continue
-
-                # Update the config with the new URL
                 config[f"url_{index}"] = new_url
-                configure.ConfigManager.save(config)
-
-                # Start the download with the new URL and existing .part file
-                success = handle_download(new_url, config)
-                if success:
-                    config = configure.ConfigManager.load()  # Reload config after successful download
+                configure.Config_Manager.save(config)
+                success, error = handle_download(new_url, config)
+                if not success:
+                    display_error(error)
+                    time.sleep(3)
+                else:
+                    config = configure.Config_Manager.load()
                 time.sleep(2)
             else:
-                # Handle normal download
-                success = handle_download(url, config)
-                if success:
-                    config = configure.ConfigManager.load()  # Reload config after successful download
+                success, error = handle_download(url, config)
+                if not success:
+                    display_error(error)
+                    time.sleep(3)
+                else:
+                    config = configure.Config_Manager.load()
                 time.sleep(2)
-        elif choice == 'd':  # Handle delete option
+        elif choice == 'd':
             delete_index = input("Enter the number of the file to delete (1-9): ").strip()
             if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
                 delete_file(config, int(delete_index))
@@ -407,47 +393,55 @@ def display_file_info(path: Path, url: str = None) -> None:
         display_error(f"Error displaying file info: {e}")
         time.sleep(3)
 
+def display_batch_progress(active_downloads: list):
+    clear_screen("Batch Downloads")
+    for idx, dl in enumerate(active_downloads, 1):
+        print(f"Download {idx}: {truncate_filename(dl['filename'], 40)}")
+        print(f"Progress: {dl['progress']}% | Speed: {format_file_size(dl['speed'])}/s")
+    print(SEPARATOR_THICK)
 
-def display_download_state(
-    filename: str,
-    current_size: int,
-    total_size: int,
-    speed: float,
-    elapsed: float,
-    remaining: float
-) -> None:
-    """Display download status in the new multi-line format."""
+def get_active_downloads() -> list:
+    global ACTIVE_DOWNLOADS
+    return [{
+        'filename': d['filename'],
+        'current': d['current'],
+        'total': d['total'],
+        'speed': d['speed'],
+        'elapsed': time.time() - d['start_time'],
+        'remaining': (d['total'] - d['current']) / d['speed'] if d['speed'] > 0 else 0
+    } for d in ACTIVE_DOWNLOADS if 'current' in d and 'total' in d]
+
+def display_download_state(multiple: list = None) -> None:
+    """Display download status for active downloads"""
     clear_screen("Download Active")
-    
-    progress = (current_size / total_size) * 100 if total_size > 0 else 0
-    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
-    remaining_str = time.strftime("%H:%M:%S", time.gmtime(remaining)) if remaining > 0 else "--:--:--"
+    print("\n\n\n")  # Add space after the header
 
-    print(f"""
+    if not multiple:
+        print("No active downloads.")
+        return
 
+    for dl in multiple:
+        progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
+        speed_str = f"{format_file_size(dl['speed'])}/s"
+        size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
+        elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
+        remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
 
+        print(f"    Filename:\n        {dl['filename']}\n")
+        print(f"    Progress:\n        {progress_pct:.1f}%\n")
+        print(f"    Speed:\n        {speed_str}\n")
+        print(f"    Received/Total:\n        {size_str}\n")
+        print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
+        
 
-    Filename:
-        {filename}
+    print("\n\n\n")
+    print(SEPARATOR_THIN)
+    # Adjust prompt based on number of downloads
+    prompt = "Selection; Abandon = A, Wait = >_>: " if len(multiple) == 1 else "Selection; Abandon All = A, Wait = >_>: "
+    print(prompt, end="", flush=True)
 
-    Progress:
-        {progress:.1f}%
-
-    Speed:
-        {format_file_size(speed)}/s
-
-    Received/Total:
-        {format_file_size(current_size)}/{format_file_size(total_size)}
-
-    Elapsed/Remaining:
-        {elapsed_str}<{remaining_str}
-
-
-
-    
-    
-{SEPARATOR_THICK}Selection; Abandon = A, Wait = >_>: """)
-
+# Possibly to stop circular import
+from pathlib import Path
 
 def display_download_summary(
     filename: str,
@@ -457,38 +451,49 @@ def display_download_summary(
     timestamp: datetime,
     destination: str
 ) -> None:
-    """Display detailed download summary."""
+    """Display dynamic download summary based on number of files."""
     clear_screen("Download Summary")
-    
+    total_files = DOWNLOAD_TRACKING["total_files"]
+    completed_files = DOWNLOAD_TRACKING["completed"]
     elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
     size_str = format_file_size(total_size)
     speed_str = f"{format_file_size(average_speed)}/s"
-    
-    print(f"""
-    
-    
-    Filename:
-        {filename}
-        
-    Completed:
-        {timestamp.strftime('%Y/%m/%d %H:%M:%S')}
-        
-    Total Size:
-        {size_str}
-        
-    Average Speed:
-        {speed_str}
-        
-    Elapsed Time:
-        {elapsed_str}
-        
-    Location:
-        {destination}
-    
-    
-    
-{SEPARATOR_THICK}
-Press any key for Main Menu...""")
+    destination_dir = str(Path(destination).parent)
+
+    summary_content = ["", ""]
+    if total_files == 1:
+        summary_content.extend([
+            f"    Filename:",
+            f"        {filename}"
+        ])
+    else:
+        summary_content.extend([
+            f"    Downloaded:",
+            f"        {completed_files} Files"
+        ])
+
+    summary_content.extend([
+        "",
+        f"    Completed At:",
+        f"        {timestamp.strftime('%Y/%m/%d %H:%M:%S')}",
+        "",
+        f"    Total Size:",
+        f"        {size_str}",
+        "",
+        f"    Average Speed:",
+        f"        {speed_str}",
+        "",
+        f"    Total Time:",
+        f"        {elapsed_str}",
+        "",
+        f"    Location:",
+        f"        {destination_dir}",
+        "",
+        ""
+    ])
+
+    content_string = "\n".join(summary_content)
+    print(f"{content_string}\n{SEPARATOR_THICK}\nPress any key for Main Menu...")
     input()
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
@@ -502,7 +507,7 @@ def display_download_complete(filename: str, timestamp: datetime) -> None:
 
 def setup_menu():
     while True:
-        config = configure.ConfigManager.load()
+        config = configure.Config_Manager.load()
         clear_screen("Setup Menu", use_logo=False)
         print(SETUP_MENU.format(
             chunk=format_connection_speed(config["chunk"]),
@@ -520,7 +525,7 @@ def setup_menu():
                 config["chunk"] = sizes[(idx + 1) % len(sizes)]
             except ValueError:
                 config["chunk"] = sizes[0]
-            configure.ConfigManager.save(config)
+            configure.Config_Manager.save(config)
 
         elif choice == '2':
             # Cycle through retry options
@@ -530,7 +535,7 @@ def setup_menu():
                 config["retries"] = RETRY_OPTIONS[(idx + 1) % len(RETRY_OPTIONS)]
             except ValueError:
                 config["retries"] = RETRY_OPTIONS[0]
-            configure.ConfigManager.save(config)
+            configure.Config_Manager.save(config)
 
         elif choice == '3':
             new_location = input("Enter full path to custom location: ").strip()
@@ -542,7 +547,7 @@ def setup_menu():
                     test_path = test_path.resolve()
                     test_path.mkdir(parents=True, exist_ok=True)
                     config["downloads_location"] = new_location  # Store as-is
-                    configure.ConfigManager.save(config)
+                    configure.Config_Manager.save(config)
                     print(f"Downloads location updated to: {new_location}")
                 except Exception as e:
                     print(f"Error setting location: {e}")
@@ -605,7 +610,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
             if config.get(f"filename_{i}") == filename and config.get(f"url_{i}") == url:
                 if total_size > 0:
                     config[f"total_size_{i}"] = total_size
-                    configure.ConfigManager.save(config)  # Fixed
+                    configure.Config_Manager.save(config)  # Fixed
                 return
 
         # Check for existing temp files without a menu entry
@@ -621,7 +626,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
             config["filename_1"] = filename
             config["url_1"] = url
             config["total_size_1"] = temp_path.stat().st_size
-            configure.ConfigManager.save(config)  # Fixed
+            configure.Config_Manager.save(config)  # Fixed
             print(f"Registered partial download: {filename} ({short_url}) with size {temp_path.stat().st_size}")
             return
 
@@ -637,7 +642,7 @@ def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -
         config["total_size_1"] = total_size
 
         # Save changes
-        configure.ConfigManager.save(config)  # Fixed
+        configure.Config_Manager.save(config)  # Fixed
         print(f"Successfully registered new download: {filename} ({short_url}) with size {total_size}")
 
     except Exception as e:

@@ -25,8 +25,19 @@ REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
 # Retry and Refresh Options
 RETRY_OPTIONS = [100, 200, 400, 800]
 REFRESH_OPTIONS = [1, 2, 4, 8]
+FS_UPDATE_INTERVAL = 5
+DISPLAY_REFRESH = 1
 
-# Optimized download config
+# DownloadS
+DOWNLOAD_TRACKING = {
+    "total_files": 0,
+    "completed": 0,
+    "failed": 0,
+    "active": [],
+    "current": []  # Single active download tracking
+}
+
+# 
 URL_HANDLERS = {
     "huggingface": {
         "pattern": r"huggingface\.co|hf\.co",
@@ -42,7 +53,7 @@ URL_HANDLERS = {
     }
 }
 
-# Configuration Defaults
+# Configuration Units
 DEFAULT_CHUNK_SIZES = {
     "slow": 1024000,      # ~1MBit/s
     "mobile": 2048000,    # ~2.5MBit/s
@@ -50,7 +61,6 @@ DEFAULT_CHUNK_SIZES = {
     "fibre": 8192000,     # ~10MBit/s
     "lan": 16384000,      # ~20MBit/s
 }
-
 SPEED_DISPLAY = {
     1024000: "1Mbps",
     2048000: "2.5Mbps",
@@ -157,7 +167,6 @@ RUNTIME_CONFIG = {
     "download": {
         "timeout": 120,
         "max_retries": 10,
-        "max_parallel": 3,
         "bandwidth_limit": None,
         "auto_resume": True,
         "huggingface": {

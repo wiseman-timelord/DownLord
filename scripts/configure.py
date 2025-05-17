@@ -5,6 +5,8 @@ import json
 import time
 from pathlib import Path
 from typing import Dict
+import sys
+
 from .temporary import (
     PERSISTENT_FILE,
     DEFAULT_CONFIG,
@@ -15,14 +17,50 @@ from .temporary import (
     ERROR_HANDLING,
     BASE_DIR
 )
-from . import interface
-import sys
 
 # Classes
-class ConfigManager:
+class Config_Manager:
     """
     Manages loading, saving, and validating the application configuration.
     """
+
+    @staticmethod
+    def get_available_slots() -> int:
+        config = Config_Manager.load()
+        return sum(1 for i in range(1,10) if config[f"filename_{i}"] == "Empty")
+
+    @staticmethod 
+    def reserve_slot(url: str, filename: str) -> int:
+        config = Config_Manager.load()
+        for i in range(1,10):
+            if config[f"filename_{i}"] == "Empty":
+                config[f"filename_{i}"] = filename
+                config[f"url_{i}"] = url
+                Config_Manager.save(config)
+                return i
+        return -1
+
+    @staticmethod
+    def reserve_slots(count: int) -> list:
+        """Reserve contiguous slots for batch downloads"""
+        config = Config_Manager.load()
+        slots = []
+        for i in range(1, 10):
+            if config[f"filename_{i}"] == "Empty":
+                slots.append(i)
+                config[f"filename_{i}"] = "RESERVED"
+                if len(slots) == count:
+                    Config_Manager.save(config)
+                    return slots
+        return []
+
+    @staticmethod
+    def release_slot(index: int) -> None:
+        """Mark slot as available"""
+        config = Config_Manager.load()
+        config[f"filename_{index}"] = "Empty"
+        config[f"url_{index}"] = ""
+        Config_Manager.save(config)
 
     @staticmethod
     def load() -> Dict:
@@ -35,6 +73,7 @@ class ConfigManager:
                 with open(PERSISTENT_FILE, "r") as f:
                     config = json.load(f)
             except json.JSONDecodeError:  # Detect corruption
+                from .interface import display_error  # Deferred import
                 backup_path = PERSISTENT_FILE.with_suffix('.bak')
                 if backup_path.exists():
                     # Replace corrupted file with backup
@@ -43,7 +82,6 @@ class ConfigManager:
                     except Exception:
                         pass
                     backup_path.rename(PERSISTENT_FILE)
-                    from .interface import display_error
                     display_error("Config corrupted. Restored from backup.")
                     
                     # Verify backup integrity
@@ -56,10 +94,12 @@ class ConfigManager:
                     raise RuntimeError("Config corrupted and no backup available.")
 
             # Validate and return
-            return ConfigManager.validate(config)
+            return Config_Manager.validate(config)
 
         except Exception as e:
-            raise RuntimeError(f"Config load failed: {str(e)}")
+            from .interface import display_error  # Deferred import
+            display_error(f"Config load failed: {str(e)}")
+            raise
 
     @staticmethod
     def save(config: Dict) -> bool:
@@ -67,7 +107,7 @@ class ConfigManager:
         Save the configuration file with atomic write and backup.
         """
         try:
-            validated = ConfigManager.validate(config)
+            validated = Config_Manager.validate(config)
             temp_path = PERSISTENT_FILE.with_suffix('.tmp')
 
             with open(temp_path, 'w') as f:
@@ -89,7 +129,9 @@ class ConfigManager:
             return True
 
         except Exception as e:
-            raise RuntimeError(f"Config save failed: {e}")
+            from .interface import display_error  # Deferred import
+            display_error(f"Config save failed: {e}")
+            raise
 
     @staticmethod
     def validate(config: Dict) -> Dict:
@@ -119,7 +161,7 @@ class ConfigManager:
         if not isinstance(validated.get("downloads_location"), str):
             validated["downloads_location"] = "downloads"
         
-        # --- NEW: Compact download entries to remove gaps ---
+        # --- Compact download entries to remove gaps ---
         entries = []
         for i in range(1, 10):
             filename = validated.get(f"filename_{i}", "Empty")
@@ -142,8 +184,12 @@ class ConfigManager:
                 break
             validated[f"filename_{idx}"] = entry["filename"]
             validated[f"url_{idx}"] = entry["url"]
-            validated[f"total_size_{idx}"] = entry["total_size"]
-        # --- END OF NEW CODE ---
+            # Ensure total_size is an integer
+            try:
+                total_size = int(entry["total_size"])
+            except (ValueError, TypeError):
+                total_size = 0
+            validated[f"total_size_{idx}"] = total_size
         
         return validated
 
@@ -153,42 +199,38 @@ def get_downloads_path(config: Dict) -> Path:
     downloads_path = Path(downloads_location_str)
     if not downloads_path.is_absolute():
         downloads_path = BASE_DIR / downloads_path
-    return downloads_path.resolve()        
+    return downloads_path.resolve()       
 
 def check_environment() -> bool:
     try:
         if not PERSISTENT_FILE.exists():
             raise FileNotFoundError(f"Missing configuration file: {PERSISTENT_FILE.name}")
-        
-        config = ConfigManager.load()  # This now handles corruption automatically
+        config = Config_Manager.load()  # This now handles corruption automatically
         downloads_path = get_downloads_path(config)
-        
         if not downloads_path.exists():
             downloads_path.mkdir(parents=True, exist_ok=True)
         elif not downloads_path.is_dir():
-            interface.display_error(f"Path is not a directory: {downloads_path}")
+            from .interface import display_error  # Deferred import
+            display_error(f"Path is not a directory: {downloads_path}")
             return False
-        
         # Test write access
         test_file = downloads_path / ".write_test"
         test_file.touch()
         test_file.unlink()
         return True
-
     except FileNotFoundError as e:
-        interface.clear_screen()
-        interface.display_error(f"Critical Error: {str(e)}")
+        from .interface import clear_screen, display_error  # Deferred import
+        clear_screen()
+        display_error(f"Critical Error: {str(e)}")
         print("Please run the installer first!")
         time.sleep(3)
         sys.exit(1)
-        
     except Exception as e:
+        from .interface import display_error  # Deferred import
         error_msg = str(e)
-        interface.display_error(f"Environment check failed: {error_msg}")
-        
+        display_error(f"Environment check failed: {error_msg}")
         if "reinstall" in error_msg.lower():
             print("\nPlease reinstall using option 2 in the batch menu.")
             time.sleep(5)
             sys.exit(1)
-            
         return False

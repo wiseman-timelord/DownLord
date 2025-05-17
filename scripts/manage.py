@@ -1,7 +1,7 @@
 # Script: `.\scripts\manage.py`
 
 # Imports
-import os, cgi, re, time, requests, json, random, socket, msvcrt
+import os, cgi, re, time, requests, json, random, socket, msvcrt, threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -31,14 +31,18 @@ from .temporary import (
     HISTORY_ENTRY,
     PERSISTENT_FILE,
     DEFAULT_CONFIG,
-    BASE_DIR
+    BASE_DIR,
+    FS_UPDATE_INTERVAL,
+    DISPLAY_REFRESH
 )
+from . import configure  # Add this line
+from .configure import Config_Manager, get_downloads_path
+from .interface import display_download_state, display_download_summary, clear_screen, format_file_size, display_success, display_error
 
+# Globals
 _pending_handlers = []
-
-# Constants
-FS_UPDATE_INTERVAL = 5  # File system updates every 5 seconds
 DISPLAY_REFRESH = 1     # Visual refresh every 1 second
+ACTIVE_DOWNLOADS = []
 
 # Classes
 class DownloadError(Exception):
@@ -65,6 +69,7 @@ class URLProcessor:
     @staticmethod
     def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
         """Get metadata about a remote file with timeout countdown."""
+        from .interface import display_error  # Deferred import to avoid circular dependency
         timeout_length = config.get("timeout_length", 120)
         start_time = time.time()
         attempt = 0
@@ -173,6 +178,14 @@ class URLProcessor:
             return download_url, remote_info
         raise DownloadError("Invalid Google Drive URL format")
 
+    @register_handler("github")
+    def process_github_url(url: str, config: Dict) -> Tuple[str, Dict]:
+        """Convert GitHub blob URLs to raw format"""
+        if '/blob/' in url:
+            url = url.replace('/blob/', '/raw/')
+        remote_info = URLProcessor.get_remote_file_info(url, DEFAULT_HEADERS.copy(), config)
+        return url, remote_info    
+
     @staticmethod
     def process_url(url: str, config: Dict) -> Tuple[str, Dict]:
         """Process URLs using registered handlers."""
@@ -208,7 +221,6 @@ def get_download_headers(existing_size: int = 0) -> Dict:
         headers["Range"] = f"bytes={existing_size}-"
     return headers
 
-
 def extract_filename_from_disposition(disposition: str) -> Optional[str]:
     """Extract filename from Content-Disposition header."""
     try:
@@ -234,80 +246,83 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
         time.sleep(3)
         return None
 
-def handle_download(url: str, config: dict) -> bool:
-    from .configure import ConfigManager, get_downloads_path # Already deferred or kept as needed
-    from .interface import (
-        display_error,
-        display_success,
-        display_download_state,
-        display_download_summary,
-        update_history,
-        clear_screen,
-        format_file_size  # Added this
-    )
+def handle_download(url: str, config: dict) -> Tuple[bool, str]:
+    from .configure import Config_Manager, get_downloads_path
+    from .interface import display_error, display_success, handle_error, get_user_choice_after_error, display_download_state, display_download_summary, clear_screen, format_file_size, update_history
     try:
         processor = URLProcessor()
         try:
             download_url, metadata = processor.process_url(url, config)
         except DownloadError as e:
-            handle_error(str(e))
-            return False
+            display_error(str(e))
+            time.sleep(3)
+            return False, str(e)
 
         filename = metadata.get("filename") or get_file_name_from_url(download_url)
         if not filename:
-            handle_error("Unable to extract filename from the URL. Please try again.")
-            return False
+            display_error("Unable to extract filename from the URL.")
+            time.sleep(3)
+            return False, "Unable to extract filename from the URL."
 
         update_history(config, filename, url, metadata.get('size', 0))
-        ConfigManager.save(config)  # Now accessible
+        Config_Manager.save(config)
 
-        downloads_path = get_downloads_path(config)  # Now accessible
+        downloads_path = get_downloads_path(config)
         dm = DownloadManager(downloads_path)
         chunk_size = config.get("chunk", 4096000)
-
-        short_url = url if len(url) <= 60 else f"{url[:57]}..."
-        short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
-        print(f"Initializing download for URL: {short_url}")
-        print(f"Resolved final download endpoint: {short_download_url}")
 
         out_path = downloads_path / filename
         success, error = dm.download_file(download_url, out_path, chunk_size)
 
         if success:
-            return True
+            return True, ""
         elif error == "Download abandoned by user":
-            print("Download abandoned. Returning to main menu.")
-            time.sleep(2)
-            return False
+            return False, "Download abandoned by user"
         else:
-            handle_error(f"Download failed: {error}")
-            return False
+            display_error(f"Download failed: {error}")
+            time.sleep(3)
+            return False, f"Download failed: {error}"
 
     except Exception as e:
-        handle_error(f"Unexpected error: {str(e)}")
+        display_error(f"Unexpected error: {str(e)}")
+        time.sleep(3)
         choice = get_user_choice_after_error()
         if choice == 'r':
             return handle_download(url, config)
         elif choice == '0':
             new_url = display_download_prompt()
             if new_url and new_url.lower() == 'b':
-                return False
-            if new_url and filename:
-                for i in range(1, 10):
-                    if config[f"filename_{i}"] == filename:
-                        config[f"url_{i}"] = new_url
-                        ConfigManager.save(config)
-                        break
-            return handle_download(new_url, config) if new_url else False
-        elif choice == 'b':
-            return False
+                return False, "User cancelled"
+            return handle_download(new_url, config) if new_url else (False, "No URL provided")
         else:
-            handle_error("Invalid choice. Please try again.")
-            return False
+            return False, "Invalid choice"
+
+def handle_multiple_downloads(urls: list, config: dict) -> int:
+    """Handle batch downloads sequentially"""
+    from .manage import handle_download
+    from .interface import display_error
+    
+    success_count = 0
+    for idx, url in enumerate(urls, 1):
+        print(f"\rProcessing download {idx}/{len(urls)}", end="", flush=True)
+        success, error_msg = handle_download(url, config)
+        if success:
+            success_count += 1
+            display_download_state(get_active_downloads())
+        else:
+            display_error(error_msg)
+            time.sleep(5)
+            return success_count  # Exit early on failure
+    return success_count
 
 @staticmethod
 def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
-    from .interface import display_error # Deferred import
+    from .interface import display_error  # Deferred import
+    import requests
+    import time
+    import random
+    from requests.exceptions import Timeout, ConnectionError, HTTPError
+
     timeout_length = config.get("timeout_length", 120)
     start_time = time.time()
     attempt = 0
@@ -323,20 +338,20 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
 
     print_status("Establishing connection...")
 
-    try:
+    with requests.Session() as session:
         while (time.time() - start_time) < timeout_length and attempt < max_attempts:
             attempt += 1
             try:
                 # Update status every second
                 current_time = time.time()
                 if current_time - last_update > 1:
-                    remaining = timeout_length - (time.time() - start_time)
+                    remaining = timeout_length - (current_time - start_time)
                     status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
                     print_status(status_msg)
                     last_update = current_time
 
                 # Attempt HEAD request first
-                response = requests.head(
+                response = session.head(
                     url,
                     headers=headers,
                     allow_redirects=True,
@@ -344,11 +359,13 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
                 )
                 response.raise_for_status()
 
-                # Check if Content-Length is present
+                # Check if Content-Length is present and valid
                 content_length = int(response.headers.get('content-length', 0))
-                if content_length == 0:
+                if content_length > 0:
+                    total_size = content_length
+                else:
                     # Fallback to GET request with Range to get Content-Range
-                    get_response = requests.get(
+                    get_response = session.get(
                         url,
                         headers={**headers, "Range": "bytes=0-0"},
                         allow_redirects=True,
@@ -358,46 +375,69 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
                     get_response.raise_for_status()
                     if 'Content-Range' in get_response.headers:
                         content_range = get_response.headers['Content-Range']
-                        total_size = int(content_range.split('/')[-1])
+                        if '/' in content_range:
+                            _, total_size_str = content_range.rsplit('/', 1)
+                            total_size = int(total_size_str) if total_size_str != '*' else 0
+                        else:
+                            total_size = 0
                     else:
                         total_size = 0
-                else:
-                    total_size = content_length
 
                 elapsed = time.time() - start_time
-                print_status(f"Connection established in {elapsed:.1f}s")  # Success message
-                
+                print_status(f"Connection established in {elapsed:.1f}s")
                 return {
                     'size': total_size,
                     'modified': response.headers.get('last-modified'),
                     'etag': response.headers.get('etag'),
                     'content_type': response.headers.get('content-type')
                 }
-                
+
             except (Timeout, ConnectionError) as e:
                 delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
-                status_msg = f"Connection attempt {attempt}/{max_attempts} failed. Retrying in {delay:.1f}s..."
-                print_status(status_msg)
-                time.sleep(delay)
+                for i in range(int(delay), 0, -1):
+                    status_msg = f"Connection error: {str(e)}. Reconnecting in {i}s..."
+                    print(f"\r{status_msg.ljust(status_line_length)}", end='', flush=True)
+                    time.sleep(1)
+                print("\r" + " " * status_line_length + "\r", end='')
                 continue
-                
+            except HTTPError as e:
+                status_code = e.response.status_code
+                if status_code in [500, 502, 503, 504, 429]:
+                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
+                    for i in range(int(delay), 0, -1):
+                        status_msg = f"Server error ({status_code}). Reconnecting in {i}s..."
+                        print(f"\r{status_msg.ljust(status_line_length)}", end='', flush=True)
+                        time.sleep(1)
+                    print("\r" + " " * status_line_length + "\r", end='')
+                    continue
+                else:
+                    display_error(f"HTTP error: {str(e)}")
+                    time.sleep(3)
+                    return {}
+
         # Timeout reached
         print_status(f"Connection timed out after {timeout_length}s")
-        raise Timeout(f"Connection timed out after {timeout_length}s")
-        
-    except Exception as e:
-        display_error(f"Remote info error: {str(e)}")
+        display_error(f"Connection timed out after {timeout_length}s")
         time.sleep(3)
         return {}
 
-
 class DownloadManager:
     def __init__(self, downloads_location: Path):
-        from .configure import ConfigManager  # Deferred import
-        self.config = ConfigManager.load()  # Now accessible
+        from .configure import Config_Manager  # Deferred import
+        self.config = Config_Manager.load()  # Now accessible
         self.downloads_location = downloads_location
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         self._register_existing_temp_files()
+        self.display_thread = None
+
+    def _start_display_updater(self):
+        """Start dedicated display refresh thread"""
+        self.display_thread = threading.Thread(
+            target=update_display,
+            args=(DISPLAY_REFRESH,),
+            daemon=True
+        )
+        self.display_thread.start()
 
     def _check_existing_download(self, url: str, filename: str) -> Tuple[bool, Optional[Path], Dict]:
         """Check if a download already exists, either complete or partial."""
@@ -433,7 +473,7 @@ class DownloadManager:
 
     def _remove_from_persistent(self, index: int) -> None:
         """Remove an entry from the persistent configuration."""
-        from .configure import ConfigManager  # Deferred import
+        from .configure import Config_Manager  # Deferred import
         for i in range(index, 9):
             self.config[f"filename_{i}"] = self.config[f"filename_{i+1}"]
             self.config[f"url_{i}"] = self.config[f"url_{i+1}"]
@@ -442,43 +482,36 @@ class DownloadManager:
         self.config["filename_9"] = "Empty"
         self.config["url_9"] = ""
         self.config["total_size_9"] = 0
-        ConfigManager.save(self.config)  
+        Config_Manager.save(self.config)  
 
     def _register_file_entry(self, filename: str, url: str, total_size: int) -> None:
         """Register a file entry in the first available slot."""
-        from .configure import ConfigManager  # Deferred import
+        from .configure import Config_Manager  # Deferred import
         for i in range(1, 10):
             if self.config[f"filename_{i}"] in ["Empty", filename]:
                 self.config[f"filename_{i}"] = filename
                 self.config[f"url_{i}"] = url
                 self.config[f"total_size_{i}"] = total_size
-                ConfigManager.save(self.config)  # Now accessible
+                Config_Manager.save(self.config)
                 break
 
     def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
         """
         Register download metadata immediately after verifying total size.
         """
-        from .configure import ConfigManager  # Deferred import
+        from .configure import Config_Manager  # Deferred import
         try:
             for i in range(1, 10):
                 if self.config[f"filename_{i}"] in ["Empty", filename]:
                     self.config[f"filename_{i}"] = filename
                     self.config[f"url_{i}"] = url
                     self.config[f"total_size_{i}"] = total_size if total_size > 0 else "Unknown"
-                    ConfigManager.save(self.config)  # Now accessible
+                    Config_Manager.save(self.config)
                     print(f"Registered early metadata for: {filename} (Size: {total_size if total_size > 0 else 'Unknown'})")
                     print("Setting up download...")
                     break
-
-            # If total_size is unknown, retry registration after a delay
             if total_size <= 0:
-                display_error("Could not determine file size from server. Registration delayed.")
-                time.sleep(2)
-                if total_size > 0:  # Re-check size after delay
-                    self._register_early_metadata(filename, url, total_size)
-                else:
-                    display_error("Failed to register metadata due to unknown file size.")
+                display_error("Could not determine file size from server. Proceeding with unknown size.")
         except Exception as e:
             display_error(f"Error registering early metadata: {str(e)}")
             time.sleep(3)
@@ -496,7 +529,7 @@ class DownloadManager:
             for folder in [DOWNLOADS_DIR, TEMP_DIR]:
                 for file_path in folder.glob("*"):
                     if file_path.name not in registered_files and not any(
-                        self.config.get(f"filename_{i}") == file.name for i in range(1, 10)
+                        self.config.get(f"filename_{i}") == file_path.name for i in range(1, 10)
                     ):
                         try:
                             file_path.unlink()
@@ -555,38 +588,47 @@ class DownloadManager:
     def _get_retry_prompt(self) -> str:
         return "\nSelection; Retry Now = R, Alternate URL = 0, Menu = B: "
 
-    def download_file(self, remote_url: str, out_path: Path, chunk_size: int) -> Tuple[bool, Optional[str]]:
-        from .interface import (
-            display_error,
-            display_success,
-            display_download_state,
-            display_download_summary,
-            update_history,
-            clear_screen,
-            format_file_size  # Added this
-        )
-        temp_path = TEMP_DIR / f"{out_path.name}.part"  # Initialize temp_path early
-        pre_registration_attempts = 0
-        retries = 0
-        max_pre_attempts = 5
-
+    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False) -> Tuple[bool, Optional[str]]:
+        from .interface import display_error, display_success, update_history, format_file_size
+        start_time = time.time()
+        temp_path = None
+        filename = None
+        tracking_data = None
         try:
+            pre_registration_attempts = 0
+            retries = 0
+            max_pre_attempts = 3
             while pre_registration_attempts < max_pre_attempts or retries < RUNTIME_CONFIG["download"]["max_retries"]:
                 try:
-                    # Step 1: Process URL and metadata
                     print(f"Retrieving file metadata (attempt {pre_registration_attempts + retries + 1}): ", end='', flush=True)
                     download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
                     print("Done")
-
                     short_download_url = download_url if len(download_url) <= 60 else f"{download_url[:57]}..."
                     print(f"Resolved download URL: {short_download_url}")
-
                     filename = metadata.get("filename") or get_file_name_from_url(download_url)
                     if not filename:
                         return False, ERROR_HANDLING["messages"]["filename_error"]
                     print(f"Found filename: {filename}")
 
-                    # Step 2: Check existing download
+                    temp_path = TEMP_DIR / f"{filename}.part"
+                    existing_size = temp_path.stat().st_size if temp_path.exists() else 0
+                    total_size = metadata.get('size', 0)
+
+                    # Initialize tracking_data
+                    tracking_data = {
+                        'filename': out_path.name,
+                        'url': remote_url,
+                        'status': 'connecting',
+                        'current': existing_size,
+                        'total': total_size,
+                        'speed': 0.0,
+                        'elapsed': time.time() - start_time,
+                        'remaining': 0.0,
+                        'start_time': start_time
+                    }
+                    if tracking_data not in ACTIVE_DOWNLOADS:
+                        ACTIVE_DOWNLOADS.append(tracking_data)
+
                     exists, existing_path, state = self._check_existing_download(remote_url, out_path.name)
                     if exists and existing_path:
                         if self.verify_download(existing_path, metadata):
@@ -602,28 +644,29 @@ class DownloadManager:
                                 display_success(f"File already exists and is complete: {out_path.name}")
                             return True, None
                         elif existing_path.suffix == '.part':
-                            temp_path = existing_path  # Use existing .part file
+                            temp_path = existing_path
 
-                    # Step 3: Register metadata if not already done
                     early_registration_done = any(self.config[f"filename_{i}"] == filename for i in range(1, 10))
                     if not early_registration_done:
-                        total_size = metadata.get('size', 0)
                         self._register_early_metadata(filename, remote_url, total_size)
                         early_registration_done = True
 
-                    # Step 4: Start/resume download
-                    existing_size = temp_path.stat().st_size if temp_path.exists() else 0
                     if existing_size > 0:
                         print(f"Found incomplete file, resuming from: {format_file_size(existing_size)}")
+                    else:
+                        from .interface import clear_screen
+                        clear_screen("Initialize Download")
+
+                    if not self.display_thread or not self.display_thread.is_alive():
+                        self._start_display_updater()
 
                     session = requests.Session()
                     adapter = requests.adapters.HTTPAdapter(max_retries=5, pool_connections=50, pool_maxsize=50)
                     session.mount('https://', adapter)
                     session.mount('http://', adapter)
-
                     headers = get_download_headers(existing_size)
+
                     print("Connecting to server...")
-                    print("(Ignore Certificate Warnings)")
                     with session.get(
                         download_url,
                         stream=True,
@@ -635,13 +678,16 @@ class DownloadManager:
                             continue
 
                         response.raise_for_status()
-                        total_size = int(response.headers.get('content-length', 0)) + existing_size
+
+                        content_length = response.headers.get('content-length')
+                        total_size = int(content_length) + existing_size if content_length else total_size
+                        tracking_data['status'] = 'downloading'
+                        tracking_data['total'] = total_size
 
                         start_time = time.time()
                         bytes_since_last_update = 0
                         written_size = existing_size
-                        last_fs_update = time.time()
-                        last_display_update = last_fs_update
+                        last_display_update = start_time
 
                         with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
                             for chunk in response.iter_content(chunk_size=chunk_size):
@@ -650,91 +696,109 @@ class DownloadManager:
                                     bytes_since_last_update += len(chunk)
                                     current_time = time.time()
 
-                                    if current_time - last_fs_update >= FS_UPDATE_INTERVAL:
-                                        current_size = temp_path.stat().st_size
-                                        total_size = metadata.get('size', current_size)
-                                        last_fs_update = current_time
+                                    tracking_data.update({
+                                        'current': written_size,
+                                        'total': total_size,
+                                        'speed': bytes_since_last_update / (current_time - last_display_update) if (current_time - last_display_update) > 0 else 0,
+                                        'elapsed': current_time - start_time,
+                                        'remaining': (total_size - written_size) / tracking_data['speed'] if tracking_data['speed'] > 0 else 0,
+                                        'start_time': start_time
+                                    })
 
                                     if current_time - last_display_update >= DISPLAY_REFRESH:
-                                        speed = bytes_since_last_update / (current_time - last_display_update)
-                                        elapsed = current_time - start_time
-                                        remaining = (total_size - written_size) / speed if speed > 0 else 0
-                                        display_download_state(
-                                            filename=filename,
-                                            current_size=written_size,
-                                            total_size=total_size,
-                                            speed=speed,
-                                            elapsed=elapsed,
-                                            remaining=remaining
-                                        )
-                                        if msvcrt.kbhit():
-                                            key = msvcrt.getch().decode().lower()
-                                            if key == 'a':
-                                                return False, "Download abandoned by user"
                                         bytes_since_last_update = 0
                                         last_display_update = current_time
 
+                                    if msvcrt.kbhit():
+                                        key = msvcrt.getch().decode().lower()
+                                        if key == 'a':
+                                            tracking_data['status'] = 'cancelled'
+                                            # Update config with current progress for resumption
+                                            self._register_file_entry(filename, remote_url, written_size)
+                                            # Preserve temp file for resumption
+                                            out_file.flush()
+                                            os.fsync(out_file.fileno())
+                                            # Remove from active downloads
+                                            if tracking_data in ACTIVE_DOWNLOADS:
+                                                ACTIVE_DOWNLOADS.remove(tracking_data)
+                                            from .interface import clear_screen
+                                            return False, "\nDownload abandoned by user"
+
                                     out_file.write(chunk)
+                                    out_file.flush()
+                                    os.fsync(out_file.fileno())
 
-                                out_file.flush()
-                                os.fsync(out_file.fileno())
-
-                        # Move file to final location
-                        import gc
-                        gc.collect()
-                        time.sleep(1)
+                        tracking_data['status'] = 'verifying'
                         if not move_with_retry(temp_path, out_path):
+                            tracking_data['status'] = 'failed'
                             return False, "Failed to move downloaded file to destination"
 
                         elapsed = time.time() - start_time
                         average_speed = written_size / elapsed if elapsed > 0 else 0
-                        display_download_summary(
-                            filename=filename,
-                            total_size=written_size,
-                            average_speed=average_speed,
-                            elapsed=elapsed,
-                            timestamp=datetime.now(),
-                            destination=str(out_path)
-                        )
+
+                        if not batch_mode:
+                            from .interface import display_download_summary
+                            display_download_summary(
+                                filename=filename,
+                                total_size=written_size,
+                                average_speed=average_speed,
+                                elapsed=elapsed,
+                                timestamp=datetime.now(),
+                                destination=str(out_path)
+                            )
 
                         final_size = out_path.stat().st_size
                         update_history(self.config, filename, remote_url, final_size)
+                        tracking_data['status'] = 'complete'
                         return True, None
 
                 except Exception as e:
-                    # Determine which retry counter to increment
                     if not early_registration_done:
                         pre_registration_attempts += 1
                         if pre_registration_attempts >= max_pre_attempts:
+                            tracking_data['status'] = 'failed'
                             return False, f"Failed to initialize download after {max_pre_attempts} attempts"
                     else:
                         retries += 1
                         if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
+                            tracking_data['status'] = 'failed'
                             return False, "Maximum retries exceeded"
-
-                    # Exponential backoff with clear_screen
-                    delay_seconds = min(2 ** (retries + pre_registration_attempts - 1), 71)  # Cap at 71s
-                    title = "Download Error" if not early_registration_done else "Initialize Download"
-                    clear_screen(title=title, use_logo=True)
-                    print()  # Newline for separation
-                    print(f"Error: {str(e)}")
-                    print(f"Reconnecting in... {delay_seconds}s", end='', flush=True)
-                    for remaining in range(delay_seconds, 0, -1):
-                        time.sleep(1)
-                        print(f"\rReconnecting in... {remaining}s ", end='', flush=True)
-                    print("\nRetrying download...")
+                    tracking_data['status'] = f'retrying ({retries + 1}/{RUNTIME_CONFIG["download"]["max_retries"]})'
+                    delay_seconds = min(2 ** (retries + pre_registration_attempts - 1), 71)
+                    time.sleep(delay_seconds)
 
         except Exception as e:
             display_error(f"Fatal error: {str(e)}")
             return False, str(e)
 
         finally:
-            if temp_path.exists() and not any(self.config[f"filename_{i}"] == out_path.name for i in range(1, 10)):
-                self._cleanup_temp_files(out_path.name)
+            if tracking_data and tracking_data in ACTIVE_DOWNLOADS:
+                ACTIVE_DOWNLOADS.remove(tracking_data)
+            import gc
+            gc.collect()
 
-        return False, "Download failed"
 
+# Functions
+def get_active_downloads() -> list:
+    """Get sanitized list of active downloads with calculated metrics"""
+    global ACTIVE_DOWNLOADS
+    return [{
+        'filename': d.get('filename', 'Unknown'),
+        'current': d.get('current', 0),
+        'total': d.get('total', 1),
+        'speed': d.get('speed', 0),
+        'elapsed': time.time() - d.get('start_time', time.time()),
+        'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0
+    } for d in ACTIVE_DOWNLOADS if 'current' in d]
 
+def update_display(refresh_rate=1):
+    """Continuous display updater without lock"""
+    while True:
+        active = get_active_downloads()
+        if active:
+            from .interface import display_download_state
+            display_download_state(multiple=active)
+        time.sleep(refresh_rate)
 
 def get_file_name_from_url(url: str) -> Optional[str]:
     """Extract filename from URL or headers."""
@@ -762,8 +826,11 @@ def get_file_name_from_url(url: str) -> Optional[str]:
 
 
 def handle_orphaned_files(config: dict) -> None:
-    from scripts.temporary import BASE_DIR  # Add this import
+    from scripts.temporary import BASE_DIR
+    from .configure import Config_Manager  # Import Config_Manager
+    
     registered_files = set()
+    # Collect registered filenames
     for i in range(1, 10):
         filename = config.get(f"filename_{i}", "Empty")
         if filename != "Empty":
@@ -776,7 +843,8 @@ def handle_orphaned_files(config: dict) -> None:
         downloads_path = BASE_DIR / downloads_path
     downloads_path = downloads_path.resolve()
     
-    for folder in [downloads_path, TEMP_DIR]:  # Use resolved path
+    # Remove unregistered files from downloads and temp folders
+    for folder in [downloads_path, TEMP_DIR]:
         for file in folder.glob("*"):
             if file.name in registered_files or any(
                 config.get(f"filename_{i}") == file.stem for i in range(1, 10)
@@ -788,6 +856,26 @@ def handle_orphaned_files(config: dict) -> None:
             except Exception as e:
                 display_error(f"Error removing file {file}: {str(e)}")
                 time.sleep(3)
+    
+    # Check each config entry and remove if the file is missing
+    for i in range(1, 10):
+        filename = config.get(f"filename_{i}", "Empty")
+        if filename == "Empty":
+            continue
+        
+        # Check if the file exists in downloads or as .part in temp
+        file_path = downloads_path / filename
+        temp_path = TEMP_DIR / f"{filename}.part"
+        
+        if not file_path.exists() and not temp_path.exists():
+            # Clear the entry
+            config[f"filename_{i}"] = "Empty"
+            config[f"url_{i}"] = ""
+            config[f"total_size_{i}"] = 0
+            print(f"Removed missing file entry: {filename}")
+    
+    # Save the updated config
+    Config_Manager.save(config)
 
 def cleanup_temp_files() -> None:
     """
