@@ -668,9 +668,6 @@ class DownloadManager:
 
                     if existing_size > 0:
                         print(f"Found incomplete file, resuming from: {format_file_size(existing_size)}")
-                    else:
-                        from .interface import clear_screen
-                        clear_screen("Initialize Download")
 
                     if not self.display_thread or not self.display_thread.is_alive():
                         self._start_display_updater()
