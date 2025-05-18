@@ -402,6 +402,7 @@ def display_batch_progress(active_downloads: list):
     print(SEPARATOR_THICK)
 
 def get_active_downloads() -> list:
+    """Get sanitized list of active downloads with calculated metrics and batch info"""
     global ACTIVE_DOWNLOADS
     return [{
         'filename': d.get('filename', 'Unknown'),
@@ -412,10 +413,10 @@ def get_active_downloads() -> list:
         'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0,
         'batch_index': d.get('batch_index'),
         'batch_total': d.get('batch_total')
-    } for d in ACTIVE_DOWNLOADS if 'current' in d and 'total' in d]
+    } for d in ACTIVE_DOWNLOADS if 'current' in d]
 
 def display_download_state(multiple: list = None) -> None:
-    """Display download status for active downloads"""
+    """Display download status for active downloads with distinct single and batch interfaces"""
     if not multiple:
         clear_screen("Download Active")
         print("\n\n\nNo active downloads.\n\n\n")
@@ -423,27 +424,49 @@ def display_download_state(multiple: list = None) -> None:
         print("Selection; Back to Menu = B: ", end="", flush=True)
         return
 
-    dl = multiple[0]  # Sequential downloads mean only one active
-    is_batch = 'batch_index' in dl and dl['batch_index'] is not None and 'batch_total' in dl and dl['batch_total'] is not None
+    # Determine if this is a batch download (check ANY active downloads for batch context)
+    is_batch = any(
+        'batch_total' in dl and dl['batch_total'] is not None and dl['batch_total'] > 1
+        for dl in multiple
+    )
+
+    # Select appropriate header
     header = "Batch Download Active" if is_batch else "Download Active"
-    clear_screen(f"DownLord: {header}")
-    print("\n\n")  # Two blank lines
+    clear_screen(header)
+    print("\n\n")  # Two blank lines after header
 
     if is_batch:
-        print(f"    File in Sequence:\n        {dl['batch_index']}/{dl['batch_total']}\n")
+        # Batch download interface
+        for dl in multiple:
+            if 'batch_index' in dl and 'batch_total' in dl:
+                print(f"    File in Sequence:\n        {dl['batch_index']}/{dl['batch_total']}\n")
+                progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
+                speed_str = f"{format_file_size(dl['speed'])}/s"
+                size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
+                elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
+                remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
 
-    progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
-    speed_str = f"{format_file_size(dl['speed'])}/s"
-    size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
-    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
-    remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
+                print(f"    Filename:\n        {dl['filename']}\n")
+                print(f"    Progress:\n        {progress_pct:.1f}%\n")
+                print(f"    Speed:\n        {speed_str}\n")
+                print(f"    Received/Total:\n        {size_str}\n")
+                print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
+                print("\n")  # One blank line between downloads
+    else:
+        # Single download interface (only first active download)
+        dl = multiple[0]
+        progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
+        speed_str = f"{format_file_size(dl['speed'])}/s"
+        size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
+        elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
+        remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
 
-    print(f"    Filename:\n        {dl['filename']}\n")
-    print(f"    Progress:\n        {progress_pct:.1f}%\n")
-    print(f"    Speed:\n        {speed_str}\n")
-    print(f"    Received/Total:\n        {size_str}\n")
-    print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
-    print("\n")  # One blank line before separator
+        print(f"    Filename:\n        {dl['filename']}\n")
+        print(f"    Progress:\n        {progress_pct:.1f}%\n")
+        print(f"    Speed:\n        {speed_str}\n")
+        print(f"    Received/Total:\n        {size_str}\n")
+        print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
+        print("\n")  # One blank line before separator
 
     print(SEPARATOR_THIN)
     print("Selection; Abandon Download = A, Wait for Completion = >_>: ", end="", flush=True)
@@ -501,9 +524,10 @@ def display_download_summary(
         print("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
     else:
         # Wait for any key press for single downloads
-        input("Press any key to continue...")
+        input("10 Seconds until Main Menu...")
+        time.sleep(10)
     
-    clear_screen()
+    clear_screen("Download Summary")
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """

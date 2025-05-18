@@ -37,7 +37,7 @@ from .temporary import (
 )
 from . import configure  # Add this line
 from .configure import Config_Manager, get_downloads_path
-from .interface import display_download_state, display_download_summary, clear_screen, format_file_size, display_success, display_error
+from .interface import display_download_state, display_download_summary, clear_screen, format_file_size, display_success, display_error, SEPARATOR_THIN
 
 # Globals
 _pending_handlers = []
@@ -550,7 +550,7 @@ class DownloadManager:
         time.sleep(max(1, delay))
         return True
 
-    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, Optional[str]]:
+    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode: bool = False, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, Optional[str]]:
         from .interface import display_error, display_success, update_history, format_file_size, display_download_summary
         import gc
         start_time = time.time()
@@ -558,7 +558,9 @@ class DownloadManager:
         filename = None
         tracking_data = None
         total_size = 0
-        
+        # Infer batch_mode from batch_index and batch_total
+        batch_mode = batch_index is not None and batch_total is not None
+
         try:
             pre_registration_attempts = 0
             retries = 0
@@ -593,7 +595,7 @@ class DownloadManager:
                             'remaining': 0.0,
                             'start_time': start_time
                         }
-                        if batch_index is not None and batch_total is not None:
+                        if batch_mode:
                             tracking_data['batch_index'] = batch_index
                             tracking_data['batch_total'] = batch_total
                         ACTIVE_DOWNLOADS.append(tracking_data)
@@ -605,7 +607,7 @@ class DownloadManager:
                             'status': 'connecting',
                             'start_time': start_time
                         })
-                        if batch_index is not None and batch_total is not None:
+                        if batch_mode:
                             tracking_data['batch_index'] = batch_index
                             tracking_data['batch_total'] = batch_total
 
@@ -659,16 +661,17 @@ class DownloadManager:
                             # Stop display updates before showing summary
                             self._stop_display_updater()
                             
-                            if not batch_mode:
-                                display_download_summary(
-                                    filename=filename,
-                                    total_size=out_path.stat().st_size,
-                                    average_speed=(out_path.stat().st_size - existing_size) / 
-                                              (time.time() - start_time),
-                                    elapsed=time.time() - start_time,
-                                    timestamp=datetime.now(),
-                                    destination=str(out_path)
-                                )
+                            # Always show summary with correct batch_mode
+                            display_download_summary(
+                                filename=filename,
+                                total_size=out_path.stat().st_size,
+                                average_speed=(out_path.stat().st_size - existing_size) / 
+                                          (time.time() - start_time),
+                                elapsed=time.time() - start_time,
+                                timestamp=datetime.now(),
+                                destination=str(out_path),
+                                batch_mode=batch_mode
+                            )
                             
                             update_history(self.config, filename, remote_url, out_path.stat().st_size)
                             return True, None
@@ -703,15 +706,6 @@ def get_active_downloads() -> list:
         'elapsed': time.time() - d.get('start_time', time.time()),
         'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0
     } for d in ACTIVE_DOWNLOADS if 'current' in d]
-
-def update_display(refresh_rate=1):
-    """Continuous display updater without lock"""
-    while True:
-        active = get_active_downloads()
-        if active:
-            from .interface import display_download_state
-            display_download_state(multiple=active)
-        time.sleep(refresh_rate)
 
 def get_file_name_from_url(url: str) -> Optional[str]:
     """Extract filename from URL or headers."""
