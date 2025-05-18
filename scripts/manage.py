@@ -566,6 +566,7 @@ class DownloadManager:
 
     def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False) -> Tuple[bool, Optional[str]]:
         from .interface import display_error, display_success, update_history, format_file_size, display_download_summary
+        import gc  # Add missing import
         start_time = time.time()
         temp_path = None
         filename = None
@@ -675,14 +676,15 @@ class DownloadManager:
                     time.sleep(min(2 ** retries, 10))
                     
         except Exception as e:
-            display_error(f"Download failed: {str(e)}")
+            display_error(f"Unexpected error: {str(e)}")
             return False, str(e)
             
         finally:
             self._stop_display_updater()
             if tracking_data and tracking_data in ACTIVE_DOWNLOADS:
                 ACTIVE_DOWNLOADS.remove(tracking_data)
-            gc.collect()
+            if 'gc' in locals() or 'gc' in globals():  # Safe garbage collection
+                gc.collect()
 
 
 # Functions
