@@ -103,7 +103,7 @@ Done
 
 
 ========================================================================================================================
-Selection; Abandon = A, Wait = >_>:
+Selection; Abandon Download = A, Wait for Completion = >_>:
 
 ```
 - Download Summary...
