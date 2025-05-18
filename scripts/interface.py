@@ -258,7 +258,7 @@ def prompt_for_download():
                     continue
                 from .manage import handle_multiple_downloads
                 success_count = handle_multiple_downloads(valid_urls, config)
-                display_success(f"Started {success_count}/{len(valid_urls)} downloads")
+                display_success(f"Downloads Completed {success_count}/{len(valid_urls)} downloads")
                 time.sleep(2)
                 config = configure.Config_Manager.load()
                 break
@@ -322,7 +322,10 @@ def exit_sequence():
     print()  # Adds a blank line after the header
     print("Shutting down DownLord...")
     time.sleep(1)  # Wait 1 second
-    print("Promotion: A glorious program by Wiseman-Timelord!")
+    print("A glorious program by Wiseman-Timelord!")
+    print("Website: WiseTime.Rf.Gd")
+    print("Patreon: Patreon.Com/WiseManTimeLord")
+    print("Kofi: Ko-Fi.Com/WiseManTimeLord")
     time.sleep(1)  # Wait 2 seconds
     print("Terminating program in 5 seconds", end='')  # Initial message without dots
     for i in range(5, 0, -1):
@@ -401,42 +404,49 @@ def display_batch_progress(active_downloads: list):
 def get_active_downloads() -> list:
     global ACTIVE_DOWNLOADS
     return [{
-        'filename': d['filename'],
-        'current': d['current'],
-        'total': d['total'],
-        'speed': d['speed'],
-        'elapsed': time.time() - d['start_time'],
-        'remaining': (d['total'] - d['current']) / d['speed'] if d['speed'] > 0 else 0
+        'filename': d.get('filename', 'Unknown'),
+        'current': d.get('current', 0),
+        'total': d.get('total', 1),
+        'speed': d.get('speed', 0),
+        'elapsed': time.time() - d.get('start_time', time.time()),
+        'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0,
+        'batch_index': d.get('batch_index'),
+        'batch_total': d.get('batch_total')
     } for d in ACTIVE_DOWNLOADS if 'current' in d and 'total' in d]
 
 def display_download_state(multiple: list = None) -> None:
     """Display download status for active downloads"""
-    clear_screen("Download Active")
-    print("\n\n\n")  # Add space after the header
-
     if not multiple:
-        print("No active downloads.")
+        clear_screen("Download Active")
+        print("\n\n\nNo active downloads.\n\n\n")
+        print(SEPARATOR_THIN)
+        print("Selection; Back to Menu = B: ", end="", flush=True)
         return
 
-    for dl in multiple:
-        progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
-        speed_str = f"{format_file_size(dl['speed'])}/s"
-        size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
-        elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
-        remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
+    dl = multiple[0]  # Sequential downloads mean only one active
+    is_batch = 'batch_index' in dl and dl['batch_index'] is not None and 'batch_total' in dl and dl['batch_total'] is not None
+    header = "Batch Download Active" if is_batch else "Download Active"
+    clear_screen(f"DownLord: {header}")
+    print("\n\n")  # Two blank lines
 
-        print(f"    Filename:\n        {dl['filename']}\n")
-        print(f"    Progress:\n        {progress_pct:.1f}%\n")
-        print(f"    Speed:\n        {speed_str}\n")
-        print(f"    Received/Total:\n        {size_str}\n")
-        print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
-        
+    if is_batch:
+        print(f"    File in Sequence:\n        {dl['batch_index']}/{dl['batch_total']}\n")
 
-    print("\n\n\n")
+    progress_pct = (dl['current'] / dl['total']) * 100 if dl['total'] > 0 else 0
+    speed_str = f"{format_file_size(dl['speed'])}/s"
+    size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
+    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
+    remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
+
+    print(f"    Filename:\n        {dl['filename']}\n")
+    print(f"    Progress:\n        {progress_pct:.1f}%\n")
+    print(f"    Speed:\n        {speed_str}\n")
+    print(f"    Received/Total:\n        {size_str}\n")
+    print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
+    print("\n")  # One blank line before separator
+
     print(SEPARATOR_THIN)
-    # Adjust prompt based on number of downloads
-    prompt = "Selection; Abandon Download = A, Wait for Completion = >_>: " if len(multiple) == 1 else "Selection; Abandon All Downloads = A, Wait for Completion = >_>: "
-    print(prompt, end="", flush=True)
+    print("Selection; Abandon Download = A, Wait for Completion = >_>: ", end="", flush=True)
 
 # Possibly to stop circular import
 from pathlib import Path
@@ -447,11 +457,13 @@ def display_download_summary(
     average_speed: float,
     elapsed: float,
     timestamp: datetime,
-    destination: str
+    destination: str,
+    batch_mode: bool = False
 ) -> None:
-    """
-    Display a comprehensive download summary with proper formatting and user control.
-    """
+    import time
+    from .interface import clear_screen, SEPARATOR_THIN
+    from pathlib import Path
+
     clear_screen("Download Summary")
     
     # Format all values for display
@@ -482,11 +494,14 @@ def display_download_summary(
     # Display the summary
     print("\n".join(summary_content))
     
-    # Handle input
-    try:
-        input("Press any key to return to main menu...")
-    except KeyboardInterrupt:
-        pass
+    if batch_mode:
+        # Display the summary for 5 seconds, then proceed
+        print("5 Seconds until, Next File or Main Menu...", end="", flush=True)
+        time.sleep(5)
+        print("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
+    else:
+        # Wait for any key press for single downloads
+        input("Press any key to continue...")
     
     clear_screen()
 

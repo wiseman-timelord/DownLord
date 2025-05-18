@@ -246,7 +246,8 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
         time.sleep(3)
         return None
 
-def handle_download(url: str, config: dict) -> Tuple[bool, str]:
+# Download handling
+def handle_download(url: str, config: dict, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, str]:
     from .configure import Config_Manager, get_downloads_path
     from .interface import display_error, display_success, handle_error, get_user_choice_after_error, display_download_state, display_download_summary, clear_screen, format_file_size, update_history
     try:
@@ -272,12 +273,10 @@ def handle_download(url: str, config: dict) -> Tuple[bool, str]:
         chunk_size = config.get("chunk", 4096000)
 
         out_path = downloads_path / filename
-        success, error = dm.download_file(download_url, out_path, chunk_size)
+        success, error = dm.download_file(download_url, out_path, chunk_size, batch_index=batch_index, batch_total=batch_total)
 
         if success:
             return True, ""
-        elif error == "Download abandoned by user":  # Direct return without modification
-            return False, error
         else:
             display_error(f"Download failed: {error}")
             time.sleep(3)
@@ -288,21 +287,7 @@ def handle_download(url: str, config: dict) -> Tuple[bool, str]:
         time.sleep(3)
         choice = get_user_choice_after_error()
         if choice == 'r':
-            return handle_download(url, config)
-        elif choice == '0':
-            new_url = display_download_prompt()
-            if new_url and new_url.lower() == 'b':
-                return False, "User cancelled"
-            return handle_download(new_url, config) if new_url else (False, "No URL provided")
-        else:
-            return False, "Invalid choice"
-
-    except Exception as e:
-        display_error(f"Unexpected error: {str(e)}")
-        time.sleep(3)
-        choice = get_user_choice_after_error()
-        if choice == 'r':
-            return handle_download(url, config)
+            return handle_download(url, config, batch_index=batch_index, batch_total=batch_total)
         elif choice == '0':
             new_url = display_download_prompt()
             if new_url and new_url.lower() == 'b':
@@ -317,16 +302,17 @@ def handle_multiple_downloads(urls: list, config: dict) -> int:
     from .interface import display_error
     
     success_count = 0
+    total = len(urls)
     for idx, url in enumerate(urls, 1):
-        print(f"\rProcessing download {idx}/{len(urls)}", end="", flush=True)
-        success, error_msg = handle_download(url, config)
+        print(f"\rProcessing download {idx}/{total}", end="", flush=True)
+        success, error_msg = handle_download(url, config, batch_index=idx, batch_total=total)
         if success:
             success_count += 1
             display_download_state(get_active_downloads())
         else:
             display_error(error_msg)
-            time.sleep(5)
-            return success_count  # Exit early on failure
+            time.sleep(3)
+            return success_count  # Exit early on failure or abandonment
     return success_count
 
 @staticmethod
@@ -564,9 +550,9 @@ class DownloadManager:
         time.sleep(max(1, delay))
         return True
 
-    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False) -> Tuple[bool, Optional[str]]:
+    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode=False, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, Optional[str]]:
         from .interface import display_error, display_success, update_history, format_file_size, display_download_summary
-        import gc  # Add missing import
+        import gc
         start_time = time.time()
         temp_path = None
         filename = None
@@ -593,19 +579,35 @@ class DownloadManager:
                     temp_path = TEMP_DIR / f"{filename}.part"
                     existing_size = temp_path.stat().st_size if temp_path.exists() else 0
 
-                    # Setup tracking
-                    tracking_data = {
-                        'filename': out_path.name,
-                        'url': remote_url,
-                        'status': 'connecting',
-                        'current': existing_size,
-                        'total': total_size,
-                        'speed': 0.0,
-                        'elapsed': time.time() - start_time,
-                        'remaining': 0.0,
-                        'start_time': start_time
-                    }
-                    ACTIVE_DOWNLOADS.append(tracking_data)
+                    # Check for existing tracking data to avoid duplicates
+                    tracking_data = next((d for d in ACTIVE_DOWNLOADS if d['filename'] == out_path.name), None)
+                    if not tracking_data:
+                        tracking_data = {
+                            'filename': out_path.name,
+                            'url': remote_url,
+                            'status': 'connecting',
+                            'current': existing_size,
+                            'total': total_size,
+                            'speed': 0.0,
+                            'elapsed': time.time() - start_time,
+                            'remaining': 0.0,
+                            'start_time': start_time
+                        }
+                        if batch_index is not None and batch_total is not None:
+                            tracking_data['batch_index'] = batch_index
+                            tracking_data['batch_total'] = batch_total
+                        ACTIVE_DOWNLOADS.append(tracking_data)
+                    else:
+                        # Update existing tracking data
+                        tracking_data.update({
+                            'current': existing_size,
+                            'total': total_size,
+                            'status': 'connecting',
+                            'start_time': start_time
+                        })
+                        if batch_index is not None and batch_total is not None:
+                            tracking_data['batch_index'] = batch_index
+                            tracking_data['batch_total'] = batch_total
 
                     # Start display thread if needed
                     if not self.display_thread or not self.display_thread.is_alive():
@@ -630,6 +632,15 @@ class DownloadManager:
                             with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
                                 for chunk in response.iter_content(chunk_size=chunk_size):
                                     if chunk:
+                                        # Check for user cancel before processing chunk
+                                        if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
+                                            self._register_file_entry(filename, remote_url, existing_size)
+                                            return False, "Download saved for later"
+                                        
+                                        # Process chunk only if not cancelled
+                                        out_file.write(chunk)
+                                        out_file.flush()
+                                        os.fsync(out_file.fileno())
                                         written_size = out_file.tell()
                                         tracking_data.update({
                                             'current': written_size,
@@ -639,14 +650,7 @@ class DownloadManager:
                                                      if 'last_chunk_time' in tracking_data else 0,
                                             'last_chunk_time': time.time()
                                         })
-                                        out_file.write(chunk)
-                                        out_file.flush()
-                                        os.fsync(out_file.fileno())
-
-                                        # Check for user cancel
-                                        if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
-                                            self._register_file_entry(filename, remote_url, total_size)
-                                            return False, "Download saved for later"
+                                        existing_size = written_size  # Update for next iteration
 
                             # Verify and move completed file
                             if not move_with_retry(temp_path, out_path):
