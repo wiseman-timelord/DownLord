@@ -50,6 +50,39 @@ Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit
 
 
 ```
+- Ability to input, one or multiple, url(s) in csv...
+```
+========================================================================================================================
+    DownLord: Initialize Download
+========================================================================================================================
+
+Enter download URL(s) separated by commas (Q to cancel): http://ipv4.download.thinkbroadband.com/50MB.zip, http://ipv4.d
+ownload.thinkbroadband.com/10MB.zip, http://ipv4.download.thinkbroadband.com/100MB.zip
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
 - Download Initialization (Direct HuggingFace Url)...
 ```
 ========================================================================================================================
