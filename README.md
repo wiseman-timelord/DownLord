@@ -58,6 +58,12 @@ Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit
 
 Enter download URL(s) separated by commas (Q to cancel): http://ipv4.download.thinkbroadband.com/50MB.zip, http://ipv4.d
 ownload.thinkbroadband.com/10MB.zip, http://ipv4.download.thinkbroadband.com/100MB.zip
+Processing download 1/3
+Connection established in 0.2s                                                                                          
+Successfully registered new download: 50MB.zip (http://ipv4.download.thinkbroadband.com/50MB.zip) with size 52428800
+Retrieving file metadata (attempt 1):
+Connection established in 0.1s                                                                                          
+Done
 
 
 
@@ -65,44 +71,6 @@ ownload.thinkbroadband.com/10MB.zip, http://ipv4.download.thinkbroadband.com/100
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-```
-- Download Initialization (Direct HuggingFace Url)...
-```
-========================================================================================================================
-    DownLord: Initialize Download
-========================================================================================================================
-
-Enter download URL (Q to cancel): https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGUF/resolve/main/Nxcode-CQ-7B-orpo.Q6_K.gguf?download=true
-Connection established in 0.9s                                                                                          
-Successfully registered new download: Nxcode-CQ-7B-orpo.Q6_K.gguf (https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...) with size 6377588832
-Initializing download for URL: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
-Resolved final download endpoint: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
-Initializing download for: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
-Processing download URL...
-Retrieving file metadata:
-Connection established in 0.6s
-Resolved download URL: https://huggingface.co/QuantFactory/Nxcode-CQ-7B-orpo-GGU...
-Found filename: Nxcode-CQ-7B-orpo.Q6_K.gguf
-Connecting to server...
-(Ignore Certificate Warnings)
-C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'huggingface.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
-  warnings.warn(
-C:\Users\mastar\AppData\Local\Programs\Python\Python311\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'cdn-lfs-us-1.hf.co'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
-  warnings.warn(
-Registered early metadata for: Nxcode-CQ-7B-orpo.Q6_K.gguf (Size: 6377588832)
-Setting up download...
 
 
 ```
