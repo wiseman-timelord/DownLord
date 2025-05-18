@@ -178,8 +178,9 @@ Press any key for Main Menu...
 
 ## Development
 1. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
-1. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
-2. Currently untested on pladform GoogleDrive.
+2. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
+3. Currently untested on pladform GoogleDrive.
+4. Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
 
 ### File Structure
 - Packaged files
