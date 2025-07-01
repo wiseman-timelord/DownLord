@@ -209,10 +209,10 @@ Slot Management:
     Automatic shifting between modes
 ```
 ...69 dude11
-1. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
-2. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
-3. Currently untested on pladform GoogleDrive.
-4. Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
+2. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
+3. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
+4. Currently untested on pladform GoogleDrive.
+5. Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
 
 ### File Structure
 - Packaged files
