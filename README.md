@@ -171,6 +171,7 @@ Press any key for Main Menu...
 ### Notation
 - It works for regular http/https download, but its intended for downloading GGUFs from Huggingface, that would otherwise be done on, browser or `lfs`, less effectively.
 - On a slow connection DownLord will hog the bandwidth, this is deemed to be optimal to the task, but if this becomes an issue, there is now a `Press P to Pause Download` feature.
+- Under Ubuntu it was possibly to install python 3.9.6. into wine with mono?/other?, then run the batch for downlord and it worked, at least its presumed thats how it worked.
 
 ## Development
 1. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
