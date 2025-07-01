@@ -16,7 +16,34 @@
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
 
 ### Preview
+- New 80/120 auto-switch Batch menu is, functional and well layed out...
+```
+===============================================================================
+"         ________                      .____                    .___         "
+"         \______ \   ______  _  ______ |    |    ___________  __| _/         "
+"          |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |          "
+"          |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |          "
+"         /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |          "
+"                 \/                  \/        \/                \/          "
+===============================================================================
+    Batch Menu
+===============================================================================
 
+
+
+
+    1. Launch DownLord
+
+    2. Install Requirements
+
+
+
+
+===============================================================================
+Selection; Options = 1-2, Exit = X:
+
+
+``` 
 - Main Menu (with test files)...
 ```
 ========================================================================================================================
