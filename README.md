@@ -201,14 +201,13 @@ Press any key for Main Menu...
 - Under Ubuntu it was possibly to install python 3.9.6. into wine with mono?/other?, then run the batch for downlord and it worked, at least its presumed thats how it worked.
 
 ## Development
-1. The planned new update, terminal size dependent modes...
+1. The planned new update, terminal size dependent modes, 69 dude11...
 ```
 Slot Management:
     6-slot rotation in 80x24 mode
     9-slot rotation in 120x30 mode
     Automatic shifting between modes
 ```
-...69 dude11
 2. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
 3. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 4. Currently untested on pladform GoogleDrive.
