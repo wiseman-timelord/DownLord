@@ -10,7 +10,7 @@
 ===============================================================================
 ```
 ## Status: Beta
-- Working, but needs refining/improving.
+- Most recent versions are Working, but currently being made compatible with both linux and windows.  
 
 ## Description
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
@@ -216,7 +216,8 @@ Slot Management:
 ### File Structure
 - Packaged files
 ```
-├── DownLord.bat          # Batch menu installer/launcher
+├── DownLord.bat          # Batch menu for installer/launcher
+├── DownLord.ba          # Bash menu for installer/launcher
 ├── installer.py           # Installation script
 ├── launcher.py           # Main application entry
 ├── LICENSE.txt           # License information
