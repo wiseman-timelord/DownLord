@@ -5,16 +5,18 @@ print("Starting `launcher` Imports.")
 import os, sys, time
 from pathlib import Path
 from typing import Dict
+
+# Set platform from command line argument FIRST
+from scripts import temporary
+if len(sys.argv) > 1:
+    temporary.PLATFORM = sys.argv[1].lower()
+
+# Now import other modules
 from scripts.configure import Config_Manager, get_downloads_path, check_environment
 from scripts.interface import prompt_for_download, display_error, clear_screen  # Explicitly include clear_screen
 from scripts.manage import handle_orphaned_files
 from scripts.temporary import DOWNLOADS_DIR, APP_TITLE, BASE_DIR, TEMP_DIR
 print("`launcher` Imports Complete.")
-from scripts import temporary
-
-# Set platform from command line argument
-if len(sys.argv) > 1:
-    temporary.PLATFORM = sys.argv[1].lower()
 
 # Initialize
 def initialize_startup(platform: str) -> Dict:
