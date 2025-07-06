@@ -214,7 +214,7 @@ Press any key to continue . . .
 1.W. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install python/powershell projects to locations with spaces such as `Program Files`).
 1.U. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `/media/**UserName**/**DriveName**/Programs/Downlord` (generally you should not install python/powershell projects to locations with spaces such as `/media/**UserName**/**DriveName**/My Programs/Downlord`).
 2.W. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
-2.U. Make the `sudo ./DownLord.sh` file executable (right click, properties), then run the bash in terminal in the program folder through command, `sudo ./DownLord.sh` or `sudo bash ./DownLord.sh`. 
+2.U. Make the `./DownLord.sh` file executable (right click, properties), then run the bash in terminal in the program folder through command, `sudo ./DownLord.sh` or `sudo bash ./DownLord.sh`. 
 3. Select the Installer option, to, install python requirements and unpack/create program files.
 4. Returning to the menu from successful install, press 1 to launch main program.
 5. Take a look in the settings menu, make sure everything is optimal.
