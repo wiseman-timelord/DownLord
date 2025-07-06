@@ -11,6 +11,9 @@ from urllib.parse import unquote
 # Application Metadata
 APP_TITLE = "DownLord"
 
+# Platform
+PLATFORM = "default"
+
 # Directory Structure
 BASE_DIR = Path(__file__).parent.parent.resolve()
 DATA_DIR = BASE_DIR / "data"
@@ -29,6 +32,10 @@ FS_UPDATE_INTERVAL = 5
 DISPLAY_REFRESH = 1
 
 # DownloadS
+_pending_handlers = []
+ACTIVE_DOWNLOADS = []
+
+# Download_Tracking
 DOWNLOAD_TRACKING = {
     "total_files": 0,
     "completed": 0,

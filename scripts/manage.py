@@ -1,7 +1,10 @@
 # Script: `.\scripts\manage.py`
 
 # Imports
-import os, cgi, re, time, requests, json, random, socket, msvcrt, threading
+import os, re, time, requests, json, random, socket, threading, sys
+import gc
+import termios
+import tty
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -33,16 +36,14 @@ from .temporary import (
     DEFAULT_CONFIG,
     BASE_DIR,
     FS_UPDATE_INTERVAL,
-    DISPLAY_REFRESH
+    DISPLAY_REFRESH,
+    _pending_handlers,
+    ACTIVE_DOWNLOADS
 )
 from . import configure  # Add this line
 from .configure import Config_Manager, get_downloads_path
 from .interface import display_download_state, display_download_summary, clear_screen, format_file_size, display_success, display_error, SEPARATOR_THIN
-
-# Globals
-_pending_handlers = []
-DISPLAY_REFRESH = 1     # Visual refresh every 1 second
-ACTIVE_DOWNLOADS = []
+from . import temporary 
 
 # Classes
 class DownloadError(Exception):
@@ -421,6 +422,44 @@ def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
         time.sleep(3)
         return {}
 
+def get_file_name_from_url(url: str) -> Optional[str]:
+    """Extract filename from URL or headers."""
+    from .interface import display_error  # Deferred import to avoid circular dependency
+    try:
+        # First try to extract filename from URL path
+        parsed_url = urlparse(url)
+        filename = os.path.basename(unquote(parsed_url.path))
+        if filename and '.' in filename:
+            return filename
+
+        # If not found in URL, try from Content-Disposition header
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        if 'Content-Disposition' not in response.headers:
+            return filename if filename else None
+
+        disposition = response.headers['Content-Disposition']
+        return extract_filename_from_disposition(disposition) or filename
+
+    except Exception as e:
+        display_error(f"Error extracting filename from URL: {str(e)}")
+        time.sleep(3)
+        return None
+
+# Get Active Downloads (keep above DownloadManager)
+def get_active_downloads() -> list:
+    """Get sanitized list of active downloads with calculated metrics and batch info"""
+    return [{
+        'filename': d.get('filename', 'Unknown'),
+        'current': d.get('current', 0),
+        'total': d.get('total', 1),
+        'speed': d.get('speed', 0),
+        'elapsed': time.time() - d.get('start_time', time.time()),
+        'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0,
+        'batch_index': d.get('batch_index'),
+        'batch_total': d.get('batch_total')
+    } for d in ACTIVE_DOWNLOADS if 'current' in d]
+
+# DownloadManager (keep below the above functions)
 class DownloadManager:
     def __init__(self, downloads_location: Path):
         from .configure import Config_Manager
@@ -550,22 +589,28 @@ class DownloadManager:
         time.sleep(max(1, delay))
         return True
 
-    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode: bool = False, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, Optional[str]]:
+    def download_file(self, remote_url: str, out_path: Path, chunk_size: int, batch_mode: bool = False, 
+                     batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, Optional[str]]:
+        """Download a file from a remote URL with progress tracking and resumption support."""
         from .interface import display_error, display_success, update_history, format_file_size, display_download_summary
-        import gc
         start_time = time.time()
         temp_path = None
         filename = None
         tracking_data = None
         total_size = 0
-        # Infer batch_mode from batch_index and batch_total
         batch_mode = batch_index is not None and batch_total is not None
+
+        # Terminal setup for non-Windows platforms
+        if temporary.PLATFORM != 'windows':
+            fd = sys.stdin.fileno()
+            old_term = termios.tcgetattr(fd)
+            tty.setcbreak(fd)
 
         try:
             pre_registration_attempts = 0
             retries = 0
             max_pre_attempts = 3
-            
+
             while pre_registration_attempts < max_pre_attempts or retries < RUNTIME_CONFIG["download"]["max_retries"]:
                 try:
                     # Get file metadata
@@ -573,15 +618,15 @@ class DownloadManager:
                     download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
                     total_size = metadata.get('size', 0)
                     print("Done")
-                    
+
                     filename = metadata.get("filename") or get_file_name_from_url(download_url)
                     if not filename:
                         return False, ERROR_HANDLING["messages"]["filename_error"]
-                    
+
                     temp_path = TEMP_DIR / f"{filename}.part"
                     existing_size = temp_path.stat().st_size if temp_path.exists() else 0
 
-                    # Check for existing tracking data to avoid duplicates
+                    # Check for existing tracking data
                     tracking_data = next((d for d in ACTIVE_DOWNLOADS if d['filename'] == out_path.name), None)
                     if not tracking_data:
                         tracking_data = {
@@ -600,7 +645,6 @@ class DownloadManager:
                             tracking_data['batch_total'] = batch_total
                         ACTIVE_DOWNLOADS.append(tracking_data)
                     else:
-                        # Update existing tracking data
                         tracking_data.update({
                             'current': existing_size,
                             'total': total_size,
@@ -620,7 +664,7 @@ class DownloadManager:
                         adapter = requests.adapters.HTTPAdapter(max_retries=5)
                         session.mount('https://', adapter)
                         session.mount('http://', adapter)
-                        
+
                         with session.get(
                             download_url,
                             stream=True,
@@ -629,17 +673,26 @@ class DownloadManager:
                             verify=False
                         ) as response:
                             response.raise_for_status()
-                            
+
                             # Download loop
                             with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
                                 for chunk in response.iter_content(chunk_size=chunk_size):
                                     if chunk:
-                                        # Check for user cancel before processing chunk
-                                        if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
-                                            self._register_file_entry(filename, remote_url, existing_size)
-                                            return False, "Download saved for later"
-                                        
-                                        # Process chunk only if not cancelled
+                                        # Cross-platform keyboard check
+                                        if temporary.PLATFORM == 'windows':
+                                            import msvcrt
+                                            if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
+                                                self._register_file_entry(filename, remote_url, existing_size)
+                                                return False, "Download saved for later"
+                                        else:
+                                            import select
+                                            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                                                key = sys.stdin.read(1).lower()
+                                                if key == 'a':
+                                                    self._register_file_entry(filename, remote_url, existing_size)
+                                                    return False, "Download saved for later"
+
+                                        # Process chunk
                                         out_file.write(chunk)
                                         out_file.flush()
                                         os.fsync(out_file.fileno())
@@ -652,16 +705,16 @@ class DownloadManager:
                                                      if 'last_chunk_time' in tracking_data else 0,
                                             'last_chunk_time': time.time()
                                         })
-                                        existing_size = written_size  # Update for next iteration
+                                        existing_size = written_size
 
                             # Verify and move completed file
                             if not move_with_retry(temp_path, out_path):
                                 return False, "Failed to move downloaded file"
 
-                            # Stop display updates before showing summary
+                            # Stop display updates
                             self._stop_display_updater()
-                            
-                            # Always show summary with correct batch_mode
+
+                            # Show summary
                             display_download_summary(
                                 filename=filename,
                                 total_size=out_path.stat().st_size,
@@ -672,7 +725,7 @@ class DownloadManager:
                                 destination=str(out_path),
                                 batch_mode=batch_mode
                             )
-                            
+
                             update_history(self.config, filename, remote_url, out_path.stat().st_size)
                             return True, None
 
@@ -681,57 +734,23 @@ class DownloadManager:
                     if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
                         raise
                     time.sleep(min(2 ** retries, 10))
-                    
+
         except Exception as e:
             display_error(f"Unexpected error: {str(e)}")
             return False, str(e)
-            
+
         finally:
+            # Clean up
             self._stop_display_updater()
             if tracking_data and tracking_data in ACTIVE_DOWNLOADS:
                 ACTIVE_DOWNLOADS.remove(tracking_data)
-            if 'gc' in locals() or 'gc' in globals():  # Safe garbage collection
+
+            # Restore terminal settings on non-Windows platforms
+            if temporary.PLATFORM != 'windows':
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_term)
+
+            if 'gc' in locals() or 'gc' in globals():
                 gc.collect()
-
-
-# Functions
-def get_active_downloads() -> list:
-    """Get sanitized list of active downloads with calculated metrics"""
-    global ACTIVE_DOWNLOADS
-    return [{
-        'filename': d.get('filename', 'Unknown'),
-        'current': d.get('current', 0),
-        'total': d.get('total', 1),
-        'speed': d.get('speed', 0),
-        'elapsed': time.time() - d.get('start_time', time.time()),
-        'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0
-    } for d in ACTIVE_DOWNLOADS if 'current' in d]
-
-def get_file_name_from_url(url: str) -> Optional[str]:
-    """Extract filename from URL or headers."""
-    try:
-        if "cdn-lfs" in url and (filename := extract_filename_from_disposition(url)):
-            return filename
-
-        parsed_url = urlparse(url)
-        if filename := os.path.basename(unquote(parsed_url.path)):
-            if '.' in filename:
-                return filename
-
-        response = requests.head(url, allow_redirects=True)
-        if 'Content-Disposition' in response.headers:
-            value, params = cgi.parse_header(response.headers['Content-Disposition'])
-            if filename := params.get('filename'):
-                return filename
-
-        return filename if filename else None
-
-    except Exception as e:
-        display_error(f"Error extracting filename from URL: {str(e)}")
-        time.sleep(3)
-        return None
-
-
 def handle_orphaned_files(config: dict) -> None:
     from scripts.temporary import BASE_DIR
     from .configure import Config_Manager  # Import Config_Manager
@@ -814,56 +833,27 @@ def verify_download_directory() -> bool:
 
 
 def move_with_retry(src: Path, dst: Path, max_retries: int = 10, delay: float = 2.0) -> bool:
-    """
-    Move file with retry mechanism for Windows file locks.
-    Increased retries and delay for better handle release
-    """
+    """Cross-platform file move with retry logic"""
     for attempt in range(max_retries):
         try:
             if not src.exists():
                 display_error(f"Source file missing: {src}")
                 return False
 
-            # Ensure destination directory exists
             dst.parent.mkdir(parents=True, exist_ok=True)
-
-            # Force close any potential file handles (Windows-specific)
-            if os.name == 'nt':
-                import ctypes
-                kernel32 = ctypes.windll.kernel32
-                dll = ctypes.windll.LoadLibrary("kernel32.dll")
-                dll.LockFileEx.argtypes = [
-                    ctypes.c_void_p,  # hFile
-                    ctypes.c_uint32,  # dwFlags
-                    ctypes.c_uint32,  # dwReserved
-                    ctypes.c_uint32,  # nNumberOfBytesToLockLow
-                    ctypes.c_uint32,  # nNumberOfBytesToLockHigh
-                    ctypes.POINTER(ctypes.c_void_p)  # lpOverlapped
-                ]
-                dll.UnlockFileEx.argtypes = [
-                    ctypes.c_void_p,  # hFile
-                    ctypes.c_uint32,  # dwReserved
-                    ctypes.c_uint32,  # nNumberOfBytesToUnlockLow
-                    ctypes.c_uint32,  # nNumberOfBytesToUnlockHigh
-                    ctypes.POINTER(ctypes.c_void_p)  # lpOverlapped
-                ]
-
-            # Attempt move
-            src.replace(dst)  # Using replace instead of rename
+            
+            # Use replace() which works cross-platform
+            src.replace(dst)
             return True
-
+            
         except PermissionError as e:
             if attempt < max_retries - 1:
-                print(f"Move attempt {attempt + 1} failed, retrying in {delay}s: {e}")
+                print(f"Move attempt {attempt+1} failed, retrying in {delay}s...")
                 time.sleep(delay)
             else:
-                display_error(f"Failed to move file after {max_retries} attempts: {e}")
-                time.sleep(3)
+                display_error(f"Failed after {max_retries} attempts: {e}")
                 return False
-
         except Exception as e:
-            display_error(f"Unexpected error moving file: {e}")
-            time.sleep(3)
+            display_error(f"Unexpected error: {e}")
             return False
-
     return False

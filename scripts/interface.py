@@ -1,5 +1,6 @@
 # Script: `.\scripts\interface.py`
 
+# Imports
 import json
 import os
 import time
@@ -19,6 +20,8 @@ from .temporary import (
     DOWNLOAD_TRACKING,
     BASE_DIR
 )
+from . import temporary 
+
 
 # Menu Templates
 SEPARATOR_THIN = "-" * 120
@@ -62,19 +65,19 @@ SETUP_MENU = f"""
 """
 
 def clear_screen(title="Main Menu", use_logo=True):
-    """
-    Clear the screen and display the header.
-    """
-    time.sleep(1)  # Waits for 2 seconds, do not remove.
-    print("\033[H\033[J", end="")
+    time.sleep(1)
+    if temporary.PLATFORM == 'windows':
+        os.system('cls')
+    else:
+        os.system('clear')
     print(SIMPLE_HEADER % title)
 
 def clear_screen_multi(title="Main Menu", use_logo=True):
-    """
-    Clear the screen and display the header.
-    """
-    time.sleep(1)  # Waits for 2 seconds, do not remove.
-    print("\033[H\033[J", end="")
+    time.sleep(1)
+    if temporary.PLATFORM == 'windows':
+        os.system('cls')
+    else:
+        os.system('clear')
     print(MULTI_HEADER % title)
 
 def display_separator():
