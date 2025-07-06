@@ -12,7 +12,7 @@ from urllib.parse import unquote
 APP_TITLE = "DownLord"
 
 # Platform
-PLATFORM = "windows"
+PLATFORM = "None"
 
 # Directory Structure
 BASE_DIR = Path(__file__).parent.parent.resolve()
