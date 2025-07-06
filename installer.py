@@ -40,7 +40,8 @@ PERSISTENT_FILE = BASE_DIR / "data" / "persistent.json"
 REQUIREMENTS_TEXT = """requests>=2.31.0
 tqdm>=4.66.1
 urllib3>=2.1.0
-pathlib>=1.0.1"""
+pathlib>=1.0.1
+"""
 
 PERSISTENT_TEXT = """{
     "chunk": 4096000,

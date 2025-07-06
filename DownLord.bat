@@ -90,7 +90,6 @@ echo.
 echo.
 echo.
 echo.
-echo.
 
 call :DisplaySeparator
 set /p "choice=Selection; Options = 1-2, Exit = X: "
@@ -123,6 +122,7 @@ if /i "%choice%"=="2" (
     if errorlevel 1 (
         echo Error during installation
     )
+	pause
     goto MainMenu
 )
 
