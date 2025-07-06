@@ -210,6 +210,7 @@ Press any key to continue . . .
 - Storage - The files downloaded are stored in .\Downloads, but also can configure in setup menu.
 
 ### Usage (W = Windows, U = Ubuntu)
+```
 1.W. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install python/powershell projects to locations with spaces such as `Program Files`).
 1.U. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `/media/**UserName**/**DriveName**/Programs/Downlord` (generally you should not install python/powershell projects to locations with spaces such as `/media/**UserName**/**DriveName**/My Programs/Downlord`).
 2.W. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
@@ -219,6 +220,7 @@ Press any key to continue . . .
 5. Take a look in the settings menu, make sure everything is optimal.
 6. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
 7. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
+```
 
 ### Notation
 - It works for regular http/https download, but its intended for downloading GGUFs from Huggingface, that would otherwise be done on, browser or `lfs`, less effectively.
