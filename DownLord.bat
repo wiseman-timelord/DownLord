@@ -1,10 +1,16 @@
-REM .\GameNotOver.bat
+REM .\DownLord.bat
 @echo off
 setlocal enabledelayedexpansion
 
 REM title code
 set "TITLE=DownLord"
 title %TITLE%
+
+:: Initialize console to 120x30 if too small
+for /F "usebackq tokens=2* delims=: " %%W in (`mode con ^| findstr /C:"Columns"`) do set /A "current_width=%%W"
+if %current_width% LSS 120 (
+    mode con: cols=120 lines=30
+)
 
 :: DP0 TO SCRIPT BLOCK, DO NOT, MODIFY or MOVE: START
 set "ScriptDirectory=%~dp0"
@@ -44,21 +50,14 @@ call :GetTerminalWidth
 call :CreateSeparator
 echo %SEPARATOR%
 
-if %TERMINAL_WIDTH% LEQ 80 (
-    echo "         ________                      .____                    .___         "
-    echo "         \______ \   ______  _  ______ |    |    ___________  __| _/         "
-    echo "          |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |          "
-    echo "          |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |          "
-    echo "         /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |          "
-    echo "                 \/                  \/        \/                \/          "
-) else (
-    echo "                                      ___________                              .__________                            .___                              "
-    echo "                                      \__    ___/___________    _____    ____  |  |\_____  \  ___________   ____    __| _/___________                   "
-    echo "                                        |    |  \_  __ \__  \  /     \ _/ __ \ |  | /  / \  \ \_  __ \  \ /  / /    \ __\/  _ \_  __ \                  "
-    echo "                                        |    |   |  | \// __ \|  Y Y  \\  ___/ |  |/   \_/.  \ |  | \/\  /\  / /   |  \ (  <_> )  | \/                  "
-    echo "                                        |____|   |__|  (____  /__|_|  / \___  >|____\_____\ \_/ |__|    \/  \/ /___|  / \____/|__|                     "
-    echo "                                                            \/      \/      \/            \__>                      \/                                  "
-)
+REM Always use 120-width display
+echo "                             ________                      .____                    .___                             "
+echo "                             \______ \   ______  _  ______ |    |    ___________  __| _/                             "
+echo "                              |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |                              "
+echo "                              |    \   (  <_> )     /   |  \    |__(  <_> )  | \/ /_/ |                              "
+echo "                             /_______  /\____/ \/\_/|___|  /_______ \____/|__|  \____ |                              "
+echo "                                     \/                  \/        \/                \/                              "
+
 echo %SEPARATOR%
 goto :eof
 
@@ -74,35 +73,24 @@ call :DisplayTitle
 echo     Batch Menu
 call :DisplaySeparator
 
-REM Check terminal width for menu layout
-if %TERMINAL_WIDTH% LEQ 80 (
-    echo.
-    echo.
-    echo.
-    echo.
-    echo     1. Launch %TITLE%
-    echo.
-    echo     2. Install Requirements
-    echo.
-    echo.
-    echo.
-    echo.
-) else (
-    echo.
-    echo.
-    echo.
-    echo.
-    echo.
-    echo     1. Launch %TITLE%
-    echo.
-    echo     2. Install Requirements
-    echo.
-    echo.
-    echo.
-    echo.
-    echo.
-    echo.
-)
+REM Always use expanded menu layout
+echo.
+echo.
+echo.
+echo.
+echo.
+echo.
+echo     1. Launch %TITLE%
+echo.
+echo     2. Install Requirements
+echo.
+echo.
+echo.
+echo.
+echo.
+echo.
+echo.
+echo.
 
 call :DisplaySeparator
 set /p "choice=Selection; Options = 1-2, Exit = X: "
@@ -114,7 +102,7 @@ if /i "%choice%"=="1" (
     echo.
     echo Starting %TITLE%...
     set PYTHONUNBUFFERED=1
-    python.exe -u .\launcher.py
+    python.exe -u .\launcher.py windows
     if errorlevel 1 (
         echo Error launching %TITLE%
         pause
@@ -131,7 +119,7 @@ if /i "%choice%"=="2" (
     timeout /t 1 >nul
     cls
     call :DisplaySeparator
-    python.exe .\installer.py
+    python.exe .\installer.py windows
     if errorlevel 1 (
         echo Error during installation
     )

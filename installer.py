@@ -1,33 +1,48 @@
+#!/usr/bin/env python3
 # Script: `.\installer.py`
 
 # Imports
 import os
 import time
 import subprocess
-import json
 import sys
 import platform
 from pathlib import Path
-from typing import Optional, Dict, Union, List
+from typing import List, Tuple, Optional
 
-# Essential setup variables
+# Constants
 APP_TITLE = "DownLord"
+MIN_PYTHON_VERSION = (3, 6)
 BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
-DOWNLOADS_DIR = BASE_DIR / "downloads"
-SCRIPTS_DIR = BASE_DIR / "scripts"
-TEMP_DIR = BASE_DIR / "incomplete"  # Changed from "temp" to "incomplete"
-REQUIREMENTS_FILE = DATA_DIR / "requirements.txt"
-INIT_FILE = SCRIPTS_DIR / "__init__.py"
-PERSISTENT_FILE = DATA_DIR / "persistent.json"
+VENV_DIR = BASE_DIR / ".venv"
 
-# Complete file templates
-REQUIREMENTS_TEXT = '''requests>=2.31.0
+# Determine platform once at startup
+CURRENT_PLATFORM = "linux"  # Default to Linux
+if len(sys.argv) > 1 and sys.argv[1].lower() == "windows":
+    CURRENT_PLATFORM = "windows"
+elif platform.system().lower().startswith("win"):
+    CURRENT_PLATFORM = "windows"
+
+# Directory Structure
+APP_DIRECTORIES = [
+    BASE_DIR / "data",
+    BASE_DIR / "downloads",
+    BASE_DIR / "scripts",
+    BASE_DIR / "incomplete"
+]
+
+# File Paths
+REQUIREMENTS_FILE = BASE_DIR / "data" / "requirements.txt"
+INIT_FILE = BASE_DIR / "scripts" / "__init__.py"
+PERSISTENT_FILE = BASE_DIR / "data" / "persistent.json"
+
+# File Templates
+REQUIREMENTS_TEXT = """requests>=2.31.0
 tqdm>=4.66.1
 urllib3>=2.1.0
-pathlib>=1.0.1'''
+pathlib>=1.0.1"""
 
-PERSISTENT_TEXT = '''{
+PERSISTENT_TEXT = """{
     "chunk": 4096000,
     "retries": 100,
     "timeout_length": 120,
@@ -59,147 +74,325 @@ PERSISTENT_TEXT = '''{
     "total_size_7": 0,
     "total_size_8": 0,
     "total_size_9": 0
-}'''
+}"""
 
-def print_action(message: str, delay: float = 0.5):
+def print_action(message: str, delay: float = 0.3) -> None:
     """Print action with status indicator."""
     print(f">> {message}", end=' ', flush=True)
     time.sleep(delay)
     print("[OK]")
 
 def check_python_version() -> bool:
-    """Check if Python version is compatible."""
-    version = sys.version_info
-    if version.major == 3 and version.minor >= 6:
-        print_action("Python version check passed")
+    """Verify Python version meets requirements."""
+    if sys.version_info >= MIN_PYTHON_VERSION:
+        version_str = '.'.join(map(str, MIN_PYTHON_VERSION))
+        print_action(f"Python {version_str}+ confirmed")
         return True
-    print(f"Error: Python 3.6 or higher required. Current version: {sys.version}")
+    
+    current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    required_version = '.'.join(map(str, MIN_PYTHON_VERSION))
+    print(f"Error: Requires Python {required_version}+ (Found: {current_version})")
     return False
 
-def check_platform() -> bool:
-    """Check platform compatibility and requirements."""
-    system = platform.system().lower()
-    if system not in ['windows', 'linux', 'darwin']:
-        print(f"Warning: Untested platform: {system}")
-        return False
-    
-    print_action(f"Platform check passed: {system}")
-    return True
-
-def create_directories():
-    """Create all required application directories."""
-    directories = [DATA_DIR, DOWNLOADS_DIR, SCRIPTS_DIR, TEMP_DIR]  # TEMP_DIR is now .\incomplete
-    for directory in directories:
-        existed = directory.exists()
-        directory.mkdir(exist_ok=True)
-        rel_path = f".{str(directory).replace(str(BASE_DIR), '')}"
-        print_action(f"{'Checked' if existed else 'Created'} directory: {rel_path}")
-
-def create_init_file():
-    """Create __init__.py file in scripts directory."""
-    INIT_FILE.touch(exist_ok=True)
-    print_action("Created .\\scripts\\__init__.py")
-
-def create_requirements():
-    """Create requirements.txt file with necessary packages."""
-    DATA_DIR.mkdir(exist_ok=True)
-    with open(REQUIREMENTS_FILE, 'w') as f:
-        f.write(REQUIREMENTS_TEXT)
-    print_action("Created .\\data\\requirements.txt")
-
-def install_requirements() -> bool:
-    """Install Python package requirements."""
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_FILE)],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        print_action("Installed Python dependencies")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Error installing requirements: {e.stderr}")
-        return False
-    except Exception as e:
-        print(f"Unexpected error installing requirements: {e}")
-        return False
-
-def handle_persistent() -> bool:
-    """Create or update persistent.json file."""
-    if PERSISTENT_FILE.exists():
-        rel_path = f".{str(PERSISTENT_FILE).replace(str(BASE_DIR), '')}"
-        print("Json file exists:", rel_path)
-        resp = input("Do you want to overwrite it? (y/n): ").strip().lower()
-        if resp != 'y':
-            print_action("Skipping persistent creation")
-            return True
-
-    try:
-        PERSISTENT_FILE.parent.mkdir(exist_ok=True)
-        with open(PERSISTENT_FILE, 'w') as f:
-            f.write(PERSISTENT_TEXT)
-        print_action("Created default persistent")
-        return True
-    except Exception as e:
-        print(f"Error creating persistent file: {e}")
-        return False
-
-def check_permissions() -> bool:
-    """Check if the program has necessary permissions."""
-    try:
-        for directory in [DATA_DIR, DOWNLOADS_DIR, SCRIPTS_DIR, TEMP_DIR]:
-            directory.mkdir(exist_ok=True)
+def setup_directories() -> bool:
+    """Create all required directories with permission checks."""
+    for directory in APP_DIRECTORIES:
+        try:
+            existed = directory.exists()
+            directory.mkdir(exist_ok=True, mode=0o755)
+            
+            # Verify write permissions
             test_file = directory / ".test_write"
             test_file.touch()
             test_file.unlink()
-        return True
-    except PermissionError:
-        print("Error: Insufficient permissions to create/write to directories")
-        return False
-
-def main():
-    """Main installation process."""
-    print(f"    {APP_TITLE}: Install and Setup")
-    print("===============================================================================")
-    # Check system requirements
-    if not check_python_version() or not check_platform():
-        print("\nInstallation failed: System requirements not met")
-        input("Press Enter to exit...")
-        return False
-
-    # Check permissions
-    if not check_permissions():
-        print("\nInstallation failed: Insufficient permissions")
-        input("Press Enter to exit...")
-        return False
-
-    # Create directory structure
-    create_directories()
-    create_init_file()
-
-    # Create and install requirements
-    create_requirements()
-    if not install_requirements():
-        print("Installation failed at requirements step")
-        input("Press Enter to exit...")
-        return False
-
-    # Handle configuration
-    if not handle_persistent():
-        print("Installation failed at persistent step")
-        input("Press Enter to exit...")
-        return False
-
-    # Display success message
-    input("Press Enter to exit...")
+            
+            rel_path = directory.relative_to(BASE_DIR).as_posix()
+            print_action(f"{'Verified' if existed else 'Created'} directory: {rel_path}")
+        except (PermissionError, OSError) as e:
+            print(f"Failed to create/access {directory.name}: {e}")
+            if CURRENT_PLATFORM == "linux":
+                print("Try running with 'sudo' or adjust permissions")
+            return False
     return True
+
+def create_file(path: Path, content: str, desc: str) -> bool:
+    """Helper to create files with consistent messaging."""
+    try:
+        path.parent.mkdir(exist_ok=True, parents=True)
+        with open(path, 'w') as f:
+            f.write(content)
+        rel_path = path.relative_to(BASE_DIR).as_posix()
+        print_action(f"Created {desc}: {rel_path}")
+        return True
+    except Exception as e:
+        print(f"Error creating {desc}: {e}")
+        return False
+
+def get_virtualenv_pip() -> Optional[Path]:
+    """Get the path to the virtual environment's pip executable."""
+    if CURRENT_PLATFORM == "windows":
+        pip_path = VENV_DIR / "Scripts" / "pip.exe"
+    else:
+        pip_path = VENV_DIR / "bin" / "pip"
+    
+    return pip_path if pip_path.exists() else None
+
+def get_virtualenv_python() -> Optional[Path]:
+    """Get the path to the virtual environment's python executable."""
+    if CURRENT_PLATFORM == "windows":
+        python_path = VENV_DIR / "Scripts" / "python.exe"
+    else:
+        python_path = VENV_DIR / "bin" / "python"
+    
+    return python_path if python_path.exists() else None
+
+def upgrade_pip(venv_python: Path) -> bool:
+    """Upgrade pip in the virtual environment."""
+    try:
+        print("Upgrading pip in virtual environment...")
+        subprocess.run(
+            [str(venv_python), "-m", "pip", "install", "--upgrade", "pip"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        print_action("Successfully upgraded pip")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error upgrading pip: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error upgrading pip: {e}")
+        return False
+
+def setup_virtualenv() -> bool:
+    """Create and activate a virtual environment."""
+    # Check if virtual environment already exists
+    venv_python = get_virtualenv_python()
+    
+    if venv_python:
+        print_action("Virtual environment exists")
+        
+        # Ensure pip is present and upgraded
+        pip_path = get_virtualenv_pip()
+        if not pip_path:
+            if not bootstrap_pip(venv_python):
+                return False
+        return upgrade_pip(venv_python)
+    
+    # Create new virtual environment
+    try:
+        print_action("Creating virtual environment")
+        subprocess.run(
+            [sys.executable, "-m", "venv", str(VENV_DIR)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # Get new venv python path
+        venv_python = get_virtualenv_python()
+        if not venv_python:
+            print("Error: Virtual environment Python not found")
+            return False
+            
+        # Bootstrap pip if needed
+        pip_path = get_virtualenv_pip()
+        if not pip_path:
+            if not bootstrap_pip(venv_python):
+                return False
+                
+        # Upgrade pip
+        if not upgrade_pip(venv_python):
+            return False
+            
+        print_action(f"Virtual environment created at: {VENV_DIR.relative_to(BASE_DIR).as_posix()}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error creating virtual environment: {e.stderr}")
+        print("Make sure the 'venv' module is available")
+        if CURRENT_PLATFORM != "windows":
+            print("On Ubuntu/Debian, try: sudo apt install python3-venv")
+        return False
+    except Exception as e:
+        print(f"Unexpected error creating virtual environment: {e}")
+        return False
+
+def bootstrap_pip(venv_python: Path) -> bool:
+    """Bootstrap pip into a virtual environment that's missing it."""
+    try:
+        print("Bootstrapping pip in virtual environment...")
+        # Use ensurepip module to install pip
+        subprocess.run(
+            [str(venv_python), "-m", "ensurepip", "--upgrade", "--default-pip"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        print_action("Successfully bootstrapped pip")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error bootstrapping pip: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error bootstrapping pip: {e}")
+        return False
+
+def setup_virtualenv() -> bool:
+    """Create and activate a virtual environment."""
+    # Check if virtual environment already exists
+    pip_path = get_virtualenv_pip()
+    venv_python = VENV_DIR / "bin" / "python" if CURRENT_PLATFORM != "windows" else VENV_DIR / "Scripts" / "python.exe"
+    
+    if venv_python.exists():
+        print_action("Virtual environment exists")
+        
+        # Check if pip is missing
+        if not pip_path or not pip_path.exists():
+            if not bootstrap_pip(venv_python):
+                return False
+        return True
+    
+    # Create new virtual environment
+    try:
+        print_action("Creating virtual environment")
+        subprocess.run(
+            [sys.executable, "-m", "venv", str(VENV_DIR)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # Verify pip exists in new environment
+        pip_path = get_virtualenv_pip()
+        if not pip_path or not pip_path.exists():
+            if not bootstrap_pip(venv_python):
+                return False
+                
+        print_action(f"Virtual environment created at: {VENV_DIR.relative_to(BASE_DIR).as_posix()}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error creating virtual environment: {e.stderr}")
+        print("Make sure the 'venv' module is available")
+        if CURRENT_PLATFORM != "windows":
+            print("On Ubuntu/Debian, try: sudo apt install python3-venv")
+        return False
+    except Exception as e:
+        print(f"Unexpected error creating virtual environment: {e}")
+        return False
+
+def install_dependencies() -> bool:
+    """Install required Python packages in virtual environment."""
+    # Ensure virtual environment exists
+    if not setup_virtualenv():
+        return False
+    
+    # Get the virtual environment's pip
+    pip_path = get_virtualenv_pip()
+    if not pip_path:
+        print("Error: Could not find pip in virtual environment")
+        return False
+    
+    # Install requirements
+    try:
+        print_action("Installing dependencies in virtual environment")
+        result = subprocess.run(
+            [str(pip_path), "install", "-r", str(REQUIREMENTS_FILE)],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            print_action("Dependencies installed successfully")
+            return True
+        
+        print(f"Package installation failed:\n{result.stderr}")
+        return False
+    except Exception as e:
+        print(f"Installation error: {e}")
+        return False
+
+def setup_persistent_config() -> bool:
+    """Handle persistent.json creation with overwrite confirmation."""
+    if PERSISTENT_FILE.exists():
+        rel_path = PERSISTENT_FILE.relative_to(BASE_DIR).as_posix()
+        print(f"Config file exists: {rel_path}")
+        
+        while True:
+            resp = input("Overwrite? (y/n): ").strip().lower()
+            if resp in {'y', 'yes'}:
+                break
+            if resp in {'n', 'no', ''}:
+                print_action("Skipping config creation")
+                return True
+            print("Please enter 'y' or 'n'")
+
+    return create_file(PERSISTENT_FILE, PERSISTENT_TEXT, "configuration file")
+
+def verify_installation() -> bool:
+    """Check all critical components were installed correctly."""
+    checks = [
+        (all(d.exists() for d in APP_DIRECTORIES), "Directory structure"),
+        (VENV_DIR.exists(), "Virtual environment"),
+        (REQUIREMENTS_FILE.exists(), "Requirements file"),
+        (INIT_FILE.exists(), "Scripts package marker"),
+        (PERSISTENT_FILE.exists(), "Configuration file")
+    ]
+    
+    success = all(status for status, _ in checks)
+    if not success:
+        print("\nInstallation verification failed:")
+        for status, desc in checks:
+            if not status:
+                print(f"  - Missing: {desc}")
+    
+    return success
+
+def main() -> None:
+    """Main installation workflow."""
+    print(f"\n{APP_TITLE} Installer\n{'='*40}")
+    
+    # Show platform information
+    print_action(f"Platform: {CURRENT_PLATFORM.capitalize()}")
+    
+    # Pre-flight checks
+    if not check_python_version():
+        sys.exit(1)
+    
+    # Core installation
+    if not setup_directories():
+        sys.exit(1)
+    
+    if not create_file(INIT_FILE, "", "package marker"):
+        sys.exit(1)
+    
+    if not create_file(REQUIREMENTS_FILE, REQUIREMENTS_TEXT, "requirements file"):
+        sys.exit(1)
+    
+    if not install_dependencies():
+        sys.exit(1)
+    
+    if not setup_persistent_config():
+        sys.exit(1)
+    
+    # Final verification
+    if verify_installation():
+        print("\n✔ Installation completed successfully")
+        print("Note: Use the launcher script to run DownLord with the virtual environment")
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         print("\nInstallation cancelled by user")
+        sys.exit(1)
     except Exception as e:
-        print(f"\nUnexpected error during installation: {e}")
-        input("Press Enter to exit...")
+        print(f"\nUnexpected error: {e}")
+        sys.exit(1)
