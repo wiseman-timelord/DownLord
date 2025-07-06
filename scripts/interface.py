@@ -24,8 +24,8 @@ from . import temporary
 
 
 # Menu Templates
-SEPARATOR_THIN = "-" * 120
-SEPARATOR_THICK = "=" * 120
+SEPARATOR_THIN = "-" * 119
+SEPARATOR_THICK = "=" * 119
 MENU_SEPARATOR = SEPARATOR_THIN
 
 SIMPLE_HEADER = f'''{SEPARATOR_THICK}

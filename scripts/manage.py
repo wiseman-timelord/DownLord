@@ -3,8 +3,6 @@
 # Imports
 import os, re, time, requests, json, random, socket, threading, sys
 import gc
-import termios
-import tty
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -44,6 +42,13 @@ from . import configure  # Add this line
 from .configure import Config_Manager, get_downloads_path
 from .interface import display_download_state, display_download_summary, clear_screen, format_file_size, display_success, display_error, SEPARATOR_THIN
 from . import temporary 
+
+# Conditional Imports
+if temporary.PLATFORM != 'windows':
+    import termios
+    import tty
+else:
+    import msvcrt  # Windows-specific module
 
 # Classes
 class DownloadError(Exception):
@@ -601,7 +606,9 @@ class DownloadManager:
         batch_mode = batch_index is not None and batch_total is not None
 
         # Terminal setup for non-Windows platforms
+        old_term = None
         if temporary.PLATFORM != 'windows':
+            import termios, tty
             fd = sys.stdin.fileno()
             old_term = termios.tcgetattr(fd)
             tty.setcbreak(fd)
@@ -746,11 +753,12 @@ class DownloadManager:
                 ACTIVE_DOWNLOADS.remove(tracking_data)
 
             # Restore terminal settings on non-Windows platforms
-            if temporary.PLATFORM != 'windows':
+            if temporary.PLATFORM != 'windows' and old_term:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_term)
 
             if 'gc' in locals() or 'gc' in globals():
                 gc.collect()
+                
 def handle_orphaned_files(config: dict) -> None:
     from scripts.temporary import BASE_DIR
     from .configure import Config_Manager  # Import Config_Manager
