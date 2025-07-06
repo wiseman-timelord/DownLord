@@ -16,7 +16,7 @@
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
 
 ### Preview
-- New 80/120 auto-width Batch menu is, functional and well layed out...
+- New 120 width Batch/bash menu is, functional and well layed out...
 ```
 ===============================================================================
 "         ________                      .____                    .___         "
@@ -179,21 +179,21 @@ Press any key for Main Menu...
 - Download Initialization - Tested and Improved, connection processes, handling direct links from HuggingFace.   
 
 ## Requirements
-- Windows 7-10 - programing/testing is done on 10.
-- Python 3.6-3.11 - Python 3.11 is recommended.
-- Internet - Internet Connection and a valid URL to download.
-- Storage - The large files being downloaded must be stored.
+- O.S. - Its designed to work on, Windows 7-10 AND Ubuntu 22-25, it may work on others.
+- Python - Supposedly 3.6-3.13, recently tested in Python 3.13 and worked.
+- Internet - Internet Connection (can be iffy one) and a valid URL to download.
+- Storage - The files downloaded are stored in .\Downloads, but also can configure in setup menu.
 
-### Install
-1. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install github projects to locations with spaces such as `Program Files`).
-2. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
+### Usage (W = Windows, U = Ubuntu)
+1.W. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install python/powershell projects to locations with spaces such as `Program Files`).
+1.U. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `/media/**UserName**/**DriveName**/Programs/Downlord` (generally you should not install python/powershell projects to locations with spaces such as `/media/**UserName**/**DriveName**/My Programs/Downlord`).
+2.W. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
+2.U. Run the bash in terminal in the program folder, through command `sudo ./DownLord.sh` or `sudo bash ./DownLord.sh`. 
 3. Select the Installer option, to, install python requirements and unpack/create program files.
-
-### Usage
-1. Run the script "DownLord.bat", and press 1 to launch main program.
-2. Take a look in the settings menu, make sure everything is optimal.
-3. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
-4. The complete download will be in `.\downloads`, move completed files out.
+4. Returning to the menu from successful install, press 1 to launch main program.
+5. Take a look in the settings menu, make sure everything is optimal.
+6. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
+7. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
 
 ### Notation
 - It works for regular http/https download, but its intended for downloading GGUFs from Huggingface, that would otherwise be done on, browser or `lfs`, less effectively.
@@ -201,6 +201,7 @@ Press any key for Main Menu...
 - Under Ubuntu it was possibly to install python 3.9.6. into wine with mono?/other?, then run the batch for downlord and it worked, at least its presumed thats how it worked.
 
 ## Development
+1. Re-Testing on windows (may need bugfixing).
 1. The planned new update, terminal size dependent modes, 69 dude11...
 ```
 Slot Management:
@@ -211,7 +212,7 @@ Slot Management:
 2. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
 3. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
 4. Currently untested on pladform GoogleDrive.
-5. Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
+5. Re-Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
 
 ### File Structure
 - Packaged files
