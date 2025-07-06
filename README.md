@@ -164,7 +164,32 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 ========================================================================================================================
 Press any key for Main Menu...
 ```
+- The new install process (Windows install shown)...
+```
+====================================================================================
 
+DownLord Installer
+========================================
+>> Platform: Windows [OK]
+>> Python 3.6+ confirmed [OK]
+>> Verified directory: data [OK]
+>> Verified directory: downloads [OK]
+>> Verified directory: scripts [OK]
+>> Verified directory: incomplete [OK]
+>> Created package marker: scripts/__init__.py [OK]
+>> Created requirements file: data/requirements.txt [OK]
+>> Virtual environment exists [OK]
+>> Installing dependencies in virtual environment [OK]
+>> Dependencies installed successfully [OK]
+Config file exists: data/persistent.json
+Overwrite? (y/n): y
+>> Created configuration file: data/persistent.json [OK]
+
+? Installation completed successfully
+Note: Use the launcher script to run DownLord with the virtual environment
+Press any key to continue . . .
+
+```
 
 ### Features
 - Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.
