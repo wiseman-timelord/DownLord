@@ -141,9 +141,9 @@ class Config_Manager:
         config.pop("refresh", None)
         config.pop("download", None)
         
-        # Merge valid keys
+        # Merge valid keys - NOW INCLUDING python_path
         valid_keys = (
-            ['chunk', 'retries', 'timeout_length', 'downloads_location'] +
+            ['chunk', 'retries', 'timeout_length', 'downloads_location', 'python_path'] +
             [f"filename_{i}" for i in range(1, 10)] +
             [f"url_{i}" for i in range(1, 10)] +
             [f"total_size_{i}" for i in range(1, 10)]
@@ -160,6 +160,10 @@ class Config_Manager:
         # Ensure downloads_location is a string
         if not isinstance(validated.get("downloads_location"), str):
             validated["downloads_location"] = "downloads"
+        
+        # Ensure python_path is preserved if it exists
+        if "python_path" not in validated and "python_path" in config:
+            validated["python_path"] = config["python_path"]
         
         # --- Compact download entries to remove gaps ---
         entries = []
