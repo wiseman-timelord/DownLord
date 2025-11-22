@@ -1,4 +1,4 @@
-REM .\DownLord.bat
+REM Script: .\DownLord.bat - Windows Batch Menu For DownLord
 @echo off
 setlocal enabledelayedexpansion
 
@@ -12,12 +12,12 @@ if %current_width% LSS 120 (
     mode con: cols=120 lines=30
 )
 
-:: DP0 TO SCRIPT BLOCK, DO NOT, MODIFY or MOVE: START
+:: DP0 TO SCRIPT BLOCK DO NOT MODIFY or MOVE START
 set "ScriptDirectory=%~dp0"
 set "ScriptDirectory=%ScriptDirectory:~0,-1%"
 cd /d "%ScriptDirectory%"
 echo Dp0'd to Script.
-:: DP0 TO SCRIPT BLOCK, DO NOT, MODIFY or MOVE: END
+:: DP0 TO SCRIPT BLOCK DO NOT MODIFY or MOVE END
 
 REM Check for Administrator privileges
 net session >nul 2>&1
@@ -33,6 +33,44 @@ timeout /t 1 >nul
 
 REM Functions
 goto :SkipFunctions
+
+:FindPython
+REM Try to find Python in various locations
+set "PYTHON_EXE="
+
+REM Check if python is on PATH
+where python >nul 2>&1
+if %errorLevel% EQU 0 (
+    set "PYTHON_EXE=python"
+    goto :eof
+)
+
+REM Check default Python installation directories
+for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do (
+    if exist "%%D\python.exe" (
+        set "PYTHON_EXE=%%D\python.exe"
+        goto :eof
+    )
+)
+
+REM Check Program Files
+for /d %%D in ("%ProgramFiles%\Python3*") do (
+    if exist "%%D\python.exe" (
+        set "PYTHON_EXE=%%D\python.exe"
+        goto :eof
+    )
+)
+
+REM Check Program Files x86
+for /d %%D in ("%ProgramFiles(x86)%\Python3*") do (
+    if exist "%%D\python.exe" (
+        set "PYTHON_EXE=%%D\python.exe"
+        goto :eof
+    )
+)
+
+REM Not found
+goto :eof
 
 :GetTerminalWidth
 for /F "usebackq tokens=2* delims=: " %%W in (`mode con ^| findstr /C:"Columns"`) do set /A "TERMINAL_WIDTH=%%W"
@@ -50,7 +88,7 @@ call :GetTerminalWidth
 call :CreateSeparator
 echo %SEPARATOR%
 
-REM Always use 120-width display
+REM Always use 120 width display
 echo "                             ________                      .____                    .___                             "
 echo "                             \______ \   ______  _  ______ |    |    ___________  __| _/                             "
 echo "                              |    |  \ /  _ \ \/ \/ /    \|    |   /  _ \_  __ \/ __ |                              "
@@ -96,12 +134,31 @@ set /p "choice=Selection; Options = 1-2, Exit = X: "
 
 REM Process user input
 if /i "%choice%"=="1" (
+    REM Check if persistent.json exists
+    if not exist "data\persistent.json" (
+        echo.
+        echo Error: Configuration file not found!
+        echo Please run the installer first.
+        timeout /t 3 >nul
+        goto MainMenu
+    )
+    
+    REM Check if virtual environment exists
+    if not exist ".venv\Scripts\python.exe" (
+        echo.
+        echo Error: Virtual environment not found!
+        echo Please run the installer first.
+        timeout /t 3 >nul
+        goto MainMenu
+    )
+    
     color 1B
     call :DisplayTitle
     echo.
     echo Starting %TITLE%...
     set PYTHONUNBUFFERED=1
-    python.exe -u .\launcher.py windows
+    REM Use virtual environment Python
+    ".venv\Scripts\python.exe" -u .\launcher.py windows
     if errorlevel 1 (
         echo Error launching %TITLE%
         pause
@@ -118,11 +175,36 @@ if /i "%choice%"=="2" (
     timeout /t 1 >nul
     cls
     call :DisplaySeparator
-    python.exe .\installer.py windows
+    
+    REM Find Python for installer
+    call :FindPython
+    
+    if "!PYTHON_EXE!"=="" (
+        echo Error: Python not found!
+        echo.
+        echo Python was not found on PATH or in default locations:
+        echo   - %%LOCALAPPDATA%%\Programs\Python\Python3##
+        echo   - %%ProgramFiles%%\Python3##
+        echo.
+        set /p "PYTHON_PATH=Please enter full path to python.exe: "
+        if exist "!PYTHON_PATH!" (
+            set "PYTHON_EXE=!PYTHON_PATH!"
+        ) else (
+            echo Invalid path. Installation cancelled.
+            pause
+            goto MainMenu
+        )
+    ) else (
+        echo Found Python: !PYTHON_EXE!
+        timeout /t 1 >nul
+    )
+    
+    REM Run installer with found Python
+    "!PYTHON_EXE!" .\installer.py windows
     if errorlevel 1 (
         echo Error during installation
     )
-	pause
+    pause
     goto MainMenu
 )
 

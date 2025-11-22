@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script: `.\DownLord.sh`
+# Script: `.\DownLord.sh` - Linux Bash Menu For DownLord
 
 # Error handling and strict mode
 set -euo pipefail

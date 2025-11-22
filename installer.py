@@ -43,11 +43,12 @@ urllib3>=2.1.0
 pathlib>=1.0.1
 """
 
-PERSISTENT_TEXT = """{
+PERSISTENT_TEMPLATE = """{
     "chunk": 4096000,
     "retries": 100,
     "timeout_length": 120,
     "downloads_location": "downloads",
+    "python_path": "%PYTHON_PATH%",
     "filename_1": "Empty",
     "filename_2": "Empty",
     "filename_3": "Empty",
@@ -92,7 +93,7 @@ def check_python_version() -> bool:
     
     current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
     required_version = '.'.join(map(str, MIN_PYTHON_VERSION))
-    print(f"Error: Requires Python {required_version}+ (Found: {current_version})")
+    print(f"Error: Requires Python {required_version}+ - Found: {current_version}")
     return False
 
 def setup_directories() -> bool:
@@ -167,9 +168,28 @@ def upgrade_pip(venv_python: Path) -> bool:
         print(f"Unexpected error upgrading pip: {e}")
         return False
 
+def bootstrap_pip(venv_python: Path) -> bool:
+    """Bootstrap pip into a virtual environment that's missing it."""
+    try:
+        print("Bootstrapping pip in virtual environment...")
+        subprocess.run(
+            [str(venv_python), "-m", "ensurepip", "--upgrade", "--default-pip"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        print_action("Successfully bootstrapped pip")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error bootstrapping pip: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error bootstrapping pip: {e}")
+        return False
+
 def setup_virtualenv() -> bool:
     """Create and activate a virtual environment."""
-    # Check if virtual environment already exists
     venv_python = get_virtualenv_python()
     
     if venv_python:
@@ -221,71 +241,6 @@ def setup_virtualenv() -> bool:
         print(f"Unexpected error creating virtual environment: {e}")
         return False
 
-def bootstrap_pip(venv_python: Path) -> bool:
-    """Bootstrap pip into a virtual environment that's missing it."""
-    try:
-        print("Bootstrapping pip in virtual environment...")
-        # Use ensurepip module to install pip
-        subprocess.run(
-            [str(venv_python), "-m", "ensurepip", "--upgrade", "--default-pip"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
-        print_action("Successfully bootstrapped pip")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Error bootstrapping pip: {e.stderr}")
-        return False
-    except Exception as e:
-        print(f"Unexpected error bootstrapping pip: {e}")
-        return False
-
-def setup_virtualenv() -> bool:
-    """Create and activate a virtual environment."""
-    # Check if virtual environment already exists
-    pip_path = get_virtualenv_pip()
-    venv_python = VENV_DIR / "bin" / "python" if CURRENT_PLATFORM != "windows" else VENV_DIR / "Scripts" / "python.exe"
-    
-    if venv_python.exists():
-        print_action("Virtual environment exists")
-        
-        # Check if pip is missing
-        if not pip_path or not pip_path.exists():
-            if not bootstrap_pip(venv_python):
-                return False
-        return True
-    
-    # Create new virtual environment
-    try:
-        print_action("Creating virtual environment")
-        subprocess.run(
-            [sys.executable, "-m", "venv", str(VENV_DIR)],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
-        
-        # Verify pip exists in new environment
-        pip_path = get_virtualenv_pip()
-        if not pip_path or not pip_path.exists():
-            if not bootstrap_pip(venv_python):
-                return False
-                
-        print_action(f"Virtual environment created at: {VENV_DIR.relative_to(BASE_DIR).as_posix()}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Error creating virtual environment: {e.stderr}")
-        print("Make sure the 'venv' module is available")
-        if CURRENT_PLATFORM != "windows":
-            print("On Ubuntu/Debian, try: sudo apt install python3-venv")
-        return False
-    except Exception as e:
-        print(f"Unexpected error creating virtual environment: {e}")
-        return False
-
 def install_dependencies() -> bool:
     """Install required Python packages in virtual environment."""
     # Ensure virtual environment exists
@@ -318,21 +273,71 @@ def install_dependencies() -> bool:
         return False
 
 def setup_persistent_config() -> bool:
-    """Handle persistent.json creation with overwrite confirmation."""
+    """Handle persistent.json creation with Python path and overwrite confirmation."""
+    # Get Python path
+    python_path = sys.executable
+    
+    # Create config with Python path
+    persistent_text = PERSISTENT_TEMPLATE.replace("%PYTHON_PATH%", python_path.replace("\\", "\\\\"))
+    
     if PERSISTENT_FILE.exists():
         rel_path = PERSISTENT_FILE.relative_to(BASE_DIR).as_posix()
-        print(f"Config file exists: {rel_path}")
+        print(f"\nConfig file exists: {rel_path}")
+        print("Overwrite existing config? y=Yes, n=No")
         
         while True:
-            resp = input("Overwrite? (y/n): ").strip().lower()
-            if resp in {'y', 'yes'}:
-                break
-            if resp in {'n', 'no', ''}:
-                print_action("Skipping config creation")
+            try:
+                # Use raw_input style approach with explicit prompt
+                if CURRENT_PLATFORM == "windows":
+                    # Windows: use msvcrt for direct character input
+                    import msvcrt
+                    print("Enter choice (y/n): ", end='', flush=True)
+                    
+                    # Read characters until we get a valid response or Enter
+                    chars = []
+                    while True:
+                        if msvcrt.kbhit():
+                            char = msvcrt.getch()
+                            # Handle Enter key
+                            if char in (b'\r', b'\n'):
+                                print()  # New line after enter
+                                break
+                            # Handle backspace
+                            elif char == b'\x08' and chars:
+                                chars.pop()
+                                print('\b \b', end='', flush=True)
+                            # Handle printable characters
+                            elif len(char) == 1 and 32 <= ord(char) < 127:
+                                chars.append(char.decode('utf-8'))
+                                print(char.decode('utf-8'), end='', flush=True)
+                    
+                    resp = ''.join(chars).strip().lower()
+                else:
+                    # Linux: use standard input
+                    resp = input("Enter choice (y/n): ").strip().lower()
+                
+                if resp in {'y', 'yes'}:
+                    print("Overwriting configuration file...")
+                    break
+                elif resp in {'n', 'no'}:
+                    print_action("Skipping config creation")
+                    return True
+                elif resp == '':
+                    # Empty input defaults to no
+                    print_action("Skipping config creation")
+                    return True
+                else:
+                    print("Invalid input. Please enter 'y' or 'n'")
+                    
+            except (EOFError, KeyboardInterrupt):
+                print("\nSkipping config creation")
                 return True
-            print("Please enter 'y' or 'n'")
+            except Exception as e:
+                print(f"\nInput error: {e}")
+                print("Defaulting to skip config creation")
+                return True
 
-    return create_file(PERSISTENT_FILE, PERSISTENT_TEXT, "configuration file")
+    return create_file(PERSISTENT_FILE, persistent_text, "configuration file")
 
 def verify_installation() -> bool:
     """Check all critical components were installed correctly."""
@@ -382,7 +387,7 @@ def main() -> None:
     
     # Final verification
     if verify_installation():
-        print("\n✔ Installation completed successfully")
+        print("\n✓ Installation completed successfully")
         print("Note: Use the launcher script to run DownLord with the virtual environment")
         sys.exit(0)
     else:
