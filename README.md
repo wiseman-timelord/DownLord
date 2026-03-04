@@ -170,6 +170,7 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 4. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
 ```
 - The proper way to get a download link...
+
 ![copy_link_from_browser](https://raw.githubusercontent.com/wiseman-timelord/DownLord/refs/heads/main/media/copying_links.jpg)
 
 ### Notation
@@ -219,6 +220,7 @@ Slot Management:
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
+
 
 
 
