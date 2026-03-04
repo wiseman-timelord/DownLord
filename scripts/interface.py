@@ -448,13 +448,15 @@ def display_download_state(multiple: list = None) -> None:
                 size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
                 elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
                 remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
+                resume_str = dl.get('resume_status', 'Pending')
 
                 print(f"    Filename:\n        {dl['filename']}\n")
+                print(f"    Resume:\n        {resume_str}\n")
                 print(f"    Progress:\n        {progress_pct:.1f}%\n")
                 print(f"    Speed:\n        {speed_str}\n")
                 print(f"    Received/Total:\n        {size_str}\n")
                 print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
-                print("\n")  # One blank line between downloads
+                print()  # One blank line between downloads
     else:
         # Single download interface (only first active download)
         dl = multiple[0]
@@ -463,13 +465,15 @@ def display_download_state(multiple: list = None) -> None:
         size_str = f"{format_file_size(dl['current'])}/{format_file_size(dl['total'])}"
         elapsed_str = time.strftime("%H:%M:%S", time.gmtime(dl['elapsed']))
         remaining_str = time.strftime("%H:%M:%S", time.gmtime(dl['remaining'])) if dl['remaining'] > 0 else "--:--:--"
+        resume_str = dl.get('resume_status', 'Pending')
 
         print(f"    Filename:\n        {dl['filename']}\n")
+        print(f"    Resume:\n        {resume_str}\n")
         print(f"    Progress:\n        {progress_pct:.1f}%\n")
         print(f"    Speed:\n        {speed_str}\n")
         print(f"    Received/Total:\n        {size_str}\n")
         print(f"    Elapsed/Remaining:\n        {elapsed_str}<{remaining_str}\n")
-        print("\n")  # One blank line before separator
+        print()  # One blank line before separator
 
     print(SEPARATOR_THIN)
     print("Selection; Abandon Download = A, Wait for Completion = >_>: ", end="", flush=True)

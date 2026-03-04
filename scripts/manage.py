@@ -450,6 +450,76 @@ def get_file_name_from_url(url: str) -> Optional[str]:
         time.sleep(3)
         return None
 
+# Helper: resolve open-mode and corrected total_size from actual HTTP response
+def _resolve_response_mode(
+    response: "requests.Response",
+    requested_offset: int,
+    total_size: int,
+    temp_path: Path
+) -> Tuple[str, int, int]:
+    """
+    Decide how to open the .part file and what the true total_size is,
+    based on the server's actual response status code.
+
+    Returns (file_mode, effective_existing_size, corrected_total_size, resume_status).
+
+    resume_status is a human-readable string: "Available", "Unavailable", or "N/A".
+
+    The critical case: we sent  Range: bytes=N-  but the server replied 200.
+    That means it is sending the *whole* file again and does not support
+    partial-content resumption.  We must:
+      - truncate / delete the stale .part file
+      - reset effective_existing_size to 0
+      - open in 'wb' (write) mode so nothing is double-appended
+    """
+    status = response.status_code
+
+    if requested_offset > 0:
+        if status == 206:
+            # Server honoured the Range request — safe to append.
+            # Get the authoritative total from Content-Range: bytes X-Y/Z
+            content_range = response.headers.get('Content-Range', '')
+            if '/' in content_range:
+                try:
+                    total_str = content_range.rsplit('/', 1)[-1]
+                    if total_str != '*':
+                        total_size = int(total_str)
+                except (ValueError, IndexError):
+                    pass
+            return 'ab', requested_offset, total_size, "Available"
+
+        elif status == 200:
+            # Server ignored the Range header and is sending the full file.
+            # Appending would corrupt the output — start fresh.
+            print(
+                f"\n[Resume] Server returned 200 (range not supported). "
+                f"Discarding existing partial file and restarting..."
+            )
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError as exc:
+                display_error(f"Could not remove stale .part file: {exc}")
+            # Update total_size from Content-Length if available
+            cl = int(response.headers.get('content-length', 0))
+            if cl > 0:
+                total_size = cl
+            return 'wb', 0, total_size, "Unavailable"
+
+        else:
+            # Unexpected status — let raise_for_status() handle it upstream.
+            return 'ab', requested_offset, total_size, "Unknown"
+
+    else:
+        # Fresh download — always write mode.
+        # Grab Content-Length from the actual GET response (more reliable
+        # than the earlier HEAD for CDN-redirected URLs like SourceForge).
+        cl = int(response.headers.get('content-length', 0))
+        if cl > 0:
+            total_size = cl
+        return 'wb', 0, total_size, "N/A"
+
+
 # Get Active Downloads (keep above DownloadManager)
 def get_active_downloads() -> list:
     """Get sanitized list of active downloads with calculated metrics and batch info"""
@@ -461,7 +531,8 @@ def get_active_downloads() -> list:
         'elapsed': time.time() - d.get('start_time', time.time()),
         'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0,
         'batch_index': d.get('batch_index'),
-        'batch_total': d.get('batch_total')
+        'batch_total': d.get('batch_total'),
+        'resume_status': d.get('resume_status', 'Pending')
     } for d in ACTIVE_DOWNLOADS if 'current' in d]
 
 # DownloadManager (keep below the above functions)
@@ -561,9 +632,10 @@ class DownloadManager:
                 if self.config[f"filename_{i}"] in ["Empty", filename]:
                     self.config[f"filename_{i}"] = filename
                     self.config[f"url_{i}"] = url
-                    self.config[f"total_size_{i}"] = total_size if total_size > 0 else "Unknown"
+                    self.config[f"total_size_{i}"] = total_size if total_size > 0 else 0
                     Config_Manager.save(self.config)
-                    print(f"Registered early metadata for: {filename} (Size: {total_size if total_size > 0 else 'Unknown'})")
+                    size_display = format_file_size(total_size) if total_size > 0 else 'Unknown'
+                    print(f"Registered early metadata for: {filename} (Size: {size_display})")
                     print("Setting up download...")
                     break
             if total_size <= 0:
@@ -681,8 +753,42 @@ class DownloadManager:
                         ) as response:
                             response.raise_for_status()
 
+                            # ── Critical: honour (or detect lack of) range support ──
+                            # _resolve_response_mode checks whether the server actually
+                            # returned 206 Partial Content.  If it returned 200, it is
+                            # sending the whole file and we must NOT append — that is
+                            # what caused the 151% progress bug on SourceForge CDN URLs.
+                            file_mode, existing_size, total_size, resume_status = _resolve_response_mode(
+                                response, existing_size, total_size, temp_path
+                            )
+
+                            # Check Content-Disposition for a server-provided filename
+                            # (important for CDN-redirected URLs that change the path)
+                            cd_header = response.headers.get('Content-Disposition', '')
+                            if cd_header:
+                                cd_filename = extract_filename_from_disposition(cd_header)
+                                if cd_filename and cd_filename != filename:
+                                    new_temp = TEMP_DIR / f"{cd_filename}.part"
+                                    if temp_path.exists() and not new_temp.exists():
+                                        try:
+                                            temp_path.rename(new_temp)
+                                        except OSError:
+                                            pass
+                                        else:
+                                            temp_path = new_temp
+                                    filename = cd_filename
+                                    out_path = out_path.parent / filename
+
+                            # Snapshot before the loop so speed/summary math is correct.
+                            # (existing_size is updated each chunk inside the loop, so we
+                            # must capture the pre-loop value here.)
+                            pre_loop_existing_size = existing_size
+
+                            # Propagate corrected total_size and resume_status to the tracking dict
+                            tracking_data.update({'total': total_size, 'resume_status': resume_status})
+
                             # Download loop
-                            with open(temp_path, 'ab' if existing_size else 'wb') as out_file:
+                            with open(temp_path, file_mode) as out_file:
                                 for chunk in response.iter_content(chunk_size=chunk_size):
                                     if chunk:
                                         # Cross-platform keyboard check
@@ -704,15 +810,34 @@ class DownloadManager:
                                         out_file.flush()
                                         os.fsync(out_file.fileno())
                                         written_size = out_file.tell()
+                                        now = time.time()
+                                        elapsed_chunk = now - tracking_data.get('last_chunk_time', now)
                                         tracking_data.update({
                                             'current': written_size,
                                             'total': total_size,
                                             'status': 'downloading',
-                                            'speed': len(chunk) / (time.time() - tracking_data.get('last_chunk_time', time.time())) 
-                                                     if 'last_chunk_time' in tracking_data else 0,
-                                            'last_chunk_time': time.time()
+                                            'speed': len(chunk) / elapsed_chunk if elapsed_chunk > 0 else 0,
+                                            'last_chunk_time': now
                                         })
                                         existing_size = written_size
+
+                            # ── Post-download size verification ──
+                            actual_temp_size = temp_path.stat().st_size if temp_path.exists() else 0
+                            if total_size > 0 and actual_temp_size != total_size:
+                                size_diff = actual_temp_size - total_size
+                                if size_diff < 0:
+                                    # Genuinely incomplete — treat as a retryable error
+                                    raise IncompleteRead(
+                                        b'',
+                                        total_size - actual_temp_size
+                                    )
+                                else:
+                                    # Received more than expected (unusual but not fatal)
+                                    display_error(
+                                        f"Warning: received {format_file_size(actual_temp_size)} "
+                                        f"but expected {format_file_size(total_size)}. "
+                                        f"Proceeding — file may still be valid."
+                                    )
 
                             # Verify and move completed file
                             if not move_with_retry(temp_path, out_path):
@@ -721,19 +846,23 @@ class DownloadManager:
                             # Stop display updates
                             self._stop_display_updater()
 
+                            final_size = out_path.stat().st_size
+                            bytes_this_session = final_size - pre_loop_existing_size
+                            elapsed_total = time.time() - start_time
+                            avg_speed = bytes_this_session / elapsed_total if elapsed_total > 0 else 0
+
                             # Show summary
                             display_download_summary(
                                 filename=filename,
-                                total_size=out_path.stat().st_size,
-                                average_speed=(out_path.stat().st_size - existing_size) / 
-                                          (time.time() - start_time),
-                                elapsed=time.time() - start_time,
+                                total_size=final_size,
+                                average_speed=avg_speed,
+                                elapsed=elapsed_total,
                                 timestamp=datetime.now(),
                                 destination=str(out_path),
                                 batch_mode=batch_mode
                             )
 
-                            update_history(self.config, filename, remote_url, out_path.stat().st_size)
+                            update_history(self.config, filename, remote_url, final_size)
                             return True, None
 
                 except Exception as e:

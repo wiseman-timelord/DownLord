@@ -287,6 +287,13 @@ URL_PATTERNS = {
         "raw_domain": "raw.githubusercontent.com",
         "release_pattern": r"releases/download/([^/]+)/([^/]+)"
     },
+    "sourceforge": {
+        "pattern": r"sourceforge\.net|dl\.sf\.net",
+        "direct_download": True,
+        "requires_auth": False,
+        "supports_resume": True,
+        "notes": "SourceForge CDN mirrors may return 200 instead of 206; handled in download_file"
+    },
     "direct": {
         "pattern": r"^https?://",
         "direct_download": True,
