@@ -134,63 +134,35 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 
 
 ```
-- Download Summary...
-```
-========================================================================================================================
-    DownLord: Download Summary
-========================================================================================================================
+* <details>
+<summary>The new install process (Windows shown)...</summary>
 
-
-
-    Filename:
-        Lamarckvergence-14B.i1-Q3_K_M.gguf
-
-    Completed:
-        2025/02/21 23:14:57
-
-    Total Size:
-        6.83 GB
-
-    Average Speed:
-        366.01 KB/s
-
-    Elapsed Time:
-        05:26:15
-
-    Locaton:
-        C:\Program_Filez\DownLord\DownLord-v0.22\downloads\Lamarckvergence-14B.i1-Q3_K_M.gguf
-
-
-
-========================================================================================================================
-Press any key for Main Menu...
-```
-- The new install process (Windows shown)...
-```
-====================================================================================
-
-DownLord Installer
-========================================
->> Platform: Windows [OK]
->> Python 3.6+ confirmed [OK]
->> Verified directory: data [OK]
->> Verified directory: downloads [OK]
->> Verified directory: scripts [OK]
->> Verified directory: incomplete [OK]
->> Created package marker: scripts/__init__.py [OK]
->> Created requirements file: data/requirements.txt [OK]
->> Virtual environment exists [OK]
->> Installing dependencies in virtual environment [OK]
->> Dependencies installed successfully [OK]
-Config file exists: data/persistent.json
-Overwrite? (y/n): y
->> Created configuration file: data/persistent.json [OK]
-
-? Installation completed successfully
-Note: Use the launcher script to run DownLord with the virtual environment
-Press any key to continue . . .
-
-```
+    ```
+    ====================================================================================
+    
+    DownLord Installer
+    ========================================
+    >> Platform: Windows [OK]
+    >> Python 3.6+ confirmed [OK]
+    >> Verified directory: data [OK]
+    >> Verified directory: downloads [OK]
+    >> Verified directory: scripts [OK]
+    >> Verified directory: incomplete [OK]
+    >> Created package marker: scripts/__init__.py [OK]
+    >> Created requirements file: data/requirements.txt [OK]
+    >> Virtual environment exists [OK]
+    >> Installing dependencies in virtual environment [OK]
+    >> Dependencies installed successfully [OK]
+    Config file exists: data/persistent.json
+    Overwrite? (y/n): y
+    >> Created configuration file: data/persistent.json [OK]
+    
+    ? Installation completed successfully
+    Note: Use the launcher script to run DownLord with the virtual environment
+    Press any key to continue . . .
+    
+    ```
+</details>
 
 ### Features
 - Reduced Calculations = 1s display refresh, with, 1s refresh of net stats and 5s refresh of file stats.
@@ -270,4 +242,5 @@ Slot Management:
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
+
 
