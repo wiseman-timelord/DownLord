@@ -103,34 +103,35 @@ Done
 ```
 - Download display...
 ```
-========================================================================================================================
+=======================================================================================================================
     DownLord: Download Active
-========================================================================================================================
-
-
+=======================================================================================================================
 
 
     Filename:
-        VulkanSDK-1.4.304.1-Installer.exe
+        lineage-21.0-20260125-UNOFFICIAL-gsi_arm64_vN.img.gz
+
+    Resume:
+        Available/Unavailable
 
     Progress:
-        22.9%
+        23.2%
 
     Speed:
-        1.85 MB/s
+        1.10 MB/s
 
     Received/Total:
-        42.97 MB/187.81 MB
+        296.88 MB/1.25 GB
 
     Elapsed/Remaining:
-        00:00:22<00:01:18
+        00:18:18<00:14:58
 
 
 
-
-
-========================================================================================================================
+-----------------------------------------------------------------------------------------------------------------------
 Selection; Abandon Download = A, Wait for Completion = >_>:
+
+
 
 ```
 - Download Summary...
@@ -269,3 +270,4 @@ Slot Management:
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
+
