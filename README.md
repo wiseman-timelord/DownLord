@@ -153,18 +153,24 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 - Internet - Internet Connection (can be iffy one) and a valid URL to download.
 - Storage - The files downloaded are stored in .\Downloads, but also can configure in setup menu.
 
-### Usage (W = Windows, U = Ubuntu)
+### Instructions (W = Windows, U = Ubuntu)
+- Installation...
 ```
 1.W. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `C:\Program_Files\DownLord` or `C:\Programs\Downlord`, (generally you should not install python/powershell projects to locations with spaces such as `Program Files`).
 1.U. Clone the repository or download the release/pre-release then unpack, to a suitable location, ie `/media/**UserName**/**DriveName**/Programs/Downlord` (generally you should not install python/powershell projects to locations with spaces such as `/media/**UserName**/**DriveName**/My Programs/Downlord`).
 2.W. Run the batch by right click then `Run As Administrator` on `DownLord.bat`. 
 2.U. Make the `./DownLord.sh` file executable (right click, properties), then run the bash in terminal in the program folder through command, `sudo ./DownLord.sh` or `sudo bash ./DownLord.sh`. 
 3. Select the Installer option, to, install python requirements and unpack/create program files.
-4. Returning to the menu from successful install, press 1 to launch main program.
-5. Take a look in the settings menu, make sure everything is optimal.
-6. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
-7. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
 ```
+- Usage...
+```
+1. Returning to the menu from successful install, press 1 to launch main program.
+2. Take a look in the settings menu, make sure everything is optimal.
+3. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
+4. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
+```
+- The proper way to get a download link...
+![copy_link_from_browser](https://raw.githubusercontent.com/wiseman-timelord/DownLord/refs/heads/main/media/copying_links.jpg)
 
 ### Notation
 - It works for regular http/https download, but its intended for downloading GGUFs from Huggingface, that would otherwise be done on, browser or `lfs`, less effectively.
@@ -213,6 +219,7 @@ Slot Management:
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
+
 
 
 
