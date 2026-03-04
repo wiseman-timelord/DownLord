@@ -82,7 +82,7 @@ Done
         lineage-21.0-20260125-UNOFFICIAL-gsi_arm64_vN.img.gz
 
     Resume:
-        Available/Unavailable
+        Unavailable
 
     Progress:
         23.2%
@@ -213,6 +213,7 @@ Slot Management:
 
 ## DISCLAIMER
 This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
+
 
 
 
