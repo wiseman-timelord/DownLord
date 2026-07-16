@@ -179,18 +179,11 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 - Under Ubuntu it was possibly to install python 3.9.6. into wine with mono?/other?, then run the batch for downlord and it worked, at least its presumed thats how it worked.
 
 ## Development
-1. Re-Testing on windows (may need bugfixing).
-1. The planned new update, terminal size dependent modes, 69 dude11...
-```
-Slot Management:
-    6-slot rotation in 80x24 mode
-    9-slot rotation in 120x30 mode
-    Automatic shifting between modes
-```
-2. Make all, 1/2 word Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
-3. At some point a bash script and modify scripts a little, to enable Linux compatibility also.
-4. Currently untested on pladform GoogleDrive.
-5. Re-Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
+1. After OPUS Re-Testing on windows, Ubuntu still not test-able but hopefully is working better now.
+3. Make all Globals/Keys to safer three word globals/JsonKeys, such as `PROGRAM_BASE_DIR` instead of `BASE_DIR`.
+4. At some point testing on Ubuntu.
+5. Test of all intended supported platforms, ie GoogleDrive, etc.  
+6. Re-Test Batch Download, ie `url1, url2, url3` pasted in one go to new download. 
 
 ### File Structure
 - Packaged files
@@ -219,16 +212,7 @@ Slot Management:
 ```
 
 ## DISCLAIMER
-This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt..
-
-
-
-
-
-
-
-
-
+This software is subject to the terms in License.Txt, covering usage, distribution, and modifications. For full details on your rights and obligations, refer to License.Txt.
 
 
 
