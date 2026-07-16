@@ -8,7 +8,7 @@
 "                 \/                  \/        \/                \/          "
 ===============================================================================
 ```
-Status: Beta - Most recent versions are Working on Windows 10, if linux doesnt work then try <= v0.56.
+Status: Late Beta - v0.60 had recent overhaul with OPUS, Windows working better than ever. If linux doesnt work then try <= v0.56.
 
 ## Description
 DownLord is a more dedicated approach to downloading large and important files, such as language models, especially on unreliable connections. It offers a customizable options menu with persistent settings, supports download resumption. The program automatically maintains 9 slots, auto-removing items from its list when, manually moved from the downloads folder or selected to be deleted. Unlike browser-based downloads, DownLord ensures that dpwnloads continue until complete. It's tailored for substantial downloads on a bad line, and where the best alternative `lfs` would otherwise produce no progress information. The program remembers the url, so as for the user to be able to continue incomplete downloads, resuming where possible. 
