@@ -64,20 +64,28 @@ SETUP_MENU = f"""
 
 """
 
-def clear_screen(title="Main Menu", use_logo=True):
-    time.sleep(1)
-    if temporary.PLATFORM == 'windows':
+def _clear_terminal():
+    """Clear the terminal, keying off the real host OS rather than argv."""
+    if temporary.platform_name() == 'windows':
         os.system('cls')
     else:
         os.system('clear')
+
+def clear_screen(title="Main Menu", use_logo=True, pause: float = 1.0):
+    # `pause` exists because this used to hard-code time.sleep(1).  The download
+    # display calls this once per refresh, so that sleep was silently added to
+    # DISPLAY_REFRESH: a "1 second" refresh actually took 2 seconds, which is
+    # half of why abandoning a download felt unresponsive.  Screens the user
+    # reads in passing keep the default; the download screen passes pause=0.
+    if pause:
+        time.sleep(pause)
+    _clear_terminal()
     print(SIMPLE_HEADER % title)
 
-def clear_screen_multi(title="Main Menu", use_logo=True):
-    time.sleep(1)
-    if temporary.PLATFORM == 'windows':
-        os.system('cls')
-    else:
-        os.system('clear')
+def clear_screen_multi(title="Main Menu", use_logo=True, pause: float = 1.0):
+    if pause:
+        time.sleep(pause)
+    _clear_terminal()
     print(MULTI_HEADER % title)
 
 def display_separator():
@@ -104,7 +112,22 @@ def truncate_filename(filename: str, max_length: int) -> str:
     else:
         return f"...{ext}"
 
-def get_file_status(config: Dict, index: int, downloads_path: Path) -> tuple[str, Optional[float], Optional[str]]:
+def get_terminal_width(default: int = 120) -> int:
+    """Terminal width, with a fallback.
+
+    os.get_terminal_size() raises OSError ("Inappropriate ioctl for device")
+    whenever stdout is not a terminal -- piping output, redirecting to a file,
+    running under a service manager.  That exception used to escape into
+    display_main_menu's handler and replace the entire menu with
+    "Error: Menu display error: [Errno 25]".  The layout assumes 120 anyway.
+    """
+    try:
+        return os.get_terminal_size().columns
+    except (OSError, ValueError):
+        return default
+
+
+def get_file_status(config: Dict, index: int, downloads_path: Path) -> tuple:
     filename = config.get(f"filename_{index}", "Empty")
     if filename == "Empty":
         return "empty", None, None
@@ -185,20 +208,27 @@ def delete_file(config: Dict, index: int) -> bool:
     temp_path = Path(TEMP_DIR) / f"{filename}.part"
     
     try:
+        # Both are removed, not one-or-the-other.  The old `elif` left a stale
+        # .part behind whenever a finished file and a partial existed for the
+        # same name, and that orphan then reappeared in the list on next launch
+        # via _register_existing_temp_files.
+        removed = False
         if file_path.exists():
             file_path.unlink()
-        elif temp_path.exists():
+            removed = True
+        if temp_path.exists():
             temp_path.unlink()
-        else:
+            removed = True
+        if not removed:
             display_error(f"File not found: {filename}")
             time.sleep(3)
-            return False
+            # Entry is stale; still drop it from the list below.
         
         for i in range(index, 9):
             next_i = i + 1
             config[f"filename_{i}"] = config.get(f"filename_{next_i}", "Empty")
             config[f"url_{i}"] = config.get(f"url_{next_i}", "")
-            config[f"total_size_{i}"] = config.get(f"total_size_{i+1}", 0)
+            config[f"total_size_{i}"] = config.get(f"total_size_{next_i}", 0)
         
         config["filename_9"] = "Empty"
         config["url_9"] = ""
@@ -220,8 +250,11 @@ def get_user_choice_after_error() -> str:
 def prompt_for_download():
     from .manage import handle_download, handle_orphaned_files, URLProcessor
     config = configure.Config_Manager.load()
-    downloads_path = configure.get_downloads_path(config)
     while True:
+        # Recomputed per loop: it used to be resolved once before the loop, so
+        # changing Downloads Location in the Setup menu had no effect on the
+        # "already downloaded?" check until the program was restarted.
+        downloads_path = configure.get_downloads_path(config)
         display_main_menu(config)
         choice = input().strip().lower()
         if choice == 's':
@@ -273,6 +306,7 @@ def prompt_for_download():
                 display_error("Invalid choice. Please try again.")
                 time.sleep(3)
                 continue
+
             clear_screen("Initialize Download")  # Transition immediately
             existing_file = downloads_path / filename
             if existing_file.exists():
@@ -280,9 +314,27 @@ def prompt_for_download():
                 time.sleep(2)
                 config = configure.Config_Manager.load()
                 continue
-            if not url:
-                new_url = display_download_prompt()
-                if new_url is None:
+
+            print(f"\n    {filename}\n")
+
+            target_url = url
+            if url:
+                # A URL is already remembered for this slot, so offer to reuse it
+                # rather than making the user go back out to option 0 and paste
+                # the whole thing in again.
+                answer = input(
+                    "Do you want to, Continue/Resume (C) or Enter a new URL (N)? (Back = B): "
+                ).strip().lower()
+                while answer not in ("c", "n", "b"):
+                    answer = input("Selection; Continue = C, New URL = N, Back = B: ").strip().lower()
+                if answer == 'b':
+                    continue
+                if answer == 'n':
+                    target_url = ""
+
+            if not target_url:
+                new_url = input("Enter new URL for the download (Back = B): ").strip()
+                if not new_url or new_url.lower() == 'b':
                     continue
                 if not URLProcessor.validate_url(new_url):
                     display_error("Invalid URL. Please enter a valid URL starting with http:// or https://")
@@ -290,21 +342,17 @@ def prompt_for_download():
                     continue
                 config[f"url_{index}"] = new_url
                 configure.Config_Manager.save(config)
-                success, error = handle_download(new_url, config)
-                if not success:
-                    display_error(error)
-                    time.sleep(3)
-                else:
-                    config = configure.Config_Manager.load()
-                time.sleep(2)
+                target_url = new_url
+
+            success, error = handle_download(target_url, config)
+            if not success and error:
+                # `error` is empty when the user deliberately abandoned; that
+                # path has already shown its own message.
+                display_error(error)
+                time.sleep(3)
             else:
-                success, error = handle_download(url, config)
-                if not success:
-                    display_error(error)
-                    time.sleep(3)
-                else:
-                    config = configure.Config_Manager.load()
-                time.sleep(2)
+                config = configure.Config_Manager.load()
+            time.sleep(2)
         elif choice == 'd':
             delete_index = input("Enter the number of the file to delete (1-9): ").strip()
             if delete_index.isdigit() and 1 <= int(delete_index) <= 9:
@@ -340,7 +388,7 @@ def display_main_menu(config: Dict):
     try:
         clear_screen_multi("Main Menu")
         config_snapshot = json.loads(json.dumps(config))
-        term_width = os.get_terminal_size().columns
+        term_width = get_terminal_width()
         col_widths = calculate_column_widths(term_width)
         
         downloads_path = configure.get_downloads_path(config)
@@ -404,24 +452,15 @@ def display_batch_progress(active_downloads: list):
         print(f"Progress: {dl['progress']}% | Speed: {format_file_size(dl['speed'])}/s")
     print(SEPARATOR_THICK)
 
-def get_active_downloads() -> list:
-    """Get sanitized list of active downloads with calculated metrics and batch info"""
-    global ACTIVE_DOWNLOADS
-    return [{
-        'filename': d.get('filename', 'Unknown'),
-        'current': d.get('current', 0),
-        'total': d.get('total', 1),
-        'speed': d.get('speed', 0),
-        'elapsed': time.time() - d.get('start_time', time.time()),
-        'remaining': (d.get('total', 1) - d.get('current', 0)) / d['speed'] if d.get('speed', 0) > 0 else 0,
-        'batch_index': d.get('batch_index'),
-        'batch_total': d.get('batch_total')
-    } for d in ACTIVE_DOWNLOADS if 'current' in d]
+# NOTE: get_active_downloads used to be defined here as well as in manage.py.
+# This copy referenced ACTIVE_DOWNLOADS, which interface.py never imports, so it
+# raised NameError if anything ever called it.  manage.get_active_downloads is
+# the live one (and it carries resume_status, which this copy dropped).
 
 def display_download_state(multiple: list = None) -> None:
     """Display download status for active downloads with distinct single and batch interfaces"""
     if not multiple:
-        clear_screen("Download Active")
+        clear_screen("Download Active", pause=0)
         print("\n\n\nNo active downloads.\n\n\n")
         print(SEPARATOR_THIN)
         print("Selection; Back to Menu = B: ", end="", flush=True)
@@ -435,7 +474,7 @@ def display_download_state(multiple: list = None) -> None:
 
     # Select appropriate header
     header = "Batch Download Active" if is_batch else "Download Active"
-    clear_screen(header)
+    clear_screen(header, pause=0)
     print("\n\n")  # Two blank lines after header
 
     if is_batch:
@@ -476,7 +515,13 @@ def display_download_state(multiple: list = None) -> None:
         print()  # One blank line before separator
 
     print(SEPARATOR_THIN)
-    print("Selection; Abandon Download = A, Wait for Completion = >_>: ", end="", flush=True)
+    if temporary.ABORT_EVENT.is_set():
+        # The key listener sets ABORT_EVENT the moment "A" is seen.  The loop
+        # itself can only stop once the in-flight chunk has finished landing,
+        # so say so rather than leaving the prompt up looking ignored.
+        print("Stopping the active download, finishing current chunk...", end="", flush=True)
+    else:
+        print("Selection; Abandon Download = A, Wait for Completion = >_>: ", end="", flush=True)
 
 # Possibly to stop circular import
 from pathlib import Path
@@ -524,17 +569,21 @@ def display_download_summary(
     # Display the summary
     print("\n".join(summary_content))
     
-    if batch_mode:
-        # Display the summary for 5 seconds, then proceed
-        print("5 Seconds until, Next File or Main Menu...", end="", flush=True)
-        time.sleep(5)
-        print("\r" + " " * 50 + "\r", end="", flush=True)  # Clear the line
-    else:
-        # Wait for any key press for single downloads
-        input("10 Seconds until Main Menu...")
-        time.sleep(10)
-    
-    clear_screen("Download Summary")
+    # Countdown rather than input().  The single-download branch used to call
+    # input() -- which blocks forever, contradicting its own "10 Seconds until
+    # Main Menu..." text -- and then slept 10s on top once Enter was pressed.
+    # On Linux it ran while the terminal was still in cbreak mode (download_file
+    # restores termios in its finally, which has not run yet at this point), so
+    # the user was typing with no echo, and any leftover keystrokes in the buffer
+    # dismissed it instantly.
+    wait_seconds = 5 if batch_mode else 10
+    tail = "Next File or Main Menu" if batch_mode else "Main Menu"
+    for remaining in range(wait_seconds, 0, -1):
+        print(f"\r{remaining} Seconds until, {tail}...".ljust(60), end="", flush=True)
+        time.sleep(1)
+    print("\r" + " " * 60 + "\r", end="", flush=True)
+
+    clear_screen("Download Summary", pause=0)
 
 def display_download_complete(filename: str, timestamp: datetime) -> None:
     """
@@ -633,58 +682,89 @@ def display_success(message: str):
     print(f"Success: {message}")
 
 
-def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -> None:
+def _sync_slots(config: Dict, fresh: Dict) -> None:
+    """Copy only the slot keys from `fresh` into the caller's `config`.
+
+    Deliberately NOT config.clear()/config.update(fresh): the caller's dict may
+    hold settings it has not written to disk yet, and replacing it wholesale
+    would silently discard them.  Only the 9 slots are authoritative-on-disk.
     """
-    Update the download history in the configuration.
+    for i in range(1, 10):
+        for key in (f"filename_{i}", f"url_{i}", f"total_size_{i}"):
+            config[key] = fresh[key]
+
+
+def update_history(config: Dict, filename: str, url: str, total_size: int = 0) -> bool:
+    """
+    Register or update a download entry.  Returns True if the entry is present
+    in the slot list afterwards.
+
+    THE FILENAME IS THE IDENTITY KEY.  It is what the file in `downloads\\` and
+    the file in `incomplete\\` are both named after, so two slots holding the
+    same filename are always duplicates no matter which URL produced them.
+
+    This used to match on (filename AND url) together, which is the duplicate
+    bug: a second row appeared whenever the URL changed shape between the entry
+    being created and the download finishing --
+      * the slot was registered from a stray .part file, so its url was ""
+      * the user resumed via option 0 and pasted a mirror / slightly different URL
+      * the URL got rewritten en route (Google Drive -> uc?id=, GitHub blob -> raw)
+      * the server sent a Content-Disposition filename and the download renamed itself
+    In all of those the (filename, url) lookup missed, fell through, and inserted
+    a brand new row alongside the one already there.  It looked self-healing on
+    restart only because Config_Manager.validate() compacts and handle_orphaned_files
+    prunes on load -- the config on disk was genuinely wrong until then.
+
+    Also note: entries now land in the first FREE slot instead of being pushed in
+    at slot 1 with everything shifted down.  The old shift silently overwrote
+    slot 9 even when free slots existed, orphaning that file on disk, and it
+    renumbered the list under the user between one menu draw and the next --
+    unhelpful when the menu is driven by slot number.
     """
     try:
-        # Validate inputs
-        if not filename or not url:
-            return
+        if not filename:
+            return False
 
-        # Truncate the URL for display
+        # Always read-modify-write against what is actually on disk.  Several
+        # separately-loaded copies of this config are alive at once (interface
+        # holds one, handle_download holds one, DownloadManager holds another),
+        # and writing back a stale snapshot is how entries got resurrected.
+        fresh = configure.Config_Manager.load()
         short_url = url if len(url) <= 60 else f"{url[:57]}..."
 
-        # Check if entry exists
+        # 1) Known filename -> update in place.
         for i in range(1, 10):
-            if config.get(f"filename_{i}") == filename and config.get(f"url_{i}") == url:
+            if fresh.get(f"filename_{i}") == filename:
+                if url:
+                    fresh[f"url_{i}"] = url
                 if total_size > 0:
-                    config[f"total_size_{i}"] = total_size
-                    configure.Config_Manager.save(config)  # Fixed
-                return
+                    fresh[f"total_size_{i}"] = total_size
+                configure.Config_Manager.save(fresh)
+                _sync_slots(config, fresh)
+                return True
 
-        # Check for existing temp files without a menu entry
-        temp_path = Path(TEMP_DIR) / f"{filename}.part"
-        if temp_path.exists() and temp_path.stat().st_size > 0:
-            # Shift entries down to make room for the new entry
-            for i in range(9, 1, -1):
-                config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
-                config[f"url_{i}"] = config.get(f"url_{i-1}", "")
-                config[f"total_size_{i}"] = config.get(f"total_size_{i-1}", 0)
+        # 2) New filename -> first free slot.
+        for i in range(1, 10):
+            if fresh.get(f"filename_{i}", "Empty") in ("Empty", "RESERVED"):
+                fresh[f"filename_{i}"] = filename
+                fresh[f"url_{i}"] = url
+                if total_size <= 0:
+                    temp_path = Path(TEMP_DIR) / f"{filename}.part"
+                    if temp_path.exists():
+                        total_size = 0  # size unknown; leave 0 rather than
+                                        # recording the partial size as the total
+                fresh[f"total_size_{i}"] = max(0, total_size)
+                configure.Config_Manager.save(fresh)
+                _sync_slots(config, fresh)
+                print(f"Registered download in slot {i}: {filename} ({short_url})")
+                return True
 
-            # Add new entry at position 1
-            config["filename_1"] = filename
-            config["url_1"] = url
-            config["total_size_1"] = temp_path.stat().st_size
-            configure.Config_Manager.save(config)  # Fixed
-            print(f"Registered partial download: {filename} ({short_url}) with size {temp_path.stat().st_size}")
-            return
-
-        # Shift entries down to make room for the new entry
-        for i in range(9, 1, -1):
-            config[f"filename_{i}"] = config.get(f"filename_{i-1}", "Empty")
-            config[f"url_{i}"] = config.get(f"url_{i-1}", "")
-            config[f"total_size_{i}"] = config.get(f"total_size_{i-1}", 0)
-
-        # Add new entry at position 1
-        config["filename_1"] = filename
-        config["url_1"] = url
-        config["total_size_1"] = total_size
-
-        # Save changes
-        configure.Config_Manager.save(config)  # Fixed
-        print(f"Successfully registered new download: {filename} ({short_url}) with size {total_size}")
+        # 3) No free slot.  Say so instead of quietly evicting slot 9.
+        display_error("All 9 slots are in use. Delete an entry (D) before starting a new download.")
+        time.sleep(3)
+        return False
 
     except Exception as e:
         display_error(f"Error updating history: {e}")
         time.sleep(3)
+        return False

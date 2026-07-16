@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
 from urllib.parse import urlparse, parse_qs, unquote
-from requests.exceptions import RequestException, Timeout, ConnectionError
+from requests.exceptions import RequestException, Timeout, ConnectionError, ChunkedEncodingError
 from tqdm import tqdm
 from urllib3.exceptions import IncompleteRead
 from .temporary import (
@@ -44,16 +44,131 @@ from .interface import display_download_state, display_download_summary, clear_s
 from . import temporary 
 
 # Conditional Imports
-if temporary.PLATFORM != 'windows':
+# Keyed off temporary.IS_WINDOWS (the real host OS), NOT temporary.PLATFORM.
+# PLATFORM is set from argv by launcher.py, but only *if* an argv was given --
+# run `python launcher.py` with no argument on Windows and PLATFORM is still
+# "None" here, `"None" != 'windows'` is True, and this module used to try
+# `import termios` and blow up at import time before main() ever set the
+# default. The host OS cannot change mid-run, so resolve it from the OS.
+if temporary.IS_WINDOWS:
+    import msvcrt
+else:
+    import select
     import termios
     import tty
-else:
-    import msvcrt  # Windows-specific module
 
 # Classes
 class DownloadError(Exception):
     """Custom exception for download-related errors."""
     pass
+
+
+# ── Keyboard handling ────────────────────────────────────────────────────────
+# The old inline check lived inside the chunk loop:
+#
+#     if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
+#
+# Three separate problems, which together produced the reported symptom
+# (mash "a" for ages, nothing happens, then the menu appears pre-filled with
+# "aaaaaaaaaaaaaaaaaaaa"):
+#
+#  1. It only ran once per chunk.  A chunk is `chunk` bytes from persistent.json
+#     -- 4 MB by default -- and iter_content blocks until the whole chunk has
+#     arrived.  On a bad line that is one keyboard poll every 30+ seconds.
+#  2. It consumed exactly ONE character per poll.  Every other keypress stayed
+#     queued in the console input buffer, survived the return to the menu, and
+#     got handed straight to the menu's input() -- that is the "aaaaa...".
+#  3. .decode() on a special key (arrows send b'\xe0' + a scan code) raised
+#     UnicodeDecodeError inside the download loop.
+#
+# Now: a daemon thread polls at 100 ms regardless of chunk size, sets
+# ABORT_EVENT the instant it sees the key, prints the notice immediately, and
+# swallows every remaining keystroke so nothing leaks back to the menu.  The
+# download loop checks ABORT_EVENT after each chunk is written, so the chunk in
+# flight still completes and is kept -- no re-downloading that data on resume.
+
+def _stdin_is_tty() -> bool:
+    """True only if we can actually read keystrokes from stdin."""
+    try:
+        return sys.stdin is not None and sys.stdin.isatty()
+    except Exception:
+        return False
+
+
+def flush_input_buffer() -> None:
+    """Discard anything the user typed that we have not consumed."""
+    if not _stdin_is_tty():
+        return
+    try:
+        if temporary.IS_WINDOWS:
+            while msvcrt.kbhit():
+                msvcrt.getch()
+        else:
+            termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
+    except Exception:
+        pass
+
+
+def read_key(timeout: float = 0.1) -> Optional[str]:
+    """Return one lowercased keystroke, or None if nothing was typed in `timeout`."""
+    try:
+        if temporary.IS_WINDOWS:
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if msvcrt.kbhit():
+                    ch = msvcrt.getch()
+                    if ch in (b'\x00', b'\xe0'):
+                        msvcrt.getch()   # special key: drop its scan code too
+                        continue
+                    return ch.decode('utf-8', 'ignore').lower() or None
+                time.sleep(0.02)
+            return None
+        else:
+            # Requires cbreak mode, which download_file sets up.
+            ready, _, _ = select.select([sys.stdin], [], [], timeout)
+            if not ready:
+                return None
+            ch = sys.stdin.read(1)
+            return ch.lower() if ch else None
+    except Exception:
+        return None
+
+
+class KeyListener:
+    """Watches for the abandon key on a background thread during a download."""
+
+    def __init__(self, keys=('a',)):
+        self.keys = {k.lower() for k in keys}
+        self._stop = threading.Event()
+        self.thread = None
+
+    def start(self) -> None:
+        temporary.ABORT_EVENT.clear()
+        self._stop.clear()
+        if not _stdin_is_tty():
+            return   # nothing to listen to; downloads still run normally
+        flush_input_buffer()   # ignore anything typed before the download began
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=1)
+        self.thread = None
+        flush_input_buffer()   # nothing reaches the menu's input()
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            key = read_key(timeout=0.1)
+            if key and key in self.keys:
+                temporary.ABORT_EVENT.set()
+                # Immediate feedback: the display thread will repaint this on its
+                # next 1s refresh, but say it now so there is zero dead air.
+                print("\nStopping the active download, finishing current chunk...",
+                      flush=True)
+                flush_input_buffer()   # eat the repeats from key-mashing
+                return
 
 def register_handler(platform: str):
     """Decorator to collect URL handlers to be registered later."""
@@ -156,7 +271,11 @@ class URLProcessor:
     def compare_files(local_path: Path, remote_info: Dict) -> str:
         """Compare local and remote file sizes."""
         if not local_path.exists():
-            return DOWNLOAD_VALIDATION["new"]
+            # Was DOWNLOAD_VALIDATION["new"] -- that key does not exist in the
+            # dict (it only has size_mismatch/incomplete/complete/unknown), so
+            # this raised KeyError. Unreached today; correct it rather than
+            # leave the landmine.
+            return DOWNLOAD_VALIDATION["unknown"]
 
         local_size = local_path.stat().st_size
         if local_size == remote_info.get('size', 0):
@@ -255,7 +374,9 @@ def extract_filename_from_disposition(disposition: str) -> Optional[str]:
 # Download handling
 def handle_download(url: str, config: dict, batch_index: Optional[int] = None, batch_total: Optional[int] = None) -> Tuple[bool, str]:
     from .configure import Config_Manager, get_downloads_path
-    from .interface import display_error, display_success, handle_error, get_user_choice_after_error, display_download_state, display_download_summary, clear_screen, format_file_size, update_history
+    from .interface import (display_error, display_success, handle_error, get_user_choice_after_error,
+                            display_download_state, display_download_summary, clear_screen,
+                            format_file_size, update_history, display_download_prompt)
     try:
         processor = URLProcessor()
         try:
@@ -271,18 +392,37 @@ def handle_download(url: str, config: dict, batch_index: Optional[int] = None, b
             time.sleep(3)
             return False, "Unable to extract filename from the URL."
 
-        update_history(config, filename, url, metadata.get('size', 0))
-        Config_Manager.save(config)
+        # Pre-register so the slot survives a failure and can be retried from the
+        # menu.  update_history now reports whether it actually got a slot.
+        if not update_history(config, filename, url, metadata.get('size', 0)):
+            return False, "No free slot available for this download."
 
         downloads_path = get_downloads_path(config)
         dm = DownloadManager(downloads_path)
         chunk_size = config.get("chunk", 4096000)
 
         out_path = downloads_path / filename
-        success, error = dm.download_file(download_url, out_path, chunk_size, batch_index=batch_index, batch_total=batch_total)
+        # `url`, not `download_url`.  download_file runs process_url again itself,
+        # so passing the already-processed URL meant processing it twice -- two
+        # HEAD round-trips per download, and outright breakage for Google Drive:
+        # process_google_drive_url matches on `/d/<id>`, so feeding it the
+        # `uc?id=...&export=download` URL it had just produced raised
+        # "Invalid Google Drive URL format". Passing the original also keeps the
+        # user's URL (not a rewritten CDN one) as the URL saved for resuming.
+        # For HuggingFace and plain direct links url == download_url, so this
+        # path is byte-for-byte identical to before.
+        success, error = dm.download_file(url, out_path, chunk_size,
+                                          batch_index=batch_index, batch_total=batch_total)
 
         if success:
             return True, ""
+        elif error in ("Download saved for later", "Download stopped by user"):
+            # Abandoning is a deliberate user action, not a failure.  It used to
+            # surface as "Error: Download failed: Download saved for later", and
+            # then get re-printed by the caller as an error on top of that.
+            display_success("Download stopped and saved. Select its slot to resume.")
+            time.sleep(2)
+            return False, ""
         else:
             display_error(f"Download failed: {error}")
             time.sleep(3)
@@ -321,111 +461,11 @@ def handle_multiple_downloads(urls: list, config: dict) -> int:
             return success_count  # Exit early on failure or abandonment
     return success_count
 
-@staticmethod
-def get_remote_file_info(url: str, headers: Dict, config: Dict) -> Dict:
-    from .interface import display_error  # Deferred import
-    import requests
-    import time
-    import random
-    from requests.exceptions import Timeout, ConnectionError, HTTPError
-
-    timeout_length = config.get("timeout_length", 120)
-    start_time = time.time()
-    attempt = 0
-    base_delay = 1
-    max_attempts = 5
-    last_update = 0
-    status_line_length = 120  # Match your separator width
-
-    def print_status(message):
-        # Pad the message with spaces to clear the line
-        padded_message = message.ljust(status_line_length)
-        print(f"\r{padded_message}", end='', flush=True)
-
-    print_status("Establishing connection...")
-
-    with requests.Session() as session:
-        while (time.time() - start_time) < timeout_length and attempt < max_attempts:
-            attempt += 1
-            try:
-                # Update status every second
-                current_time = time.time()
-                if current_time - last_update > 1:
-                    remaining = timeout_length - (current_time - start_time)
-                    status_msg = f"Establishing connection (attempt {attempt}/{max_attempts})... {remaining:.1f}s remaining"
-                    print_status(status_msg)
-                    last_update = current_time
-
-                # Attempt HEAD request first
-                response = session.head(
-                    url,
-                    headers=headers,
-                    allow_redirects=True,
-                    timeout=3
-                )
-                response.raise_for_status()
-
-                # Check if Content-Length is present and valid
-                content_length = int(response.headers.get('content-length', 0))
-                if content_length > 0:
-                    total_size = content_length
-                else:
-                    # Fallback to GET request with Range to get Content-Range
-                    get_response = session.get(
-                        url,
-                        headers={**headers, "Range": "bytes=0-0"},
-                        allow_redirects=True,
-                        timeout=3,
-                        stream=True
-                    )
-                    get_response.raise_for_status()
-                    if 'Content-Range' in get_response.headers:
-                        content_range = get_response.headers['Content-Range']
-                        if '/' in content_range:
-                            _, total_size_str = content_range.rsplit('/', 1)
-                            total_size = int(total_size_str) if total_size_str != '*' else 0
-                        else:
-                            total_size = 0
-                    else:
-                        total_size = 0
-
-                elapsed = time.time() - start_time
-                print_status(f"Connection established in {elapsed:.1f}s")
-                return {
-                    'size': total_size,
-                    'modified': response.headers.get('last-modified'),
-                    'etag': response.headers.get('etag'),
-                    'content_type': response.headers.get('content-type')
-                }
-
-            except (Timeout, ConnectionError) as e:
-                delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
-                for i in range(int(delay), 0, -1):
-                    status_msg = f"Connection error: {str(e)}. Reconnecting in {i}s..."
-                    print(f"\r{status_msg.ljust(status_line_length)}", end='', flush=True)
-                    time.sleep(1)
-                print("\r" + " " * status_line_length + "\r", end='')
-                continue
-            except HTTPError as e:
-                status_code = e.response.status_code
-                if status_code in [500, 502, 503, 504, 429]:
-                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), 10)
-                    for i in range(int(delay), 0, -1):
-                        status_msg = f"Server error ({status_code}). Reconnecting in {i}s..."
-                        print(f"\r{status_msg.ljust(status_line_length)}", end='', flush=True)
-                        time.sleep(1)
-                    print("\r" + " " * status_line_length + "\r", end='')
-                    continue
-                else:
-                    display_error(f"HTTP error: {str(e)}")
-                    time.sleep(3)
-                    return {}
-
-        # Timeout reached
-        print_status(f"Connection timed out after {timeout_length}s")
-        display_error(f"Connection timed out after {timeout_length}s")
-        time.sleep(3)
-        return {}
+# NOTE: a second, module-level copy of get_remote_file_info used to live here,
+# decorated with a bare @staticmethod at module scope. It was never called, and
+# it could not be: on Python < 3.10 a staticmethod object is not callable
+# outside a class body, so any call would have raised TypeError. The live
+# implementation is URLProcessor.get_remote_file_info above.
 
 def get_file_name_from_url(url: str) -> Optional[str]:
     """Extract filename from URL or headers."""
@@ -596,8 +636,12 @@ class DownloadManager:
         """Register any .part files in temp directory."""
         for temp_file in TEMP_DIR.glob("*.part"):
             filename = temp_file.stem
-            if not any(self.config[f"filename_{i}"] == filename for i in range(1, 10)):
-                self._register_file_entry(filename, "", temp_file.stat().st_size)
+            if not any(self.config.get(f"filename_{i}") == filename for i in range(1, 10)):
+                # total_size 0, not the .part's current size.  Passing the partial
+                # size as the total made the menu render an unfinished file as
+                # "100%" (progress = temp_size / total_size).  0 means unknown,
+                # which the menu already renders as "<size>/Unknown".
+                self._register_file_entry(filename, "", 0)
                 print(f"Registered temporary file: {temp_file.name}")
 
     def _remove_from_persistent(self, index: int) -> None:
@@ -614,15 +658,15 @@ class DownloadManager:
         Config_Manager.save(self.config)
 
     def _register_file_entry(self, filename: str, url: str, total_size: int) -> None:
-        """Register a file entry in the first available slot."""
-        from .configure import Config_Manager
-        for i in range(1, 10):
-            if self.config[f"filename_{i}"] in ["Empty", filename]:
-                self.config[f"filename_{i}"] = filename
-                self.config[f"url_{i}"] = url
-                self.config[f"total_size_{i}"] = total_size
-                Config_Manager.save(self.config)
-                break
+        """Register/refresh a file entry.
+
+        Delegates to update_history so there is exactly ONE place that decides
+        what a duplicate is.  This used to hand-roll its own slot search against
+        self.config -- a snapshot loaded back in __init__ and never refreshed --
+        so it happily wrote a stale view of the slot list back over a newer one.
+        """
+        from .interface import update_history
+        update_history(self.config, filename, url, total_size)
 
     def _register_early_metadata(self, filename: str, url: str, total_size: int) -> None:
         """Register download metadata immediately after verifying total size."""
@@ -677,24 +721,54 @@ class DownloadManager:
         total_size = 0
         batch_mode = batch_index is not None and batch_total is not None
 
-        # Terminal setup for non-Windows platforms
+        # The URL as the user knows it -- this is what gets saved for resuming,
+        # never the rewritten/CDN form.
+        source_url = remote_url
+
+        # Retries come from persistent.json (the "Maximum Retries" setup option),
+        # falling back to the runtime default.  The setup menu cycles this through
+        # 100/200/400/800 and it was being ignored entirely: the loop below read
+        # RUNTIME_CONFIG["download"]["max_retries"], a hard-coded 10.
+        max_retries = int(self.config.get("retries", RUNTIME_CONFIG["download"]["max_retries"]) or 10)
+
+        # Terminal setup for non-Windows platforms.
+        # Guarded: termios.tcgetattr() raises if stdin is not a real terminal, so
+        # piping anything into launcher.py, or running it from a service/cron with
+        # stdin redirected, used to kill every download at this line before a byte
+        # was fetched.  Without a tty there is simply no key to listen for.
         old_term = None
-        if temporary.PLATFORM != 'windows':
-            import termios, tty
-            fd = sys.stdin.fileno()
-            old_term = termios.tcgetattr(fd)
-            tty.setcbreak(fd)
+        fd = None
+        if not temporary.IS_WINDOWS and _stdin_is_tty():
+            try:
+                fd = sys.stdin.fileno()
+                old_term = termios.tcgetattr(fd)
+                tty.setcbreak(fd)
+            except Exception:
+                old_term = None
+                fd = None
+
+        # Watch for the abandon key on its own thread; see KeyListener above.
+        key_listener = KeyListener(keys=('a',))
+        key_listener.start()
 
         try:
-            pre_registration_attempts = 0
             retries = 0
-            max_pre_attempts = 3
+            no_resume = False  # Set True once server confirms it won't honour Range requests.
+                               # Persists across retries so we stop sending Range headers
+                               # and stop treating the stale partial as resumable data.
 
-            while pre_registration_attempts < max_pre_attempts or retries < RUNTIME_CONFIG["download"]["max_retries"]:
+            while retries < max_retries:
                 try:
+                    if temporary.ABORT_EVENT.is_set():
+                        return False, "Download stopped by user"
+
                     # Get file metadata
-                    print(f"Retrieving file metadata (attempt {pre_registration_attempts + retries + 1}): ", end='', flush=True)
-                    download_url, metadata = URLProcessor.process_url(remote_url, RUNTIME_CONFIG)
+                    print(f"Retrieving file metadata (attempt {retries + 1}): ", end='', flush=True)
+                    # self.config, not RUNTIME_CONFIG: get_remote_file_info reads
+                    # config["timeout_length"], and RUNTIME_CONFIG has no such key,
+                    # so the user's configured timeout was silently replaced by the
+                    # 120s default on every single request.
+                    download_url, metadata = URLProcessor.process_url(remote_url, self.config)
                     total_size = metadata.get('size', 0)
                     print("Done")
 
@@ -703,7 +777,20 @@ class DownloadManager:
                         return False, ERROR_HANDLING["messages"]["filename_error"]
 
                     temp_path = TEMP_DIR / f"{filename}.part"
-                    existing_size = temp_path.stat().st_size if temp_path.exists() else 0
+
+                    # If the server is known to not support resume, any .part file that
+                    # exists is leftover from a previous interrupted fresh download and
+                    # contains data from offset 0 — not a resumable partial.  Delete it
+                    # now so we start clean, and send no Range header.
+                    if no_resume:
+                        if temp_path.exists():
+                            try:
+                                temp_path.unlink()
+                            except OSError:
+                                pass
+                        existing_size = 0
+                    else:
+                        existing_size = temp_path.stat().st_size if temp_path.exists() else 0
 
                     # Check for existing tracking data
                     tracking_data = next((d for d in ACTIVE_DOWNLOADS if d['filename'] == out_path.name), None)
@@ -727,7 +814,7 @@ class DownloadManager:
                         tracking_data.update({
                             'current': existing_size,
                             'total': total_size,
-                            'status': 'connecting',
+                            'status': 'restarting' if no_resume and retries > 0 else 'connecting',
                             'start_time': start_time
                         })
                         if batch_mode:
@@ -762,6 +849,12 @@ class DownloadManager:
                                 response, existing_size, total_size, temp_path
                             )
 
+                            # Persist the no-resume determination for the lifetime of this
+                            # download.  Once the server has demonstrated it ignores Range,
+                            # every subsequent retry must start fresh with no Range header.
+                            if resume_status == "Unavailable":
+                                no_resume = True
+
                             # Check Content-Disposition for a server-provided filename
                             # (important for CDN-redirected URLs that change the path)
                             cd_header = response.headers.get('Content-Disposition', '')
@@ -790,49 +883,53 @@ class DownloadManager:
                             # Download loop
                             with open(temp_path, file_mode) as out_file:
                                 for chunk in response.iter_content(chunk_size=chunk_size):
-                                    if chunk:
-                                        # Cross-platform keyboard check
-                                        if temporary.PLATFORM == 'windows':
-                                            import msvcrt
-                                            if msvcrt.kbhit() and msvcrt.getch().decode().lower() == 'a':
-                                                self._register_file_entry(filename, remote_url, existing_size)
-                                                return False, "Download saved for later"
-                                        else:
-                                            import select
-                                            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                                                key = sys.stdin.read(1).lower()
-                                                if key == 'a':
-                                                    self._register_file_entry(filename, remote_url, existing_size)
-                                                    return False, "Download saved for later"
+                                    if not chunk:
+                                        continue
 
-                                        # Process chunk
-                                        out_file.write(chunk)
-                                        out_file.flush()
-                                        os.fsync(out_file.fileno())
-                                        written_size = out_file.tell()
-                                        now = time.time()
-                                        elapsed_chunk = now - tracking_data.get('last_chunk_time', now)
-                                        tracking_data.update({
-                                            'current': written_size,
-                                            'total': total_size,
-                                            'status': 'downloading',
-                                            'speed': len(chunk) / elapsed_chunk if elapsed_chunk > 0 else 0,
-                                            'last_chunk_time': now
-                                        })
-                                        existing_size = written_size
+                                    # Process chunk
+                                    out_file.write(chunk)
+                                    out_file.flush()
+                                    os.fsync(out_file.fileno())
+                                    written_size = out_file.tell()
+                                    now = time.time()
+                                    elapsed_chunk = now - tracking_data.get('last_chunk_time', now)
+                                    tracking_data.update({
+                                        'current': written_size,
+                                        'total': total_size,
+                                        'status': 'downloading',
+                                        'speed': len(chunk) / elapsed_chunk if elapsed_chunk > 0 else 0,
+                                        'last_chunk_time': now
+                                    })
+                                    existing_size = written_size
+
+                                    # Abandon check AFTER the write+fsync: the
+                                    # chunk that was in flight when "A" was pressed
+                                    # is completed and kept, so resuming does not
+                                    # re-fetch it.  KeyListener has already set this
+                                    # (and printed the notice) the moment the key was
+                                    # pressed -- all that is waited on here is the
+                                    # current chunk finishing, not a poll.
+                                    if temporary.ABORT_EVENT.is_set():
+                                        self._register_file_entry(filename, source_url, total_size)
+                                        return False, "Download saved for later"
 
                             # ── Post-download size verification ──
+                            # Note: this block only runs when iter_content exits cleanly
+                            # (no exception).  The ChunkedEncodingError path above handles
+                            # the case where the connection drops mid-stream or after the
+                            # last byte (missing terminating chunk).
                             actual_temp_size = temp_path.stat().st_size if temp_path.exists() else 0
                             if total_size > 0 and actual_temp_size != total_size:
                                 size_diff = actual_temp_size - total_size
                                 if size_diff < 0:
-                                    # Genuinely incomplete — treat as a retryable error
-                                    raise IncompleteRead(
-                                        b'',
-                                        total_size - actual_temp_size
-                                    )
+                                    # Loop ended cleanly but server sent fewer bytes than
+                                    # Content-Length promised.  Retry.
+                                    missing = format_file_size(total_size - actual_temp_size)
+                                    print(f"\n[Incomplete] Got {format_file_size(actual_temp_size)} of {format_file_size(total_size)} — {missing} missing. Retrying...")
+                                    raise IncompleteRead(b'', total_size - actual_temp_size)
                                 else:
-                                    # Received more than expected (unusual but not fatal)
+                                    # Received slightly more than expected — can happen
+                                    # with some CDN edge caches.  Warn but proceed.
                                     display_error(
                                         f"Warning: received {format_file_size(actual_temp_size)} "
                                         f"but expected {format_file_size(total_size)}. "
@@ -862,14 +959,82 @@ class DownloadManager:
                                 batch_mode=batch_mode
                             )
 
-                            update_history(self.config, filename, remote_url, final_size)
+                            update_history(self.config, filename, source_url, final_size)
                             return True, None
+
+                except (ConnectionError, ChunkedEncodingError, IncompleteRead) as e:
+                    # ── SourceForge / chunked-CDN completion check ──────────────────
+                    # These CDNs use Transfer-Encoding: chunked but drop the TCP
+                    # connection without sending the final zero-length terminating
+                    # chunk (0\r\n\r\n).  requests raises ChunkedEncodingError even
+                    # though EVERY content byte has already been written to disk.
+                    # Detect this by comparing .part size to the known total_size.
+                    # If they match, the download is actually complete — finalize it
+                    # instead of restarting the whole thing from scratch.
+                    if (total_size > 0
+                            and temp_path is not None
+                            and temp_path.exists()
+                            and temp_path.stat().st_size >= total_size):
+                        print(
+                            f"\n[Complete] Received all {format_file_size(total_size)} despite "
+                            f"connection drop (missing terminating chunk) — finalizing..."
+                        )
+                        if not move_with_retry(temp_path, out_path):
+                            return False, "Failed to move downloaded file"
+                        self._stop_display_updater()
+                        final_size = out_path.stat().st_size
+                        elapsed_total = time.time() - start_time
+                        # Use total bytes received this session for speed calculation.
+                        # pre_loop_existing_size may be 0 on a no_resume restart, which
+                        # is correct — we re-downloaded from byte 0.
+                        session_bytes = final_size - (pre_loop_existing_size if 'pre_loop_existing_size' in dir() else 0)
+                        avg_speed = session_bytes / elapsed_total if elapsed_total > 0 else 0
+                        display_download_summary(
+                            filename=filename,
+                            total_size=final_size,
+                            average_speed=avg_speed,
+                            elapsed=elapsed_total,
+                            timestamp=datetime.now(),
+                            destination=str(out_path),
+                            batch_mode=batch_mode
+                        )
+                        update_history(self.config, filename, source_url, final_size)
+                        return True, None
+                    # ── end completion check ─────────────────────────────────────────
+
+                    # Network-level failures: connection reset, TCP drop, truncated body.
+                    # These are retryable — but only if we handle the no_resume case.
+                    retries += 1
+                    err_type = type(e).__name__
+                    if no_resume:
+                        # Server won't resume, so any partial data written in this
+                        # iteration is from a fresh download that got cut off — useless.
+                        # Delete it so the next iteration starts with a clean slate.
+                        if temp_path is not None and temp_path.exists():
+                            try:
+                                temp_path.unlink()
+                            except OSError:
+                                pass
+                        print(f"\n[Retry {retries}] {err_type}: server does not support resume — restarting from 0...")
+                    else:
+                        written = temp_path.stat().st_size if (temp_path is not None and temp_path.exists()) else 0
+                        print(f"\n[Retry {retries}] {err_type}: will resume from {format_file_size(written)}...")
+                    if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
+                        raise
+                    time.sleep(min(2 ** retries, 30))
 
                 except Exception as e:
                     retries += 1
-                    if retries >= RUNTIME_CONFIG["download"]["max_retries"]:
+                    if retries >= max_retries:
                         raise
                     time.sleep(min(2 ** retries, 10))
+
+            # Reachable now that the loop has a real exit condition.  The old
+            # condition was `while pre_registration_attempts < max_pre_attempts
+            # or retries < ...` and pre_registration_attempts was never
+            # incremented, so the left side was permanently True and the loop
+            # could only ever be left by an exception.
+            return False, f"Download failed after {max_retries} attempts"
 
         except Exception as e:
             display_error(f"Unexpected error: {str(e)}")
@@ -877,21 +1042,25 @@ class DownloadManager:
 
         finally:
             # Clean up
+            key_listener.stop()
             self._stop_display_updater()
             if tracking_data and tracking_data in ACTIVE_DOWNLOADS:
                 ACTIVE_DOWNLOADS.remove(tracking_data)
 
             # Restore terminal settings on non-Windows platforms
-            if temporary.PLATFORM != 'windows' and old_term:
+            if not temporary.IS_WINDOWS and old_term is not None and fd is not None:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_term)
 
             if 'gc' in locals() or 'gc' in globals():
                 gc.collect()
                 
 def handle_orphaned_files(config: dict) -> None:
-    from scripts.temporary import BASE_DIR
-    from .configure import Config_Manager  # Import Config_Manager
-    
+    from .temporary import BASE_DIR          # was `from scripts.temporary import ...`
+                                             # -- an absolute import from inside the
+                                             # package, which only resolves because
+                                             # launcher.py happens to sit in BASE_DIR.
+    from .configure import Config_Manager
+
     registered_files = set()
     # Collect registered filenames
     for i in range(1, 10):
@@ -899,33 +1068,41 @@ def handle_orphaned_files(config: dict) -> None:
         if filename != "Empty":
             registered_files.add(filename)
             registered_files.add(f"{filename}.part")
+
+    downloads_path = get_downloads_path(config)
+
+    # Sweep ONLY `incomplete\`, and only .part files.
+    #
+    # This used to loop over [downloads_path, TEMP_DIR] and unlink anything not
+    # in the slot list.  downloads_location is user-settable from the Setup menu,
+    # so pointing it at a real folder (say C:\Users\me\Downloads, or ~/Downloads)
+    # meant that on the next launch -- handle_orphaned_files runs unconditionally
+    # from initialize_startup -- DownLord silently deleted every unrelated file in
+    # it.  The stated behaviour is "auto-remove items from its LIST when manually
+    # moved from the downloads folder", i.e. drop the entry, which is what the
+    # loop below does.  Deleting the user's files was never part of that.
+    #
+    # incomplete\ is DownLord's own scratch space, so an unregistered .part there
+    # really is garbage and is still cleared.
+    for file in TEMP_DIR.glob("*.part"):
+        if file.name in registered_files or file.stem in registered_files:
+            continue
+        try:
+            file.unlink()
+            print(f"Removed orphaned partial: {file.name}")
+        except Exception as e:
+            display_error(f"Error removing file {file}: {str(e)}")
+            time.sleep(3)
+
     
-    downloads_location_str = config.get("downloads_location", "downloads")
-    downloads_path = Path(downloads_location_str)
-    if not downloads_path.is_absolute():
-        downloads_path = BASE_DIR / downloads_path
-    downloads_path = downloads_path.resolve()
-    
-    # Remove unregistered files from downloads and temp folders
-    for folder in [downloads_path, TEMP_DIR]:
-        for file in folder.glob("*"):
-            if file.name in registered_files or any(
-                config.get(f"filename_{i}") == file.stem for i in range(1, 10)
-            ):
-                continue
-            try:
-                file.unlink()
-                print(f"Removed unregistered file: {file}")
-            except Exception as e:
-                display_error(f"Error removing file {file}: {str(e)}")
-                time.sleep(3)
-    
-    # Check each config entry and remove if the file is missing
+    # Check each config entry and remove if the file is missing.
+    # This is the "auto-removing items from its list" behaviour: the file was
+    # moved out of downloads\ or deleted, so the slot is released.
     for i in range(1, 10):
         filename = config.get(f"filename_{i}", "Empty")
         if filename == "Empty":
             continue
-        
+
         # Check if the file exists in downloads or as .part in temp
         file_path = downloads_path / filename
         temp_path = TEMP_DIR / f"{filename}.part"

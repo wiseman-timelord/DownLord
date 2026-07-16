@@ -3,6 +3,9 @@
 # Imports
 import os
 import re
+import sys
+import threading
+import platform as _platform
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union
@@ -12,7 +15,23 @@ from urllib.parse import unquote
 APP_TITLE = "DownLord"
 
 # Platform
+# PLATFORM is the *requested* mode, set by launcher.py from the argv passed by
+# DownLord.bat / DownLord.sh.  It stays "None" until the launcher sets it.
 PLATFORM = "None"
+
+# IS_WINDOWS is the *actual* host OS, resolved at import time and never changed.
+# Anything that decides which stdlib module to import (msvcrt vs termios) MUST
+# use this, not PLATFORM -- PLATFORM is still "None" while `scripts.manage` is
+# being imported if no argv was supplied, which used to make Windows try to
+# `import termios` and crash before the launcher ever ran.
+IS_WINDOWS = _platform.system().lower().startswith("win") or os.name == "nt"
+
+
+def platform_name() -> str:
+    """Requested platform if the launcher set one, else the detected host OS."""
+    if PLATFORM in ("windows", "linux"):
+        return PLATFORM
+    return "windows" if IS_WINDOWS else "linux"
 
 # Directory Structure
 BASE_DIR = Path(__file__).parent.parent.resolve()
@@ -34,6 +53,12 @@ DISPLAY_REFRESH = 1
 # DownloadS
 _pending_handlers = []
 ACTIVE_DOWNLOADS = []
+
+# Abort signalling.
+# Set by the background key listener the instant "A" is seen; read by the
+# download loop (which stops at the next chunk boundary) and by the download
+# display (which swaps the prompt for a "Stopping..." notice).
+ABORT_EVENT = threading.Event()
 
 # Download_Tracking
 DOWNLOAD_TRACKING = {
