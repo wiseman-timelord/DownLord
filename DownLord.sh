@@ -28,8 +28,8 @@ echo -ne "\033]0;$TITLE\007"
 # Check terminal size and resize if needed
 check_terminal_size() {
     local current_width current_height
-    current_width=$(tput cols)
-    current_height=$(tput lines)
+    current_width=$(tput cols 2>/dev/null || echo "$MIN_TERMINAL_WIDTH")
+    current_height=$(tput lines 2>/dev/null || echo "$MIN_TERMINAL_HEIGHT")
     
     if [ "$current_width" -lt "$MIN_TERMINAL_WIDTH" ] || [ "$current_height" -lt "$MIN_TERMINAL_HEIGHT" ]; then
         echo "Adjusting terminal size for optimal display..."
@@ -39,22 +39,40 @@ check_terminal_size() {
     fi
 }
 
-# Check for root privileges
-check_root() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo "Error: Administrator privileges required!"
-        echo "Please run with: sudo $0"
+# Check privileges
+# DownLord does NOT need root on Linux, and running it as root is actively
+# harmful: everything it creates (.venv/, data/persistent.json, downloads/,
+# incomplete/) ends up owned by root, so afterwards the normal user cannot
+# write to their own downloads or config, and every later run needs sudo too.
+# It also means a bug in the program runs with full system privileges.
+# The Windows batch asks for Administrator because it always has; on Linux the
+# only thing needed is write access to this directory, so check exactly that.
+# (scripts/temporary.py agrees: PLATFORM_SETTINGS["linux"]["admin_required"] is False.)
+check_permissions() {
+    if [ ! -w "$SCRIPT_DIR" ]; then
+        echo "Error: No write access to $SCRIPT_DIR"
+        echo "Move DownLord somewhere you own, e.g. ~/DownLord"
         sleep 3
         exit 1
     fi
-    echo "Status: Administrator"
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "Warning: running as root. Files created will be owned by root,"
+        echo "which usually causes permission problems later. Prefer a normal user."
+        sleep 3
+    fi
+    echo "Status: Write access confirmed"
     sleep 1
 }
 
 # Terminal display functions
+# `tput cols` fails when TERM is unset or dumb (plain `sudo`, a pipe, some
+# terminal emulators, cron).  Under `set -e` + the ERR trap that killed the whole
+# menu with "Script failed at line N", so fall back to the 120 the UI assumes.
 get_terminal_width() {
-    TERMINAL_WIDTH=$(tput cols)
+    TERMINAL_WIDTH=$(tput cols 2>/dev/null || echo "$MIN_TERMINAL_WIDTH")
+    [ -z "$TERMINAL_WIDTH" ] && TERMINAL_WIDTH=$MIN_TERMINAL_WIDTH
     SEPARATOR_WIDTH=$((TERMINAL_WIDTH - 1))
+    [ "$SEPARATOR_WIDTH" -lt 1 ] && SEPARATOR_WIDTH=$((MIN_TERMINAL_WIDTH - 1))
 }
 
 create_separator() {
@@ -90,7 +108,17 @@ launch_downlord() {
     echo
     echo "Starting $TITLE..."
     sleep 1
-    
+
+    # Parity with DownLord.bat, which checks for this and the venv before
+    # launching.  Without it the user gets a Python traceback from
+    # check_environment instead of a plain "run the installer first".
+    if [ ! -f "$SCRIPT_DIR/data/persistent.json" ]; then
+        echo "Error: Configuration file not found"
+        echo "Please run the installer first (option 2)"
+        sleep 3
+        return 1
+    fi
+
     # Check if virtual environment exists
     if [ ! -f "$VENV_PYTHON" ]; then
         echo "Error: Virtual environment not found"
@@ -139,7 +167,13 @@ main_menu() {
         printf "\n\n\n\n\n\n\n"
         display_separator
         
-        read -rp "Selection; Options = 1-2, Exit = X: " choice
+        # `|| { ...; }`: under `set -e` a failing read (EOF / Ctrl-D) would
+        # otherwise fire the ERR trap and print a bogus "Script failed" error.
+        read -rp "Selection; Options = 1-2, Exit = X: " choice || {
+            echo
+            echo "Input closed. Exiting..."
+            exit 0
+        }
         
         case "${choice,,}" in
             1)
@@ -180,7 +214,7 @@ main_menu() {
 echo "Initializing $TITLE..."
 sleep 1
 check_terminal_size
-check_root
+check_permissions
 
 # Start main menu
 main_menu

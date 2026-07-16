@@ -12,7 +12,12 @@ from typing import List, Tuple, Optional
 
 # Constants
 APP_TITLE = "DownLord"
-MIN_PYTHON_VERSION = (3, 6)
+# 3.9, not 3.6: scripts/interface.py annotates with builtin generics
+# (`-> tuple[str, Optional[float], Optional[str]]`), which is a TypeError before
+# 3.9. Claiming 3.6 let the installer report success on a Python that then
+# crashed on the first import. Officially targeting 3.11-3.13, but this is the
+# real floor rather than an artificial limit.
+MIN_PYTHON_VERSION = (3, 9)
 BASE_DIR = Path(__file__).parent
 VENV_DIR = BASE_DIR / ".venv"
 
@@ -37,10 +42,20 @@ INIT_FILE = BASE_DIR / "scripts" / "__init__.py"
 PERSISTENT_FILE = BASE_DIR / "data" / "persistent.json"
 
 # File Templates
+# NOTE: `pathlib` was removed from this list on purpose.
+# The PyPI package named "pathlib" is an abandoned backport of the Python 3.4
+# stdlib module; pathlib has been in the standard library since 3.4, so nothing
+# needs to install it. In a normal venv it is merely inert -- stdlib precedes
+# site-packages on sys.path, so the real pathlib still wins the import -- but it
+# is a live tripwire: it only installs because a prebuilt wheel happens to exist,
+# and any environment that builds from sdist instead (PIP_NO_BINARY, an
+# uncommon platform/arch, a locked-down mirror) hits its 2to3-era setup.py,
+# which setuptools >= 58 refuses to run. That makes `pip install -r
+# requirements.txt` fail, which makes install_dependencies() return False, which
+# aborts the whole installer -- for a package that does nothing.
 REQUIREMENTS_TEXT = """requests>=2.31.0
 tqdm>=4.66.1
 urllib3>=2.1.0
-pathlib>=1.0.1
 """
 
 PERSISTENT_TEMPLATE = """{
@@ -113,7 +128,11 @@ def setup_directories() -> bool:
         except (PermissionError, OSError) as e:
             print(f"Failed to create/access {directory.name}: {e}")
             if CURRENT_PLATFORM == "linux":
-                print("Try running with 'sudo' or adjust permissions")
+                # Deliberately not suggesting sudo: installing as root makes
+                # .venv/, data/, downloads/ and incomplete/ root-owned, and then
+                # the normal user cannot write to them at runtime. Relocating is
+                # the correct fix.
+                print("Move DownLord to a directory you own (e.g. ~/DownLord) and retry.")
             return False
     return True
 
@@ -387,7 +406,11 @@ def main() -> None:
     
     # Final verification
     if verify_installation():
-        print("\n✓ Installation completed successfully")
+        # Plain ASCII: the old "\u2713" tick is not encodable in cp1252/cp437,
+        # so on a legacy Windows console this very last line raised
+        # UnicodeEncodeError -- a completely successful install would exit
+        # non-zero and DownLord.bat would report "Error during installation".
+        print("\n[OK] Installation completed successfully")
         print("Note: Use the launcher script to run DownLord with the virtual environment")
         sys.exit(0)
     else:
