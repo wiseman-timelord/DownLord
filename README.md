@@ -169,7 +169,7 @@ Selection; Abandon Download = A, Wait for Completion = >_>:
 3. On Main Menu press 0 then enter the URL to download, ensure it is a working URL.
 4. The complete download will be in `.\Downloads`, remember to move completed files out to intended locations.
 ```
-- You can just input huggingface.co download links from the page now, but the way to get an in-direct download link is...
+- As of version 0.60 one can just input huggingface.co download links from the page, but the way to get an in-direct download link is...
 
 ![copy_link_from_browser](https://raw.githubusercontent.com/wiseman-timelord/DownLord/refs/heads/main/media/copying_links.jpg)
 
