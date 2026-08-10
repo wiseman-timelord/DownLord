@@ -37,7 +37,7 @@ MULTI_HEADER = f'''{SEPARATOR_THICK}
 {SEPARATOR_THIN}'''
 
 MAIN_MENU_FOOTER = f"""{SEPARATOR_THICK}
-Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Setup = S, Quit = Q: """
+Selection; New URL = 0, Continue = 1-9, Refresh = R, Delete = D, Browse = B, Setup = S, Quit = Q: """
 
 SETUP_MENU = f"""
 
@@ -248,7 +248,7 @@ def get_user_choice_after_error() -> str:
     return input("\nSelection; Retry URL Now = R, Alternate URL = 0, Back to Menu = B: ").strip().lower()
 
 def prompt_for_download():
-    from .manage import handle_download, handle_orphaned_files, URLProcessor
+    from .manage import handle_download, handle_orphaned_files, URLProcessor, open_folder
     config = configure.Config_Manager.load()
     while True:
         # Recomputed per loop: it used to be resolved once before the loop, so
@@ -265,6 +265,19 @@ def prompt_for_download():
             handle_orphaned_files(config)
             config = configure.Config_Manager.load()
             clear_screen()
+            continue
+        if choice == 'b':
+            # Hand the folder to the desktop's own file manager.  downloads_path
+            # is recomputed at the top of this loop, so a location changed in the
+            # Setup menu is honoured without a restart.
+            clear_screen("Browse Downloads", pause=0)
+            print(f"\n\n    Downloads Location:\n        {downloads_path}\n")
+            opened, message = open_folder(downloads_path)
+            if opened:
+                display_success(message)
+            else:
+                display_error(message)
+            time.sleep(3)
             continue
         if choice == 'q':
             exit_sequence()

@@ -2,6 +2,8 @@
 
 # Imports
 import os, re, time, requests, json, random, socket, threading, sys
+import shutil
+import subprocess
 import gc
 from pathlib import Path
 from datetime import datetime
@@ -1171,3 +1173,140 @@ def move_with_retry(src: Path, dst: Path, max_retries: int = 10, delay: float = 
             display_error(f"Unexpected error: {e}")
             return False
     return False
+
+
+# File Browser Integration
+def _is_wsl() -> bool:
+    """True when running under WSL, where there is no Linux file manager."""
+    if temporary.IS_WINDOWS:
+        return False
+    try:
+        with open("/proc/version", "r") as f:
+            return "microsoft" in f.read().lower()
+    except OSError:
+        return False
+
+
+def _has_display() -> bool:
+    """True when a graphical session looks reachable.
+
+    Without this, a headless run (SSH, tmux on a server, systemd unit) fires
+    xdg-open into the void and reports success while nothing opens.
+    """
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _spawn(args: list, wait: bool = True) -> bool:
+    """Launch a detached GUI process.
+
+    `wait` polls briefly: xdg-open exits almost immediately, so a non-zero code
+    within the first second means it genuinely failed and the caller should try
+    the next candidate.  A process still alive after the timeout (nautilus with
+    no daemon already running, for instance) counts as launched.
+    """
+    try:
+        proc = subprocess.Popen(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception:
+        return False
+    if not wait:
+        return True
+    try:
+        return proc.wait(timeout=1.0) == 0
+    except subprocess.TimeoutExpired:
+        return True
+
+
+def open_folder(path: Path) -> Tuple[bool, str]:
+    """Open `path` in the host OS file manager.
+
+    Returns (success, message); never raises.  Failing to open a file browser
+    is a cosmetic problem and must not take the download list down with it.
+
+    Keyed off temporary.IS_WINDOWS (the real host OS) rather than
+    temporary.PLATFORM, for the same reason as the msvcrt/termios imports: the
+    launcher may never have been given an argv, and the OS is what decides
+    whether `explorer` or `xdg-open` exists.
+    """
+    path = Path(path)
+    if path.exists() and not path.is_dir():
+        return False, f"Not a directory: {path}"
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return False, f"Could not create folder {path}: {e}"
+
+    target = str(path)
+
+    # Windows
+    if temporary.IS_WINDOWS:
+        try:
+            os.startfile(target)  # noqa: F821 - Windows-only stdlib call
+            return True, f"Opened in Explorer: {target}"
+        except Exception:
+            pass
+        # explorer.exe returns exit code 1 even on success, so do not wait on it.
+        if _spawn(["explorer", target], wait=False):
+            return True, f"Opened in Explorer: {target}"
+        return False, f"Could not open Explorer. Folder: {target}"
+
+    # WSL - no Linux desktop, but Windows Explorer can reach the path.
+    if _is_wsl():
+        win_path = None
+        try:
+            result = subprocess.run(
+                ["wslpath", "-w", target],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                win_path = result.stdout.strip()
+        except Exception:
+            pass
+        if win_path and _spawn(["explorer.exe", win_path], wait=False):
+            return True, f"Opened in Explorer: {win_path}"
+        return False, f"WSL detected but Explorer would not open. Folder: {target}"
+
+    # macOS - not an officially supported target, but no reason to block it.
+    if sys.platform == "darwin":
+        if _spawn(["open", target]):
+            return True, f"Opened in Finder: {target}"
+        return False, f"Could not open Finder. Folder: {target}"
+
+    # Linux / BSD
+    if not _has_display():
+        return False, (
+            "No graphical desktop detected (DISPLAY and WAYLAND_DISPLAY are both "
+            f"unset). Folder: {target}"
+        )
+
+    # xdg-open first: it honours whatever file manager the desktop is set to,
+    # which is Nautilus (Files) on stock Ubuntu 24/25 GNOME but Dolphin on
+    # Kubuntu, Thunar on Xubuntu, Nemo on Mint, and so on.  The named managers
+    # below are only reached when xdg-utils is absent or misconfigured.
+    candidates = [
+        ("xdg-open", [target]),
+        ("gio", ["open", target]),
+        ("nautilus", ["--no-desktop", target]),
+        ("dolphin", [target]),
+        ("thunar", [target]),
+        ("nemo", [target]),
+        ("caja", [target]),
+        ("pcmanfm", [target]),
+        ("krusader", [target]),
+    ]
+    for name, args in candidates:
+        exe = shutil.which(name)
+        if not exe:
+            continue
+        if _spawn([exe] + args):
+            return True, f"Opened in {name}: {target}"
+
+    return False, (
+        "No usable file manager found (tried xdg-open, gio, nautilus, dolphin, "
+        f"thunar, nemo, caja, pcmanfm). Folder: {target}"
+    )
